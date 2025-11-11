@@ -8,7 +8,10 @@
       "Bash(xargs kill:*)",
       "Bash(time curl:*)",
       "Bash(/tmp/api_response.json)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
