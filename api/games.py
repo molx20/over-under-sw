@@ -24,13 +24,12 @@ class handler(BaseHTTPRequestHandler):
             path = parsed_path.path
             query_params = parse_qs(parsed_path.query)
 
-            # Route to appropriate handler
-            if path in ['/api/games', '/games', '/']:
-                self.handle_games(query_params)
-            elif path in ['/api/game_detail', '/game_detail']:
+            # Route based on query params - if game_id is present, it's a game detail request
+            if 'game_id' in query_params:
                 self.handle_game_detail(query_params)
             else:
-                self.send_error_response(404, 'Endpoint not found')
+                # Default to games list
+                self.handle_games(query_params)
 
         except Exception as e:
             import traceback
