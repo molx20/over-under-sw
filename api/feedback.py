@@ -103,8 +103,8 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(404, str(e))
                 return
 
-            # Get updated model for GitHub commit
-            updated_model = get_model_data()
+            # Get updated model for GitHub commit (from update_result, not file)
+            updated_model = update_result['updated_model']
 
             # Commit to GitHub
             commit_message = f"Update ratings: {home_tricode} vs {away_tricode} ({home_pts_final}-{away_pts_final})"

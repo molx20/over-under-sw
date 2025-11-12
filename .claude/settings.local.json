@@ -21,7 +21,9 @@
       "Bash(git config:*)",
       "Bash(vercel logs:*)",
       "Bash(vercel ls:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(printf:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []

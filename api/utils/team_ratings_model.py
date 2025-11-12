@@ -203,7 +203,7 @@ def update_ratings(
     # Save updated model
     _save_model(model)
 
-    # Return update summary
+    # Return update summary including the full updated model
     return {
         'old_ratings': {
             home_tricode: {'off': home_off_old, 'def': home_def_old},
@@ -223,5 +223,6 @@ def update_ratings(
             'home_actual': home_pts_final,
             'away_actual': away_pts_final
         },
-        'learning_rate': eta
+        'learning_rate': eta,
+        'updated_model': model  # Include full updated model for GitHub commit
     }
