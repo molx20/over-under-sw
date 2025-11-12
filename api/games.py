@@ -104,9 +104,14 @@ class handler(BaseHTTPRequestHandler):
                         'error': str(e)
                     })
 
+            # Use Eastern Time for consistency with game dates
+            from datetime import timedelta
+            et_offset = timedelta(hours=-5)
+            et_time = datetime.now(timezone.utc) + et_offset
+
             response = {
                 'success': True,
-                'date': datetime.now().strftime('%Y-%m-%d'),
+                'date': et_time.strftime('%Y-%m-%d'),
                 'games': games_with_predictions,
                 'count': len(games_with_predictions),
                 'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
