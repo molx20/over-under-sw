@@ -19,10 +19,6 @@
     {
       "src": "api/feedback.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "api/debug_github.py",
-      "use": "@vercel/python"
     }
   ],
   "rewrites": [
@@ -41,10 +37,6 @@
     {
       "source": "/api/feedback",
       "destination": "/api/feedback.py"
-    },
-    {
-      "source": "/api/debug_github",
-      "destination": "/api/debug_github.py"
     },
     {
       "source": "/((?!api).*)",
