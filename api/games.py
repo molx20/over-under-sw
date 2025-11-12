@@ -3,7 +3,7 @@ API endpoint to get today's games with predictions
 """
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import os
 
@@ -248,7 +248,8 @@ def get_games():
             'date': datetime.now().strftime('%Y-%m-%d'),
             'games': games_with_predictions,
             'count': len(games_with_predictions),
-            'last_updated': datetime.now().isoformat()
+            # Use RFC 3339 UTC timestamp compatible with Safari (no 6-digit micros)
+            'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
         })
 
     except Exception as e:
