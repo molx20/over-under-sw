@@ -46,63 +46,28 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(500, 'Failed to fetch games from NBA API')
                 return
 
-            # Add predictions to each game
+            # Format games for response (no predictions on list view for speed)
+            # Predictions will be generated on-demand when viewing game details
             games_with_predictions = []
             for game in games:
-                try:
-                    # Get comprehensive matchup data
-                    matchup_data = get_matchup_data(
-                        game['home_team_id'],
-                        game['away_team_id']
-                    )
-
-                    if matchup_data is None:
-                        print(f"Failed to get matchup data for game {game.get('game_id')}")
-                        games_with_predictions.append({
-                            **game,
-                            'prediction': None,
-                            'error': 'Failed to fetch team stats'
-                        })
-                        continue
-
-                    # Generate betting line (mock for now)
-                    mock_line = 220.5
-
-                    # Generate prediction
-                    prediction = predict_game_total(
-                        matchup_data['home'],
-                        matchup_data['away'],
-                        mock_line
-                    )
-
-                    games_with_predictions.append({
-                        'game_id': game['game_id'],
-                        'home_team': {
-                            'id': game['home_team_id'],
-                            'name': game['home_team_name'],
-                            'abbreviation': game['home_team_name'],
-                            'score': game['home_team_score'],
-                        },
-                        'away_team': {
-                            'id': game['away_team_id'],
-                            'name': game['away_team_name'],
-                            'abbreviation': game['away_team_name'],
-                            'score': game['away_team_score'],
-                        },
-                        'game_time': game['game_status'],
-                        'game_status': game['game_status'],
-                        'prediction': prediction,
-                    })
-                except Exception as e:
-                    print(f"Error predicting game {game.get('game_id')}: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    # Add game without prediction
-                    games_with_predictions.append({
-                        **game,
-                        'prediction': None,
-                        'error': str(e)
-                    })
+                games_with_predictions.append({
+                    'game_id': game['game_id'],
+                    'home_team': {
+                        'id': game['home_team_id'],
+                        'name': game['home_team_name'],
+                        'abbreviation': game['home_team_name'],
+                        'score': game['home_team_score'],
+                    },
+                    'away_team': {
+                        'id': game['away_team_id'],
+                        'name': game['away_team_name'],
+                        'abbreviation': game['away_team_name'],
+                        'score': game['away_team_score'],
+                    },
+                    'game_time': game['game_status'],
+                    'game_status': game['game_status'],
+                    'prediction': None,  # Will be fetched on game detail page
+                })
 
             # Use Eastern Time for consistency with game dates
             from datetime import timedelta

@@ -50,8 +50,8 @@ def safe_api_call(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            # Add delay to respect rate limits (100ms for faster loads)
-            time.sleep(0.1)
+            # Add minimal delay to respect rate limits (50ms)
+            time.sleep(0.05)
             return func(*args, **kwargs)
         except Exception as e:
             print(f"API Error in {func.__name__}: {str(e)}")
@@ -73,7 +73,7 @@ def get_team_id(team_name):
             team_name.lower() in t['nickname'].lower()]
     return team[0]['id'] if team else None
 
-@cache_result(timeout_seconds=3600)
+@cache_result(timeout_seconds=14400)  # 4 hours - stats don't change often
 @safe_api_call
 def get_team_stats(team_id, season='2025-26', per_mode='PerGame'):
     """
@@ -126,7 +126,7 @@ def get_team_stats(team_id, season='2025-26', per_mode='PerGame'):
         'away': away
     }
 
-@cache_result(timeout_seconds=3600)
+@cache_result(timeout_seconds=14400)  # 4 hours
 @safe_api_call
 def get_team_advanced_stats(team_id, season='2025-26'):
     """
@@ -152,7 +152,7 @@ def get_team_advanced_stats(team_id, season='2025-26'):
 
     return overall
 
-@cache_result(timeout_seconds=3600)
+@cache_result(timeout_seconds=14400)  # 4 hours
 @safe_api_call
 def get_team_opponent_stats(team_id, season='2025-26'):
     """
@@ -188,7 +188,7 @@ def get_team_opponent_stats(team_id, season='2025-26'):
 
     return overall
 
-@cache_result(timeout_seconds=3600)
+@cache_result(timeout_seconds=14400)  # 4 hours
 @safe_api_call
 def get_team_last_n_games(team_id, n=5, season='2025-26'):
     """
@@ -256,8 +256,8 @@ def get_todays_games():
     print(f"Fetching games for {today_str} (ET)")
 
     try:
-        # Add delay to respect rate limits
-        time.sleep(0.1)
+        # Minimal delay for CDN endpoint
+        time.sleep(0.05)
 
         # Use NBA CDN endpoint - more reliable and rarely blocked
         # This endpoint provides today's scoreboard in JSON format
@@ -418,7 +418,7 @@ def get_matchup_data(home_team_id, away_team_id, season='2025-26'):
             'stats': get_team_stats(team_id, season),
             'advanced': get_team_advanced_stats(team_id, season),
             'opponent': get_team_opponent_stats(team_id, season),
-            'recent_games': []  # Skip recent games for speed (historical data anyway)
+            'recent_games': []  # Skipped for speed - not critical for O/U predictions
         }
 
     # Fetch both teams in parallel
