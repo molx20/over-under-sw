@@ -2,14 +2,72 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
+// Configure axios defaults
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000, // 30 second timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Add request interceptor for logging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.params || '')
+    return config
+  },
+  (error) => {
+    console.error('[API] Request error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// Add response interceptor for logging and error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Response from ${response.config.url}:`, response.status)
+    return response
+  },
+  (error) => {
+    if (error.code === 'ECONNABORTED') {
+      console.error('[API] Request timeout:', error.config?.url)
+    } else if (error.response) {
+      console.error(`[API] Error ${error.response.status}:`, error.response.data)
+    } else if (error.request) {
+      console.error('[API] No response received:', error.request)
+    } else {
+      console.error('[API] Error:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const fetchGames = async (date = null) => {
   try {
     const params = date ? { date } : {}
-    const response = await axios.get(`${API_BASE_URL}/games`, { params })
+    const response = await api.get('/games', { params })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
     return response.data
   } catch (error) {
-    console.error('Error fetching games:', error)
-    throw new Error(error.response?.data?.error || 'Failed to fetch games')
+    console.error('[fetchGames] Error:', error)
+
+    // Provide user-friendly error messages
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. Please try again.')
+    }
+    if (error.response?.status === 404) {
+      throw new Error('API endpoint not found. Please check your configuration.')
+    }
+    if (error.response?.status >= 500) {
+      throw new Error('Server error. Please try again later.')
+    }
+
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch games')
   }
 }
 
@@ -22,10 +80,39 @@ export const fetchGameDetail = async (gameId, bettingLine = null) => {
     if (bettingLine !== null && !isNaN(bettingLine)) {
       params.betting_line = bettingLine
     }
-    const response = await axios.get(`${API_BASE_URL}/game_detail`, { params })
+
+    const response = await api.get('/game_detail', { params })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
     return response.data
   } catch (error) {
-    console.error('Error fetching game detail:', error)
-    throw new Error(error.response?.data?.error || 'Failed to fetch game details')
+    console.error('[fetchGameDetail] Error:', error)
+
+    // Provide user-friendly error messages
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. The prediction is taking too long to generate.')
+    }
+    if (error.response?.status === 404) {
+      throw new Error('Game not found or API endpoint unavailable.')
+    }
+    if (error.response?.status >= 500) {
+      throw new Error('Server error while generating prediction. Please try again.')
+    }
+
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch game details')
+  }
+}
+
+// Health check utility
+export const checkAPIHealth = async () => {
+  try {
+    const response = await api.get('/health', { timeout: 5000 })
+    return response.data
+  } catch (error) {
+    console.error('[checkAPIHealth] API health check failed:', error)
+    return { success: false, error: error.message }
   }
 }

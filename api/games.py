@@ -39,12 +39,16 @@ class handler(BaseHTTPRequestHandler):
     def handle_games(self, query_params):
         """Get all games for today with predictions"""
         try:
+            print('[games] Fetching today\'s games from NBA API...')
             # Get games
             games = get_todays_games()
 
             if games is None:
+                print('[games] ERROR: NBA API returned None')
                 self.send_error_response(500, 'Failed to fetch games from NBA API')
                 return
+
+            print(f'[games] Successfully fetched {len(games)} games')
 
             # Format games for response (no predictions on list view for speed)
             # Predictions will be generated on-demand when viewing game details
@@ -96,21 +100,28 @@ class handler(BaseHTTPRequestHandler):
             game_id = query_params.get('game_id', [None])[0]
 
             if not game_id:
+                print('[game_detail] ERROR: Missing game_id parameter')
                 self.send_error_response(400, 'Missing game_id parameter')
                 return
+
+            print(f'[game_detail] Fetching detail for game {game_id}')
 
             # Find the game in today's games
             games = get_todays_games()
 
             if not games:
+                print('[game_detail] ERROR: No games available from NBA API')
                 self.send_error_response(404, 'No games available today')
                 return
 
             game = next((g for g in games if str(g.get('game_id')) == str(game_id)), None)
 
             if not game:
+                print(f'[game_detail] ERROR: Game {game_id} not found in today\'s games')
                 self.send_error_response(404, f'Game {game_id} not found')
                 return
+
+            print(f'[game_detail] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
 
             home_team_id = game['home_team_id']
             away_team_id = game['away_team_id']
@@ -120,18 +131,24 @@ class handler(BaseHTTPRequestHandler):
             betting_line = float(betting_line_str) if betting_line_str else None
 
             # Get matchup data
+            print(f'[game_detail] Fetching matchup data for teams {home_team_id} vs {away_team_id}')
             matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
 
             if matchup_data is None:
+                print('[game_detail] ERROR: Failed to fetch matchup data from NBA API')
                 self.send_error_response(500, 'Failed to fetch matchup data from NBA API')
                 return
 
+            print('[game_detail] Successfully fetched matchup data')
+
             # Generate prediction
+            print(f'[game_detail] Generating prediction (betting_line: {betting_line})')
             prediction = predict_game_total(
                 matchup_data['home'],
                 matchup_data['away'],
                 betting_line
             )
+            print(f'[game_detail] Prediction generated: {prediction.get("recommendation")} ({prediction.get("confidence")}% confidence)')
 
             # Get team info
             all_teams = get_all_teams()
