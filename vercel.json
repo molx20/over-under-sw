@@ -11,6 +11,14 @@
     {
       "src": "api/games.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/predict.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/feedback.py",
+      "use": "@vercel/python"
     }
   ],
   "rewrites": [
@@ -21,6 +29,14 @@
     {
       "source": "/api/game_detail",
       "destination": "/api/games.py"
+    },
+    {
+      "source": "/api/predict",
+      "destination": "/api/predict.py"
+    },
+    {
+      "source": "/api/feedback",
+      "destination": "/api/feedback.py"
     },
     {
       "source": "/((?!api).*)",
