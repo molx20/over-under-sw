@@ -209,13 +209,17 @@ def get_team_last_n_games(team_id, n=5, season='2025-26'):
 @cache_result(timeout_seconds=1800)
 def get_todays_games():
     """
-    Get all games scheduled for today
+    Get all games scheduled for today (Eastern Time)
     Uses direct HTTP request to avoid nba_api ScoreboardV2 bug
 
     Returns:
         list of dicts with game info
     """
-    today = datetime.now().strftime('%m/%d/%Y')
+    # Use Eastern Time for NBA game dates
+    from datetime import timezone, timedelta
+    et_offset = timedelta(hours=-5)  # EST (UTC-5)
+    et_time = datetime.now(timezone.utc) + et_offset
+    today = et_time.strftime('%m/%d/%Y')
 
     try:
         # Add delay to respect rate limits
