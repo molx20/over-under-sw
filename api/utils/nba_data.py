@@ -206,132 +206,150 @@ def get_team_last_n_games(team_id, n=5, season='2025-26'):
 # GAME SCHEDULE FUNCTIONS
 # ============================================================================
 
+def is_2025_26_season_game(game_id):
+    """
+    Check if a game ID corresponds to the 2025-26 NBA season.
+
+    NBA game IDs follow the format: 00[Season][GameNumber]
+    - Season 2025-26 uses ID: 225 (25 from 2025, 26 truncated to last digit)
+    - Regular season games: 0022500001, 0022500002, etc.
+    - Preseason: 0012500001, etc.
+    - Playoffs would be: 0042500001, etc.
+
+    Args:
+        game_id: NBA game ID string or int
+
+    Returns:
+        bool: True if game is from 2025-26 season
+    """
+    game_id_str = str(game_id)
+
+    # Check if game ID starts with season prefix for 2025-26
+    # Preseason (01), Regular season (02), All-Star (03), Playoffs (04)
+    valid_prefixes = [
+        '001225',  # Preseason 2025-26
+        '0022500',  # Regular season 2025-26 (with extra digit)
+        '002250',   # Regular season 2025-26 (alternate format)
+        '00225',    # Regular season 2025-26 (base)
+        '003225',   # All-Star 2025-26
+        '004225',   # Playoffs 2025-26
+    ]
+
+    return any(game_id_str.startswith(prefix) for prefix in valid_prefixes)
+
+
 @cache_result(timeout_seconds=1800)
 def get_todays_games():
     """
-    Get all games scheduled for today (Eastern Time)
-    Uses direct HTTP request to avoid nba_api ScoreboardV2 bug
+    Get all games scheduled for today from the 2025-26 season (Eastern Time)
+    Uses NBA CDN endpoint which is more reliable than stats.nba.com
 
     Returns:
-        list of dicts with game info
+        list of dicts with game info, filtered to 2025-26 season only
     """
     # Use Eastern Time for NBA game dates
     from datetime import timezone, timedelta
     et_offset = timedelta(hours=-5)  # EST (UTC-5)
     et_time = datetime.now(timezone.utc) + et_offset
-    today = et_time.strftime('%m/%d/%Y')
+    today_str = et_time.strftime('%Y-%m-%d')
+
+    print(f"Fetching games for {today_str} (ET)")
 
     try:
         # Add delay to respect rate limits
-        time.sleep(0.2)
+        time.sleep(0.1)
 
-        # Direct HTTP request to NBA Stats API
-        url = "https://stats.nba.com/stats/scoreboardv2"
+        # Use NBA CDN endpoint - more reliable and rarely blocked
+        # This endpoint provides today's scoreboard in JSON format
+        url = "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json"
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
+            'Accept': 'application/json',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.nba.com/',
-            'Origin': 'https://www.nba.com',
-            'Connection': 'keep-alive',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'x-nba-stats-origin': 'stats',
-            'x-nba-stats-token': 'true',
-        }
-        params = {
-            'GameDate': today,
-            'LeagueID': '00',
-            'DayOffset': '0'
         }
 
-        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         data = response.json()
 
-        # The structure is: resultSets -> [GameHeader, LineScore, etc.]
-        if not data or 'resultSets' not in data:
-            print("No result sets in scoreboard response")
+        # CDN structure: { "scoreboard": { "gameDate": "...", "games": [...] } }
+        if not data or 'scoreboard' not in data:
+            print("No scoreboard data in CDN response")
             return []
 
-        result_sets = data['resultSets']
+        scoreboard = data['scoreboard']
+        games = scoreboard.get('games', [])
 
-        # Find GameHeader and LineScore
-        game_header = None
-        line_score = None
-
-        for rs in result_sets:
-            if rs['name'] == 'GameHeader':
-                game_header = rs
-            elif rs['name'] == 'LineScore':
-                line_score = rs
-
-        if not game_header or not game_header['rowSet']:
-            print(f"No games scheduled for {today}")
+        if not games:
+            print(f"No games found in CDN response for today")
             return []
-
-        # Get column indices for GameHeader
-        gh_headers = game_header['headers']
-        game_id_idx = gh_headers.index('GAME_ID')
-        game_date_idx = gh_headers.index('GAME_DATE_EST')
-        game_status_idx = gh_headers.index('GAME_STATUS_TEXT')
-        home_team_id_idx = gh_headers.index('HOME_TEAM_ID')
-        visitor_team_id_idx = gh_headers.index('VISITOR_TEAM_ID')
-
-        # Get column indices for LineScore if available
-        score_map = {}
-        if line_score and line_score['rowSet']:
-            ls_headers = line_score['headers']
-            ls_game_id_idx = ls_headers.index('GAME_ID')
-            ls_team_id_idx = ls_headers.index('TEAM_ID')
-            ls_pts_idx = ls_headers.index('PTS')
-
-            # Build a map of game_id -> team_id -> points
-            for row in line_score['rowSet']:
-                gid = row[ls_game_id_idx]
-                tid = row[ls_team_id_idx]
-                pts = row[ls_pts_idx] if row[ls_pts_idx] is not None else 0
-                if gid not in score_map:
-                    score_map[gid] = {}
-                score_map[gid][tid] = int(pts) if isinstance(pts, (int, float)) else 0
 
         # Get all teams for lookups
         all_teams = get_all_teams()
 
         games_list = []
-        for game_row in game_header['rowSet']:
-            game_id = game_row[game_id_idx]
-            home_team_id = int(game_row[home_team_id_idx])
-            away_team_id = int(game_row[visitor_team_id_idx])
+        filtered_count = 0
 
-            # Get team abbreviations
+        for game in games:
+            game_id = game.get('gameId', '')
+
+            # FILTER: Only include 2025-26 season games
+            if not is_2025_26_season_game(game_id):
+                filtered_count += 1
+                print(f"Filtered out game {game_id} - not 2025-26 season")
+                continue
+
+            # Extract game info from CDN format
+            home_team = game.get('homeTeam', {})
+            away_team = game.get('awayTeam', {})
+
+            home_team_id = home_team.get('teamId', 0)
+            away_team_id = away_team.get('teamId', 0)
+
+            # Get team data for abbreviations
             home_team_data = next((t for t in all_teams if t['id'] == home_team_id), None)
             away_team_data = next((t for t in all_teams if t['id'] == away_team_id), None)
 
-            # Get scores from score_map
-            home_score = score_map.get(game_id, {}).get(home_team_id, 0)
-            away_score = score_map.get(game_id, {}).get(away_team_id, 0)
+            # Get game status
+            game_status_text = game.get('gameStatusText', '')
+            if not game_status_text:
+                game_time_utc = game.get('gameTimeUTC', '')
+                if game_time_utc:
+                    # Parse and convert to ET
+                    try:
+                        from dateutil import parser
+                        game_dt = parser.parse(game_time_utc)
+                        game_et = game_dt.astimezone(timezone.utc) + et_offset
+                        game_status_text = game_et.strftime('%-I:%M %p ET')
+                    except:
+                        game_status_text = game.get('gameStatus', 1)
+                else:
+                    game_status_text = game.get('gameStatus', 1)
+
+            # Get scores
+            home_score = home_team.get('score', 0)
+            away_score = away_team.get('score', 0)
 
             games_list.append({
                 'game_id': game_id,
-                'game_date': game_row[game_date_idx],
-                'game_status': game_row[game_status_idx],
+                'game_date': scoreboard.get('gameDate', today_str),
+                'game_status': game_status_text,
                 'home_team_id': home_team_id,
-                'home_team_name': home_team_data['abbreviation'] if home_team_data else 'UNK',
+                'home_team_name': home_team.get('teamTricode', home_team_data['abbreviation'] if home_team_data else 'UNK'),
                 'home_team_score': home_score,
                 'away_team_id': away_team_id,
-                'away_team_name': away_team_data['abbreviation'] if away_team_data else 'UNK',
+                'away_team_name': away_team.get('teamTricode', away_team_data['abbreviation'] if away_team_data else 'UNK'),
                 'away_team_score': away_score,
             })
 
-        print(f"Successfully fetched {len(games_list)} game(s) for {today}")
+        print(f"Successfully fetched {len(games_list)} game(s) for {today_str} (filtered {filtered_count} non-2025-26 games)")
         return games_list
 
     except requests.RequestException as e:
-        print(f"HTTP Error fetching games: {str(e)}")
+        print(f"HTTP Error fetching games from CDN: {str(e)}")
+        # Fallback to empty list if CDN fails
         return []
     except Exception as e:
         print(f"Error in get_todays_games: {str(e)}")
