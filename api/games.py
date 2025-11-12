@@ -46,22 +46,6 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(500, 'Failed to fetch games from NBA API')
                 return
 
-            # Debug: if no games, check what's happening
-            if len(games) == 0:
-                import sys
-                from io import StringIO
-                # Capture stdout for debugging
-                old_stdout = sys.stdout
-                sys.stdout = mystdout = StringIO()
-
-                # Call again to see debug output
-                from utils.nba_data import clear_cache
-                clear_cache()
-                games = get_todays_games()
-
-                debug_output = mystdout.getvalue()
-                sys.stdout = old_stdout
-
             # Add predictions to each game
             games_with_predictions = []
             for game in games:
@@ -132,10 +116,6 @@ class handler(BaseHTTPRequestHandler):
                 'count': len(games_with_predictions),
                 'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
             }
-
-            # Add debug info if no games
-            if len(games) == 0 and 'debug_output' in locals():
-                response['debug'] = debug_output
 
             self.send_json_response(response)
 

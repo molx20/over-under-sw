@@ -221,11 +221,6 @@ def get_todays_games():
     et_time = datetime.now(timezone.utc) + et_offset
     today = et_time.strftime('%m/%d/%Y')
 
-    print(f"=== get_todays_games called ===")
-    print(f"UTC Time: {datetime.now(timezone.utc)}")
-    print(f"ET Time: {et_time}")
-    print(f"Querying for date: {today}")
-
     try:
         # Add delay to respect rate limits
         time.sleep(0.2)
@@ -274,14 +269,8 @@ def get_todays_games():
             elif rs['name'] == 'LineScore':
                 line_score = rs
 
-        if not game_header:
-            print(f"ERROR: GameHeader not found in response for {today}")
-            print(f"Available result sets: {[rs['name'] for rs in result_sets]}")
-            return []
-
-        if not game_header['rowSet']:
+        if not game_header or not game_header['rowSet']:
             print(f"No games scheduled for {today}")
-            print(f"GameHeader found but rowSet is empty")
             return []
 
         # Get column indices for GameHeader
