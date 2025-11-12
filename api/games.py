@@ -16,7 +16,7 @@ from utils.prediction_engine import predict_game_total
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/api/game_detail', methods=['GET'])
+@app.route('/game_detail', methods=['GET'])
 def get_game_detail():
     """
     Get detailed game information with all stats used for prediction
@@ -160,7 +160,7 @@ def get_game_detail():
             'error': str(e)
         }), 500
 
-@app.route('/api/games', methods=['GET'])
+@app.route('/games', methods=['GET'])
 def get_games():
     """
     Get all games for today with predictions
