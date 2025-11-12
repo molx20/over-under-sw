@@ -31,21 +31,23 @@ MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'm
 
 def _load_model() -> Dict:
     """
-    Load the team ratings model from JSON file or GitHub
+    Load the team ratings model from GitHub (source of truth) with local fallback
 
-    On Vercel serverless, the local file exists from deployment but can't be written.
-    We load from the deployed file for predictions.
+    On Vercel serverless, always fetch from GitHub to get latest ratings.
+    Fall back to local file if GitHub is unavailable (e.g., no credentials).
     """
-    if not os.path.exists(MODEL_PATH):
-        # Try to fetch from GitHub as fallback
-        from utils.github_persistence import fetch_model_from_github
-        model = fetch_model_from_github()
-        if model:
-            return model
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH} and GitHub fetch failed")
+    # Try to fetch from GitHub first (source of truth for updated ratings)
+    from utils.github_persistence import fetch_model_from_github
+    model = fetch_model_from_github()
+    if model:
+        return model
 
-    with open(MODEL_PATH, 'r') as f:
-        return json.load(f)
+    # Fall back to local file if GitHub fetch failed
+    if os.path.exists(MODEL_PATH):
+        with open(MODEL_PATH, 'r') as f:
+            return json.load(f)
+
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH} and GitHub fetch failed")
 
 def _save_model(model_data: Dict) -> None:
     """
