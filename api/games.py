@@ -14,6 +14,58 @@ sys.path.append(os.path.dirname(__file__))
 from utils.nba_data import get_todays_games, get_matchup_data, get_all_teams
 from utils.prediction_engine import predict_game_total
 
+# In-memory prediction cache for serverless function instance
+# Cache key: (home_team_id, away_team_id, betting_line)
+# This provides fast responses for concurrent/repeat requests within function lifetime
+_prediction_cache = {}
+_CACHE_MAX_SIZE = 128
+
+def get_cached_prediction(home_team_id, away_team_id, betting_line):
+    """
+    Get prediction from cache or generate new one
+
+    Args:
+        home_team_id: Home team ID
+        away_team_id: Away team ID
+        betting_line: Betting line (can be None)
+
+    Returns:
+        Prediction dictionary or None on error
+    """
+    cache_key = (int(home_team_id), int(away_team_id), betting_line)
+
+    # Check cache
+    if cache_key in _prediction_cache:
+        print(f'[cache] HIT: Returning cached prediction for game {away_team_id}@{home_team_id} (line: {betting_line})')
+        return _prediction_cache[cache_key]
+
+    print(f'[cache] MISS: Generating prediction for game {away_team_id}@{home_team_id} (line: {betting_line})')
+
+    # Get matchup data (this has its own 4-hour cache)
+    matchup_data = get_matchup_data(home_team_id, away_team_id)
+    if matchup_data is None:
+        print('[cache] ERROR: Failed to fetch matchup data')
+        return None
+
+    # Generate prediction
+    prediction = predict_game_total(
+        matchup_data['home'],
+        matchup_data['away'],
+        betting_line
+    )
+
+    # Store in cache with simple FIFO eviction
+    if len(_prediction_cache) >= _CACHE_MAX_SIZE:
+        # Remove oldest entry (first inserted)
+        oldest_key = next(iter(_prediction_cache))
+        print(f'[cache] EVICT: Removing oldest entry {oldest_key}')
+        _prediction_cache.pop(oldest_key)
+
+    _prediction_cache[cache_key] = prediction
+    print(f'[cache] STORE: Cached prediction for {cache_key}')
+
+    return prediction
+
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -86,7 +138,8 @@ class handler(BaseHTTPRequestHandler):
                 'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
             }
 
-            self.send_json_response(response)
+            # Cache at CDN edge: fresh for 30s, stale-while-revalidate for 5min
+            self.send_json_response(response, cache_control='public, s-maxage=30, stale-while-revalidate=300')
 
         except Exception as e:
             import traceback
@@ -130,25 +183,24 @@ class handler(BaseHTTPRequestHandler):
             betting_line_str = query_params.get('betting_line', [None])[0]
             betting_line = float(betting_line_str) if betting_line_str else None
 
-            # Get matchup data
-            print(f'[game_detail] Fetching matchup data for teams {home_team_id} vs {away_team_id}')
+            # Get cached prediction (or generate new one)
+            print(f'[game_detail] Fetching prediction for teams {home_team_id} vs {away_team_id} (betting_line: {betting_line})')
+            prediction = get_cached_prediction(int(home_team_id), int(away_team_id), betting_line)
+
+            if prediction is None:
+                print('[game_detail] ERROR: Failed to generate prediction')
+                self.send_error_response(500, 'Failed to generate prediction')
+                return
+
+            print(f'[game_detail] Prediction ready: {prediction.get("recommendation")} ({prediction.get("confidence")}% confidence)')
+
+            # Get matchup data for stats display (will use existing cache)
             matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
 
             if matchup_data is None:
-                print('[game_detail] ERROR: Failed to fetch matchup data from NBA API')
-                self.send_error_response(500, 'Failed to fetch matchup data from NBA API')
+                print('[game_detail] ERROR: Failed to fetch matchup data for stats display')
+                self.send_error_response(500, 'Failed to fetch game stats')
                 return
-
-            print('[game_detail] Successfully fetched matchup data')
-
-            # Generate prediction
-            print(f'[game_detail] Generating prediction (betting_line: {betting_line})')
-            prediction = predict_game_total(
-                matchup_data['home'],
-                matchup_data['away'],
-                betting_line
-            )
-            print(f'[game_detail] Prediction generated: {prediction.get("recommendation")} ({prediction.get("confidence")}% confidence)')
 
             # Get team info
             all_teams = get_all_teams()
@@ -224,18 +276,24 @@ class handler(BaseHTTPRequestHandler):
                 ],
             }
 
-            self.send_json_response(response)
+            # Cache at CDN edge: fresh for 30s, stale-while-revalidate for 5min
+            self.send_json_response(response, cache_control='public, s-maxage=30, stale-while-revalidate=300')
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             self.send_error_response(500, str(e))
 
-    def send_json_response(self, data, status_code=200):
-        """Send JSON response"""
+    def send_json_response(self, data, status_code=200, cache_control=None):
+        """Send JSON response with optional cache control"""
         self.send_response(status_code)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+
+        # Add cache control headers for CDN caching
+        if cache_control:
+            self.send_header('Cache-Control', cache_control)
+
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 

@@ -15,6 +15,32 @@ import requests
 from functools import wraps
 
 # ============================================================================
+# HTTP SESSION WITH CONNECTION POOLING
+# ============================================================================
+
+# Create a persistent session for HTTP keep-alive and connection pooling
+# This reduces latency by reusing TCP connections and SSL sessions
+_http_session = requests.Session()
+_http_session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+})
+
+# Configure connection pool
+# - pool_connections: Number of connection pools to cache
+# - pool_maxsize: Maximum number of connections to save in the pool
+from requests.adapters import HTTPAdapter
+adapter = HTTPAdapter(
+    pool_connections=10,  # Number of connection pools
+    pool_maxsize=20,      # Max connections per pool
+    max_retries=2,        # Retry failed requests
+    pool_block=False      # Don't block when pool is full
+)
+_http_session.mount('https://', adapter)
+_http_session.mount('http://', adapter)
+
+# ============================================================================
 # CACHING WRAPPER (to avoid rate limits)
 # ============================================================================
 
@@ -263,13 +289,8 @@ def get_todays_games():
         # This endpoint provides today's scoreboard in JSON format
         url = "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json"
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
-
-        response = requests.get(url, headers=headers, timeout=30)
+        # Use persistent session for HTTP keep-alive (headers already configured)
+        response = _http_session.get(url, timeout=30)
         response.raise_for_status()
 
         data = response.json()
