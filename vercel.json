@@ -30,6 +30,10 @@
     {
       "src": "api/debug.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/debug_raw.py",
+      "use": "@vercel/python"
     }
   ],
   "rewrites": [
@@ -56,6 +60,10 @@
     {
       "source": "/api/debug",
       "destination": "/api/debug.py"
+    },
+    {
+      "source": "/api/debug_raw",
+      "destination": "/api/debug_raw.py"
     },
     {
       "source": "/((?!api).*)",
