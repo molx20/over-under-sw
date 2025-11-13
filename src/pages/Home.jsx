@@ -1,37 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import GameCard from '../components/GameCard'
-import { fetchGames } from '../utils/api'
+import { useGames } from '../utils/api'
 
 function Home() {
-  const [games, setGames] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [lastUpdated, setLastUpdated] = useState(null)
   const [sortBy, setSortBy] = useState('confidence') // confidence, time, alphabetical
   const [filterConfidence, setFilterConfidence] = useState(0) // 0 = show all
 
+  // Use React Query for automatic caching and refetching
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useGames()
+
+  // Auto-refresh every 30 minutes using React Query's refetchInterval
   useEffect(() => {
-    loadGames()
-    // Auto-refresh every 30 minutes
-    const interval = setInterval(loadGames, 30 * 60 * 1000)
+    const interval = setInterval(() => refetch(), 30 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [refetch])
 
-  const loadGames = async () => {
-    try {
-      setLoading(true)
-      const data = await fetchGames()
-      setGames(data.games || [])
-      setLastUpdated(new Date(data.last_updated))
-      setError(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Extract games and last_updated from query data
+  const games = data?.games || []
+  const lastUpdated = data?.last_updated ? new Date(data.last_updated) : null
 
-  const getSortedAndFilteredGames = () => {
+  // Memoize sorted/filtered games to avoid recalculation on every render
+  const getSortedAndFilteredGames = useMemo(() => {
     let filtered = games.filter(game => {
       if (!game.prediction) return true
       return game.prediction.confidence >= filterConfidence
@@ -51,9 +46,9 @@ function Home() {
           return 0
       }
     })
-  }
+  }, [games, sortBy, filterConfidence]) // Recalculate only when these dependencies change
 
-  if (loading && games.length === 0) {
+  if (isLoading && games.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
@@ -64,14 +59,14 @@ function Home() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
           <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error Loading Games</h3>
-          <p className="text-red-600 dark:text-red-300">{error}</p>
+          <p className="text-red-600 dark:text-red-300">{error?.message}</p>
           <button
-            onClick={loadGames}
+            onClick={() => refetch()}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Retry
@@ -81,7 +76,7 @@ function Home() {
     )
   }
 
-  const sortedGames = getSortedAndFilteredGames()
+  const sortedGames = getSortedAndFilteredGames
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -97,11 +92,11 @@ function Home() {
             )}
           </div>
           <button
-            onClick={loadGames}
-            disabled={loading}
+            onClick={() => refetch()}
+            disabled={isLoading}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           >
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             <span>Refresh</span>

@@ -1,46 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import StatsTable from '../components/StatsTable'
-import { fetchGameDetail } from '../utils/api'
+import { useGameDetail } from '../utils/api'
 
 function GamePage() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const [gameData, setGameData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [bettingLine, setBettingLine] = useState('')
-  const [calculatingPrediction, setCalculatingPrediction] = useState(false)
+  const [customBettingLine, setCustomBettingLine] = useState(null)
 
-  useEffect(() => {
-    loadGameDetail()
-  }, [gameId])
+  // Use React Query for automatic caching and loading states
+  const {
+    data: gameData,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch
+  } = useGameDetail(gameId, customBettingLine)
 
-  const loadGameDetail = async (customBettingLine = null) => {
-    try {
-      setLoading(true)
-      const data = await fetchGameDetail(gameId, customBettingLine)
-      setGameData(data)
-      setError(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCalculatePrediction = async () => {
+  const handleCalculatePrediction = () => {
     const line = parseFloat(bettingLine)
     if (isNaN(line) || line <= 0) {
       alert('Please enter a valid betting line')
       return
     }
-    setCalculatingPrediction(true)
-    await loadGameDetail(line)
-    setCalculatingPrediction(false)
+    // Trigger new query with betting line
+    // React Query will cache this separately
+    setCustomBettingLine(line)
   }
 
-  if (loading) {
+  // Show loading state only on initial load (no cached data)
+  if (isLoading && !gameData) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
@@ -52,7 +43,8 @@ function GamePage() {
     )
   }
 
-  if (error || !gameData) {
+  // Show error state with retry option
+  if (isError || !gameData) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
@@ -66,9 +58,9 @@ function GamePage() {
         </button>
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
           <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error Loading Game</h3>
-          <p className="text-red-600 dark:text-red-300 mb-4">{error || 'Game not found'}</p>
+          <p className="text-red-600 dark:text-red-300 mb-4">{error?.message || 'Game not found'}</p>
           <button
-            onClick={() => loadGameDetail()}
+            onClick={() => refetch()}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Try Again
@@ -93,6 +85,14 @@ function GamePage() {
         <span>Back to Games</span>
       </button>
 
+      {/* Stale data indicator - shows when fetching in background */}
+      {isFetching && gameData && (
+        <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center space-x-2">
+          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-sm text-blue-700 dark:text-blue-300">Updating prediction...</span>
+        </div>
+      )}
+
       {/* Betting Line Input */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Enter Betting Line</h3>
@@ -113,10 +113,13 @@ function GamePage() {
           </div>
           <button
             onClick={handleCalculatePrediction}
-            disabled={calculatingPrediction}
-            className="mt-7 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isFetching}
+            className="mt-7 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
-            {calculatingPrediction ? 'Calculating...' : 'Calculate Prediction'}
+            {isFetching && (
+              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
+            <span>{isFetching ? 'Calculating...' : 'Calculate Prediction'}</span>
           </button>
         </div>
       </div>

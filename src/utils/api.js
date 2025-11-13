@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useQuery } from '@tanstack/react-query'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -11,9 +12,11 @@ const api = axios.create({
   },
 })
 
-// Add request interceptor for logging
+// Add request interceptor for logging and performance timing
 api.interceptors.request.use(
   (config) => {
+    // Add start time for performance measurement
+    config.metadata = { startTime: Date.now() }
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.params || '')
     return config
   },
@@ -23,13 +26,25 @@ api.interceptors.request.use(
   }
 )
 
-// Add response interceptor for logging and error handling
+// Add response interceptor for logging and error handling with timing
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API] Response from ${response.config.url}:`, response.status)
+    // Calculate request duration
+    const duration = Date.now() - response.config.metadata.startTime
+    console.debug(`[PERF] ${response.config.url}: ${duration}ms`, response.status)
+
+    // Add timing to response for client-side analysis
+    response.duration = duration
+
     return response
   },
   (error) => {
+    // Log timing even for errors
+    if (error.config?.metadata?.startTime) {
+      const duration = Date.now() - error.config.metadata.startTime
+      console.debug(`[PERF] ${error.config.url}: ${duration}ms (error)`)
+    }
+
     if (error.code === 'ECONNABORTED') {
       console.error('[API] Request timeout:', error.config?.url)
     } else if (error.response) {
@@ -120,4 +135,47 @@ export const checkAPIHealth = async () => {
     console.error('[checkAPIHealth] API health check failed:', error)
     return { success: false, error: error.message }
   }
+}
+
+// ============================================
+// React Query Hooks for Optimized Caching
+// ============================================
+
+/**
+ * Hook to fetch games list with aggressive caching
+ * Cache key: ['games', date]
+ * Stale time: 30 seconds (configured globally)
+ */
+export const useGames = (date = null) => {
+  return useQuery({
+    queryKey: ['games', date],
+    queryFn: () => fetchGames(date),
+    staleTime: 30_000,        // Fresh for 30 seconds
+    cacheTime: 300_000,       // Keep in memory for 5 minutes
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Hook to fetch game detail with prediction
+ * Cache key: ['game-detail', gameId, bettingLine]
+ * Stale time: 30 seconds
+ *
+ * Features:
+ * - Shows cached result instantly on repeat views
+ * - Refreshes in background if stale
+ * - Deduplicates concurrent requests
+ */
+export const useGameDetail = (gameId, bettingLine = null) => {
+  return useQuery({
+    queryKey: ['game-detail', gameId, bettingLine],
+    queryFn: () => fetchGameDetail(gameId, bettingLine),
+    enabled: !!gameId,        // Only run if gameId is provided
+    staleTime: 30_000,        // Consider data fresh for 30 seconds
+    cacheTime: 300_000,       // Keep unused data in cache for 5 minutes
+    retry: 1,                 // Only retry once on failure
+    refetchOnWindowFocus: false,
+    // Keep previous data while fetching new data (smoother UX)
+    keepPreviousData: true,
+  })
 }
