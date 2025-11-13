@@ -189,7 +189,7 @@ class handler(BaseHTTPRequestHandler):
 
             if prediction is None:
                 print('[game_detail] ERROR: Failed to generate prediction')
-                self.send_error_response(500, 'Failed to generate prediction')
+                self.send_error_response(500, 'The NBA API is currently slow or unavailable. Please try again in a moment. If this persists, the stats API may be experiencing issues.')
                 return
 
             print(f'[game_detail] Prediction ready: {prediction.get("recommendation")} ({prediction.get("confidence")}% confidence)')

@@ -37,7 +37,8 @@ function GamePage() {
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Generating prediction...</p>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">This may take up to 60 seconds as we analyze team stats and matchup data</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">Fetching NBA stats and generating prediction</p>
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-600">This usually takes 15-60 seconds. If it times out, try clicking again - it may work from cache.</p>
         </div>
       </div>
     )

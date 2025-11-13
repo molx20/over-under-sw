@@ -98,9 +98,10 @@ export const fetchGameDetail = async (gameId, bettingLine = null) => {
 
     // Game detail requests need longer timeout due to prediction generation
     // NBA API can be slow, especially with advanced stats
+    // Vercel function has 60s max, so we timeout at 60s
     const response = await api.get('/game_detail', {
       params,
-      timeout: 90000  // 90 seconds for prediction generation
+      timeout: 60000  // 60 seconds (Vercel function limit)
     })
 
     if (!response.data || !response.data.success) {
@@ -113,7 +114,7 @@ export const fetchGameDetail = async (gameId, bettingLine = null) => {
 
     // Provide user-friendly error messages
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timed out after 90 seconds. The NBA API may be experiencing delays. Please try again in a moment.')
+      throw new Error('Request timed out after 60 seconds. The NBA Stats API is running slow. Please click "Try Again" to retry - it may work from cache on the second try.')
     }
     if (error.response?.status === 404) {
       throw new Error('Game not found or API endpoint unavailable.')

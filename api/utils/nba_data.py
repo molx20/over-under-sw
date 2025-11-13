@@ -442,13 +442,24 @@ def get_matchup_data(home_team_id, away_team_id, season='2025-26'):
             'recent_games': []  # Skipped for speed - not critical for O/U predictions
         }
 
-    # Fetch both teams in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_home = executor.submit(fetch_team_data, home_team_id)
-        future_away = executor.submit(fetch_team_data, away_team_id)
+    # Fetch both teams in parallel with timeout protection
+    # Vercel has 60s limit, so we timeout at 50s to return a proper error
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_home = executor.submit(fetch_team_data, home_team_id)
+            future_away = executor.submit(fetch_team_data, away_team_id)
 
-        home_data = future_home.result()
-        away_data = future_away.result()
+            # Wait for results with 50-second timeout (leaves 10s for processing)
+            home_data = future_home.result(timeout=50)
+            away_data = future_away.result(timeout=50)
+
+    except concurrent.futures.TimeoutError:
+        print("ERROR: NBA API timeout - requests took longer than 50 seconds")
+        print("This usually happens when the NBA API is slow or rate limiting")
+        return None
+    except Exception as e:
+        print(f"ERROR: Exception while fetching team data: {str(e)}")
+        return None
 
     # Validate that critical data was fetched successfully
     if not home_data or not away_data:
