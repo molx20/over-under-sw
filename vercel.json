@@ -26,6 +26,10 @@
     {
       "src": "api/health.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/debug.py",
+      "use": "@vercel/python"
     }
   ],
   "rewrites": [
@@ -48,6 +52,10 @@
     {
       "source": "/api/health",
       "destination": "/api/health.py"
+    },
+    {
+      "source": "/api/debug",
+      "destination": "/api/debug.py"
     },
     {
       "source": "/((?!api).*)",
