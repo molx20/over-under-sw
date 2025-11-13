@@ -49,10 +49,14 @@ class handler(BaseHTTPRequestHandler):
                 test2['success'] = bool(stats)
                 if stats and stats.get('overall'):
                     test2['ppg'] = stats['overall'].get('PTS', 'N/A')
+                else:
+                    test2['error'] = 'stats returned None or missing overall'
             except Exception as e:
+                import traceback
                 test2['duration_ms'] = int((time.time() - start) * 1000)
                 test2['success'] = False
                 test2['error'] = str(e)
+                test2['traceback'] = traceback.format_exc()
 
             results['tests'].append(test2)
 
@@ -66,10 +70,14 @@ class handler(BaseHTTPRequestHandler):
                 if adv_stats:
                     test3['pace'] = adv_stats.get('PACE', 'N/A')
                     test3['ortg'] = adv_stats.get('OFF_RATING', 'N/A')
+                else:
+                    test3['error'] = 'adv_stats returned None'
             except Exception as e:
+                import traceback
                 test3['duration_ms'] = int((time.time() - start) * 1000)
                 test3['success'] = False
                 test3['error'] = str(e)
+                test3['traceback'] = traceback.format_exc()
 
             results['tests'].append(test3)
 
