@@ -10,7 +10,10 @@
     },
     {
       "src": "api/games.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
     },
     {
       "src": "api/predict.py",

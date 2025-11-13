@@ -81,7 +81,12 @@ export const fetchGameDetail = async (gameId, bettingLine = null) => {
       params.betting_line = bettingLine
     }
 
-    const response = await api.get('/game_detail', { params })
+    // Game detail requests need longer timeout due to prediction generation
+    // NBA API can be slow, especially with advanced stats
+    const response = await api.get('/game_detail', {
+      params,
+      timeout: 90000  // 90 seconds for prediction generation
+    })
 
     if (!response.data || !response.data.success) {
       throw new Error(response.data?.error || 'Invalid response from server')
@@ -93,7 +98,7 @@ export const fetchGameDetail = async (gameId, bettingLine = null) => {
 
     // Provide user-friendly error messages
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timed out. The prediction is taking too long to generate.')
+      throw new Error('Request timed out after 90 seconds. The NBA API may be experiencing delays. Please try again in a moment.')
     }
     if (error.response?.status === 404) {
       throw new Error('Game not found or API endpoint unavailable.')

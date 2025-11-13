@@ -45,7 +45,8 @@ function GamePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading game details...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Generating prediction...</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">This may take up to 60 seconds as we analyze team stats and matchup data</p>
         </div>
       </div>
     )
@@ -65,7 +66,13 @@ function GamePage() {
         </button>
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
           <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error Loading Game</h3>
-          <p className="text-red-600 dark:text-red-300">{error || 'Game not found'}</p>
+          <p className="text-red-600 dark:text-red-300 mb-4">{error || 'Game not found'}</p>
+          <button
+            onClick={() => loadGameDetail()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )
