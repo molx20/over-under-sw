@@ -1,0 +1,41 @@
+{
+  "base": 100,
+  "hca": 2,
+  "learning_rate": 0.02,
+  "teams": {
+    "ATL": { "off": 0, "def": 0 },
+    "BOS": { "off": 0, "def": 0 },
+    "BKN": { "off": 0, "def": 0 },
+    "CHA": { "off": 0, "def": 0 },
+    "CHI": { "off": 0, "def": 0 },
+    "CLE": { "off": 0, "def": 0 },
+    "DAL": { "off": 0, "def": 0 },
+    "DEN": { "off": 0, "def": 0 },
+    "DET": { "off": 0, "def": 0 },
+    "GSW": { "off": 0, "def": 0 },
+    "HOU": { "off": 0, "def": 0 },
+    "IND": { "off": 0, "def": 0 },
+    "LAC": { "off": 0, "def": 0 },
+    "LAL": { "off": 0, "def": 0 },
+    "MEM": { "off": 0, "def": 0 },
+    "MIA": { "off": 0, "def": 0 },
+    "MIL": { "off": 0, "def": 0 },
+    "MIN": { "off": 0, "def": 0 },
+    "NOP": { "off": 0, "def": 0 },
+    "NYK": { "off": 0, "def": 0 },
+    "OKC": { "off": 0, "def": 0 },
+    "ORL": { "off": 0, "def": 0 },
+    "PHI": { "off": 0, "def": 0 },
+    "PHX": { "off": 0, "def": 0 },
+    "POR": { "off": 0, "def": 0 },
+    "SAC": { "off": 0, "def": 0 },
+    "SAS": { "off": 0, "def": 0 },
+    "TOR": { "off": 0, "def": 0 },
+    "UTA": { "off": 0, "def": 0 },
+    "WAS": { "off": 0, "def": 0 }
+  },
+  "metadata": {
+    "last_updated": "2025-01-19T00:00:00Z",
+    "total_games_learned": 0
+  }
+}

@@ -24,7 +24,8 @@
       "Bash(vercel:*)",
       "Bash(printf:*)",
       "Bash(git pull:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

@@ -13,9 +13,15 @@ sys.path.append(os.path.dirname(__file__))
 
 from api.utils.nba_data import get_todays_games, get_matchup_data, get_all_teams
 from api.utils.prediction_engine import predict_game_total
+from api.utils import db
+from api.utils import team_ratings_model
+from api.utils.github_persistence import commit_model_to_github
 
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
+
+# Initialize database on startup
+db.init_db()
 
 # In-memory prediction cache
 _prediction_cache = {}
@@ -322,6 +328,326 @@ def submit_feedback():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ========== SELF-LEARNING PREDICTION ENDPOINTS ==========
+
+@app.route('/api/save-prediction', methods=['POST'])
+def save_prediction():
+    """
+    Save a pre-game prediction for later comparison with sportsbook line and actual results
+
+    Request body:
+    {
+        "game_id": "0022500123",
+        "home_team": "BOS",
+        "away_team": "LAL"
+    }
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        game_id = data.get('game_id')
+        home_team = data.get('home_team')
+        away_team = data.get('away_team')
+
+        if not all([game_id, home_team, away_team]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: game_id, home_team, away_team'
+            }), 400
+
+        print(f'[save-prediction] Generating prediction for {away_team} @ {home_team} (game {game_id})')
+
+        # Generate prediction using enhanced model with bias
+        try:
+            prediction = team_ratings_model.predict_with_bias(home_team, away_team)
+        except ValueError as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 400
+
+        # Extract game date from game_id or use current date
+        # Game ID format: 00225YYSSSGGGGG where YY=year, SSS=season type, GGGGG=game number
+        # For now, just use current date
+        game_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+        # Save to database
+        result = db.save_prediction(
+            game_id=game_id,
+            home_team=home_team,
+            away_team=away_team,
+            game_date=game_date,
+            pred_home=prediction['home_pts'],
+            pred_away=prediction['away_pts'],
+            pred_total=prediction['predicted_total'],
+            model_version=prediction['model_version']
+        )
+
+        if not result['success']:
+            return jsonify(result), 400
+
+        print(f'[save-prediction] ✓ Saved prediction: {prediction["predicted_total"]} total')
+
+        return jsonify(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/submit-line', methods=['POST'])
+def submit_line():
+    """
+    Submit the sportsbook closing total line for a game
+
+    Request body:
+    {
+        "game_id": "0022500123",
+        "sportsbook_total_line": 218.5
+    }
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        game_id = data.get('game_id')
+        sportsbook_total_line = data.get('sportsbook_total_line')
+
+        if not game_id or sportsbook_total_line is None:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: game_id, sportsbook_total_line'
+            }), 400
+
+        # Validate line is a number
+        try:
+            sportsbook_total_line = float(sportsbook_total_line)
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'error': 'sportsbook_total_line must be a number'
+            }), 400
+
+        print(f'[submit-line] Submitting line {sportsbook_total_line} for game {game_id}')
+
+        # Save to database
+        result = db.submit_line(game_id, sportsbook_total_line)
+
+        if not result['success']:
+            return jsonify(result), 404
+
+        print(f'[submit-line] ✓ Line submitted successfully')
+
+        return jsonify(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/run-learning', methods=['POST'])
+def run_learning():
+    """
+    Run post-game learning after a game completes
+
+    This endpoint:
+    1. Fetches the final score from NBA API
+    2. Compares model prediction vs sportsbook line vs actual result
+    3. Updates team ratings and total_bias
+    4. Commits updated model to GitHub
+    5. Saves error metrics to database
+
+    Request body:
+    {
+        "game_id": "0022500123"
+    }
+    """
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        game_id = data.get('game_id')
+
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required field: game_id'
+            }), 400
+
+        print(f'[run-learning] Starting learning process for game {game_id}')
+
+        # 1. Get the saved prediction from database
+        prediction_data = db.get_prediction(game_id)
+
+        if not prediction_data:
+            return jsonify({
+                'success': False,
+                'error': f'No prediction found for game {game_id}. Save a prediction first.'
+            }), 404
+
+        # 2. Fetch final score from NBA API
+        print(f'[run-learning] Fetching final score from NBA API...')
+        games = get_todays_games()
+
+        if not games:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch games from NBA API'
+            }), 500
+
+        game = next((g for g in games if str(g.get('game_id')) == str(game_id)), None)
+
+        if not game:
+            return jsonify({
+                'success': False,
+                'error': f'Game {game_id} not found in NBA API response'
+            }), 404
+
+        # 3. Check if game is finished
+        game_status = game.get('game_status', '')
+        if game_status != 'Final':
+            return jsonify({
+                'success': False,
+                'error': f'Game is not finished yet. Current status: {game_status}'
+            }), 400
+
+        # 4. Get actual scores
+        actual_home = game.get('home_team_score')
+        actual_away = game.get('away_team_score')
+
+        if actual_home is None or actual_away is None:
+            return jsonify({
+                'success': False,
+                'error': 'Final scores not available in NBA API response'
+            }), 500
+
+        actual_total = actual_home + actual_away
+
+        print(f'[run-learning] Final score: {prediction_data["away_team"]} {actual_away}, {prediction_data["home_team"]} {actual_home} (Total: {actual_total})')
+
+        # 5. Update actual results in database
+        db.update_actual_results(game_id, actual_home, actual_away)
+
+        # 6. Run team rating updates (existing logic)
+        print(f'[run-learning] Updating team ratings...')
+        rating_update = team_ratings_model.update_ratings(
+            home_tricode=prediction_data['home_team'],
+            away_tricode=prediction_data['away_team'],
+            home_pts_final=actual_home,
+            away_pts_final=actual_away
+        )
+
+        # 7. Run line-aware learning (NEW)
+        line_metrics = None
+        if prediction_data['sportsbook_total_line'] is not None:
+            print(f'[run-learning] Running line-aware learning...')
+            line_metrics = team_ratings_model.update_from_sportsbook_line(
+                pred_total=prediction_data['pred_total'],
+                sportsbook_line=prediction_data['sportsbook_total_line'],
+                actual_total=actual_total
+            )
+
+            # 8. Save error metrics to database
+            db.update_error_metrics(game_id, {
+                'model_error': line_metrics['model_error'],
+                'line_error': line_metrics['line_error'],
+                'model_abs_error': line_metrics['model_abs_error'],
+                'line_abs_error': line_metrics['line_abs_error'],
+                'model_beat_line': line_metrics['model_beat_line']
+            })
+
+            print(f'[run-learning] Model error: {line_metrics["model_abs_error"]}, Line error: {line_metrics["line_abs_error"]}')
+            print(f'[run-learning] {"✓ Model beat line!" if line_metrics["model_beat_line"] else "✗ Line beat model"}')
+        else:
+            print(f'[run-learning] No sportsbook line submitted, skipping line-aware learning')
+
+            # Still save basic error metrics
+            model_error = actual_total - prediction_data['pred_total']
+            db.update_error_metrics(game_id, {
+                'model_error': model_error,
+                'line_error': None,
+                'model_abs_error': abs(model_error),
+                'line_abs_error': None,
+                'model_beat_line': None
+            })
+
+        # 9. Commit updated model to GitHub (optional - works without GH_TOKEN in local dev)
+        print(f'[run-learning] Committing model to GitHub...')
+
+        # Use the updated model from line_metrics if available, otherwise from rating_update
+        updated_model = line_metrics['updated_model'] if line_metrics else rating_update['updated_model']
+
+        model_committed = False
+        try:
+            commit_result = commit_model_to_github(
+                updated_model,
+                commit_message=f"Learn from game {game_id}: {prediction_data['away_team']}@{prediction_data['home_team']} ({actual_away}-{actual_home})"
+            )
+            model_committed = commit_result.get('success', False) if commit_result else False
+        except ValueError as e:
+            print(f'[run-learning] ⚠ GitHub commit skipped: {str(e)}')
+        except Exception as e:
+            print(f'[run-learning] ⚠ GitHub commit failed: {str(e)}')
+
+        if model_committed:
+            print(f'[run-learning] ✓ Model committed to GitHub')
+        else:
+            print(f'[run-learning] ℹ Local model updated (GitHub commit skipped)')
+
+        # 10. Build response
+        response = {
+            'success': True,
+            'game_id': game_id,
+            'actual_total': actual_total,
+            'pred_total': prediction_data['pred_total'],
+            'model_committed': model_committed
+        }
+
+        # Add line comparison if available
+        if line_metrics:
+            response.update({
+                'sportsbook_line': prediction_data['sportsbook_total_line'],
+                'model_error': line_metrics['model_error'],
+                'line_error': line_metrics['line_error'],
+                'model_beat_line': line_metrics['model_beat_line'],
+                'total_bias_update': {
+                    'old': line_metrics['old_total_bias'],
+                    'new': line_metrics['new_total_bias'],
+                    'adjustment': line_metrics['bias_adjustment']
+                }
+            })
+
+        # Add team rating updates
+        response['updates'] = {
+            f'{prediction_data["home_team"]}_off': rating_update['new_ratings'][prediction_data['home_team']]['off'],
+            f'{prediction_data["home_team"]}_def': rating_update['new_ratings'][prediction_data['home_team']]['def'],
+            f'{prediction_data["away_team"]}_off': rating_update['new_ratings'][prediction_data['away_team']]['off'],
+            f'{prediction_data["away_team"]}_def': rating_update['new_ratings'][prediction_data['away_team']]['def']
+        }
+
+        print(f'[run-learning] ✓ Learning complete!')
+
+        return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 # Catch-all route to serve React app for client-side routing
 @app.route('/', defaults={'path': ''})

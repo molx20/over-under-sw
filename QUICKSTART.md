@@ -1,145 +1,150 @@
-# Quick Start Guide
+# Self-Learning Feature - Quick Start
 
-Get the NBA Over/Under app running in 5 minutes!
+## 🚀 Get Started in 3 Steps
 
-## Step 1: Install Dependencies
+### 1️⃣ Save a Pre-Game Prediction
 
-```bash
-# Install Node.js dependencies
-npm install
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-## Step 2: Run Locally
+Before a game starts, save your model's prediction:
 
 ```bash
-# Start the development server
-npm run dev
+curl -X POST https://your-app.railway.app/api/save-prediction \
+  -H "Content-Type: application/json" \
+  -d '{"game_id": "0022500263", "home_team": "POR", "away_team": "CHI"}'
 ```
 
-The app will open at `http://localhost:5173`
-
-## Step 3: Test the API (Optional)
-
-To test the Python API functions locally:
-
-```python
-# In a Python shell
-from api.utils.nba_data import get_todays_games, get_team_stats
-from api.utils.prediction_engine import predict_game_total
-
-# Get today's games
-games = get_todays_games()
-print(f"Found {len(games)} games today")
-
-# Get team stats (example: Lakers - team_id: 1610612747)
-lakers_stats = get_team_stats(1610612747)
-print(lakers_stats)
+**You'll get back:**
+```json
+{
+  "success": true,
+  "prediction": {
+    "home": 110.5,
+    "away": 105.2,
+    "total": 215.7
+  }
+}
 ```
 
-## Step 4: Deploy to Vercel (FREE)
+### 2️⃣ Submit the Sportsbook Line
 
-### First Time Setup
-
-1. **Install Vercel CLI** (optional, but recommended)
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Push to GitHub**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin <your-github-repo-url>
-   git push -u origin main
-   ```
-
-3. **Deploy via Vercel Dashboard**
-   - Go to [vercel.com](https://vercel.com)
-   - Click "New Project"
-   - Import your GitHub repo
-   - Click "Deploy" (no configuration needed!)
-
-### OR Deploy via CLI
+Enter the over/under line from ESPN, FanDuel, DraftKings, etc:
 
 ```bash
-vercel
-# Follow the prompts
-# First deployment will ask for configuration - accept defaults
+curl -X POST https://your-app.railway.app/api/submit-line \
+  -H "Content-Type: application/json" \
+  -d '{"game_id": "0022500263", "sportsbook_total_line": 218.5}'
 ```
 
-## Common Team IDs (for testing)
+### 3️⃣ Run Learning After the Game
 
-- Lakers: 1610612747
-- Warriors: 1610612744
-- Celtics: 1610612738
-- Heat: 1610612748
-- Nets: 1610612751
-- Knicks: 1610612752
-- 76ers: 1610612755
-- Bucks: 1610612749
-- Bulls: 1610612741
-- Mavericks: 1610612742
+Once the game finishes with status "Final":
 
-## Troubleshooting
-
-### "Module not found" errors
 ```bash
-rm -rf node_modules package-lock.json
-npm install
+curl -X POST https://your-app.railway.app/api/run-learning \
+  -H "Content-Type: application/json" \
+  -d '{"game_id": "0022500263"}'
 ```
 
-### Python import errors
-```bash
-pip install --upgrade nba_api flask flask-cors
+**You'll get back:**
+```json
+{
+  "success": true,
+  "actual_total": 220.0,
+  "pred_total": 215.7,
+  "sportsbook_line": 218.5,
+  "model_error": 4.3,
+  "line_error": 1.5,
+  "model_beat_line": false,
+  "total_bias_update": {
+    "old": 0.0,
+    "new": 0.03,
+    "adjustment": 0.03
+  }
+}
 ```
-
-### API rate limiting
-The NBA API has rate limits. If you see errors:
-- Wait a few seconds between requests
-- The app includes built-in delays (0.6s between calls)
-- Consider implementing caching for production
-
-### No games showing
-- Check if there are NBA games scheduled today
-- Try a different date using the date picker (once implemented)
-- Check browser console for error messages
-
-## Next Steps
-
-1. **Customize the algorithm**: Edit `api/utils/prediction_engine.py`
-2. **Add new features**: Check README.md for enhancement ideas
-3. **Improve accuracy**: Incorporate more advanced statistics
-4. **Add betting lines**: Integrate with an odds API
-
-## Development Tips
-
-- **Hot Reload**: Changes to React files auto-reload
-- **Dark Mode**: Toggle with the button in header
-- **Responsive Design**: Test on mobile with browser DevTools
-- **API Caching**: Team stats are cached for 1 hour to reduce API calls
-
-## Production Checklist
-
-- [ ] Test all features locally
-- [ ] Verify predictions are reasonable
-- [ ] Check mobile responsiveness
-- [ ] Test dark mode
-- [ ] Add error handling
-- [ ] Set up analytics (optional)
-- [ ] Configure custom domain (optional)
-- [ ] Set up monitoring (optional)
-
-## Support
-
-- Check the main [README.md](./README.md) for detailed documentation
-- Review [nba_api documentation](https://github.com/swar/nba_api)
-- Open an issue on GitHub for bugs
 
 ---
 
-**Happy predicting! 🏀**
+## 📊 Check Your Performance
+
+After 10+ games, query your stats:
+
+```bash
+sqlite3 api/data/predictions.db "
+SELECT
+    COUNT(*) as games,
+    ROUND(AVG(model_abs_error), 2) as avg_model_error,
+    ROUND(AVG(line_abs_error), 2) as avg_line_error,
+    ROUND(SUM(CASE WHEN model_beat_line = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as model_win_rate
+FROM game_predictions
+WHERE learning_completed_at IS NOT NULL;
+"
+```
+
+---
+
+## 🔗 Getting Game IDs
+
+To get today's games and their IDs:
+
+```bash
+curl -s https://your-app.railway.app/api/games | python3 -m json.tool | grep -E "(game_id|home_team|away_team)"
+```
+
+---
+
+## 📁 Where Is Everything?
+
+- **Database**: `api/data/predictions.db`
+- **Model**: `api/data/model.json`
+- **Full Guide**: `SELF_LEARNING_GUIDE.md`
+- **API Docs**: `API_REFERENCE.md`
+- **Summary**: `IMPLEMENTATION_SUMMARY.md`
+
+---
+
+## 🎯 What to Expect
+
+| After | Avg Error | Win Rate vs Line |
+|-------|-----------|------------------|
+| 10 games | 10-15 pts | 30-40% |
+| 50 games | 7-10 pts | 40-48% |
+| 200 games | 5-7 pts | 48-52% |
+
+**Goal**: Get your model to beat the closing line 50%+ of the time over hundreds of games.
+
+---
+
+## ❓ Troubleshooting
+
+**"No prediction found"**
+→ Did you save the prediction first? (Step 1)
+
+**"Game is not finished yet"**
+→ Wait for game status = "Final" before running learning
+
+**GitHub commit failed**
+→ Normal without `GH_TOKEN` - model still updates locally
+
+---
+
+## 🚢 Deploy to Railway
+
+```bash
+git add .
+git commit -m "Add self-learning prediction feature"
+git push
+```
+
+Railway will automatically deploy. Your SQLite database will persist across restarts.
+
+---
+
+## 📞 Need Help?
+
+- **Usage Guide**: See `SELF_LEARNING_GUIDE.md`
+- **API Reference**: See `API_REFERENCE.md`
+- **Implementation Details**: See `IMPLEMENTATION_SUMMARY.md`
+
+---
+
+**That's it! Start learning from your predictions today.** 🎉
