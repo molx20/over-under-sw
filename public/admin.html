@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Prediction Admin - Self-Learning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result pre {
+            margin-top: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+
+        .games-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .game-item {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .game-item:hover {
+            background: #f5f5f5;
+        }
+
+        .game-item:last-child {
+            border-bottom: none;
+        }
+
+        .game-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .game-status.final {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .game-status.live {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .game-status.upcoming {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏀 NBA Prediction Admin</h1>
+            <p class="subtitle">Self-Learning Feature Management</p>
+        </div>
+
+        <!-- Step 1: Save Prediction -->
+        <div class="section">
+            <h2>1️⃣ Save Pre-Game Prediction</h2>
+            <div class="form-group">
+                <label>Load Today's Games</label>
+                <button onclick="loadGames()">Load Games</button>
+            </div>
+            <div id="gamesList" class="games-list" style="display:none;"></div>
+            <div class="form-group">
+                <label>Game ID</label>
+                <input type="text" id="gameId1" placeholder="0022500123">
+            </div>
+            <div class="form-group">
+                <label>Home Team</label>
+                <input type="text" id="homeTeam" placeholder="BOS">
+            </div>
+            <div class="form-group">
+                <label>Away Team</label>
+                <input type="text" id="awayTeam" placeholder="LAL">
+            </div>
+            <button onclick="savePrediction()">Save Prediction</button>
+            <div id="result1"></div>
+        </div>
+
+        <!-- Step 2: Submit Line -->
+        <div class="section">
+            <h2>2️⃣ Submit Sportsbook Line</h2>
+            <div class="form-group">
+                <label>Game ID</label>
+                <input type="text" id="gameId2" placeholder="0022500123">
+            </div>
+            <div class="form-group">
+                <label>Sportsbook Total Line (Over/Under)</label>
+                <input type="number" step="0.5" id="sportsbookLine" placeholder="218.5">
+            </div>
+            <button onclick="submitLine()">Submit Line</button>
+            <div id="result2"></div>
+        </div>
+
+        <!-- Step 3: Run Learning -->
+        <div class="section">
+            <h2>3️⃣ Run Post-Game Learning</h2>
+            <div class="form-group">
+                <label>Game ID</label>
+                <input type="text" id="gameId3" placeholder="0022500123">
+            </div>
+            <button onclick="runLearning()">Run Learning</button>
+            <div id="result3"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadGames() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/games`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load games');
+                }
+
+                const gamesList = document.getElementById('gamesList');
+                gamesList.style.display = 'block';
+                gamesList.innerHTML = '';
+
+                if (data.games.length === 0) {
+                    gamesList.innerHTML = '<div class="loading">No games found for today</div>';
+                    return;
+                }
+
+                data.games.forEach(game => {
+                    const div = document.createElement('div');
+                    div.className = 'game-item';
+
+                    let statusClass = 'upcoming';
+                    let statusText = game.game_status;
+                    if (game.game_status === 'Final') {
+                        statusClass = 'final';
+                    } else if (game.game_status.includes('Q')) {
+                        statusClass = 'live';
+                    }
+
+                    div.innerHTML = `
+                        <strong>${game.away_team.abbreviation} @ ${game.home_team.abbreviation}</strong>
+                        <span class="game-status ${statusClass}">${statusText}</span>
+                        <br>
+                        <small style="color: #666;">Game ID: ${game.game_id}</small>
+                    `;
+
+                    div.onclick = () => {
+                        document.getElementById('gameId1').value = game.game_id;
+                        document.getElementById('homeTeam').value = game.home_team.abbreviation;
+                        document.getElementById('awayTeam').value = game.away_team.abbreviation;
+                        document.getElementById('gameId2').value = game.game_id;
+                        document.getElementById('gameId3').value = game.game_id;
+                    };
+
+                    gamesList.appendChild(div);
+                });
+
+            } catch (error) {
+                alert('Error loading games: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Load Games';
+            }
+        }
+
+        async function savePrediction() {
+            const button = event.target;
+            const gameId = document.getElementById('gameId1').value;
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeam = document.getElementById('awayTeam').value;
+            const resultDiv = document.getElementById('result1');
+
+            if (!gameId || !homeTeam || !awayTeam) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please fill in all fields';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Saving...';
+            resultDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/save-prediction`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_id: gameId, home_team: homeTeam, away_team: awayTeam })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Prediction Saved!</strong>
+                        <pre>${JSON.stringify(data.prediction, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '✗ Error: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Save Prediction';
+            }
+        }
+
+        async function submitLine() {
+            const button = event.target;
+            const gameId = document.getElementById('gameId2').value;
+            const line = document.getElementById('sportsbookLine').value;
+            const resultDiv = document.getElementById('result2');
+
+            if (!gameId || !line) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please fill in all fields';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Submitting...';
+            resultDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/submit-line`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_id: gameId, sportsbook_total_line: parseFloat(line) })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<strong>✓ Line Submitted!</strong> (${data.line})`;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '✗ Error: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Submit Line';
+            }
+        }
+
+        async function runLearning() {
+            const button = event.target;
+            const gameId = document.getElementById('gameId3').value;
+            const resultDiv = document.getElementById('result3');
+
+            if (!gameId) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please enter a game ID';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Learning...';
+            resultDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/run-learning`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_id: gameId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const beatLine = data.model_beat_line ? '✓ Model beat line!' : '✗ Line beat model';
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Learning Complete!</strong><br>
+                        Actual Total: ${data.actual_total}<br>
+                        Model Predicted: ${data.pred_total} (Error: ${Math.abs(data.model_error).toFixed(2)})<br>
+                        Sportsbook Line: ${data.sportsbook_line || 'N/A'} ${data.line_error ? `(Error: ${Math.abs(data.line_error).toFixed(2)})` : ''}<br>
+                        <strong>${beatLine}</strong>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '✗ Error: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Run Learning';
+            }
+        }
+    </script>
+</body>
+</html>
