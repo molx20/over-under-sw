@@ -267,19 +267,34 @@ def is_2025_26_season_game(game_id):
 @cache_result(timeout_seconds=1800)
 def get_todays_games():
     """
-    Get all games scheduled for today from the 2025-26 season (Eastern Time)
+    Get all games scheduled for today from the 2025-26 season (Mountain Time)
+
+    Shows tomorrow's games after 3 AM MST (5 AM ET).
+    This allows you to see and predict games before they happen.
+
     Uses NBA CDN endpoint which is more reliable than stats.nba.com
 
     Returns:
         list of dicts with game info, filtered to 2025-26 season only
     """
-    # Use Eastern Time for NBA game dates
+    # Use Mountain Time for game date calculation
     from datetime import timezone, timedelta
-    et_offset = timedelta(hours=-5)  # EST (UTC-5)
-    et_time = datetime.now(timezone.utc) + et_offset
-    today_str = et_time.strftime('%Y-%m-%d')
+    mst_offset = timedelta(hours=-7)  # MST (UTC-7)
+    mst_time = datetime.now(timezone.utc) + mst_offset
 
-    print(f"Fetching games for {today_str} (ET)")
+    # After 3 AM MST, show next day's games
+    if mst_time.hour >= 3:
+        # It's after 3 AM, show tomorrow's games (next calendar day)
+        tomorrow = mst_time + timedelta(days=1)
+        today_str = tomorrow.strftime('%Y-%m-%d')
+    else:
+        # It's before 3 AM, show current day's games (games still finishing from tonight)
+        today_str = mst_time.strftime('%Y-%m-%d')
+
+    print(f"Fetching games for {today_str} (MST time: {mst_time.strftime('%Y-%m-%d %I:%M %p')})")
+
+    # Still use ET offset for game time display (NBA standard)
+    et_offset = timedelta(hours=-5)  # EST (UTC-5)
 
     try:
         # Minimal delay for CDN endpoint
