@@ -23,7 +23,8 @@
       "Bash(vercel ls:*)",
       "Bash(vercel:*)",
       "Bash(printf:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
