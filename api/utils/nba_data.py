@@ -277,38 +277,28 @@ def is_2025_26_season_game(game_id):
 @cache_result(timeout_seconds=300)  # 5 minutes - shorter cache for faster updates
 def get_todays_games():
     """
-    Get all games scheduled for today from the 2025-26 season (Mountain Time)
-
-    Shows tomorrow's games after 3 AM MST (5 AM ET).
-    This allows you to see and predict games before they happen.
+    Get all games scheduled for today from the 2025-26 season
 
     Uses NBA CDN endpoint which is more reliable than stats.nba.com
+    The CDN always returns the current day's games.
 
     Returns:
         list of dicts with game info, filtered to 2025-26 season only
     """
-    # Use Mountain Time for game date calculation
+    # Use Mountain Time for date tracking
     global _last_game_date
     from datetime import timezone, timedelta
     mst_offset = timedelta(hours=-7)  # MST (UTC-7)
     mst_time = datetime.now(timezone.utc) + mst_offset
+    today_str = mst_time.strftime('%Y-%m-%d')
 
-    # After 3 AM MST, show next day's games
-    if mst_time.hour >= 3:
-        # It's after 3 AM, show tomorrow's games (next calendar day)
-        tomorrow = mst_time + timedelta(days=1)
-        today_str = tomorrow.strftime('%Y-%m-%d')
-    else:
-        # It's before 3 AM, show current day's games (games still finishing from tonight)
-        today_str = mst_time.strftime('%Y-%m-%d')
-
-    # Clear cache if date changed (happens at 3 AM MST)
+    # Clear cache if date changed
     if _last_game_date is not None and _last_game_date != today_str:
         print(f"Date changed from {_last_game_date} to {today_str}, clearing cache")
         clear_games_cache()
     _last_game_date = today_str
 
-    print(f"Fetching games for {today_str} (MST time: {mst_time.strftime('%Y-%m-%d %I:%M %p')})")
+    print(f"Fetching today's games (MST time: {mst_time.strftime('%Y-%m-%d %I:%M %p')})")
 
     # Still use ET offset for game time display (NBA standard)
     et_offset = timedelta(hours=-5)  # EST (UTC-5)
