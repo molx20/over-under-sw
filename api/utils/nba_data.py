@@ -46,6 +46,16 @@ _http_session.mount('http://', adapter)
 
 _cache = {}
 _cache_timeout = {}
+_last_game_date = None  # Track the last date we fetched games for
+
+def clear_games_cache():
+    """Clear only the games cache (when date changes at 3 AM MST)"""
+    global _cache, _cache_timeout
+    keys_to_remove = [k for k in _cache.keys() if 'get_todays_games' in k]
+    for key in keys_to_remove:
+        _cache.pop(key, None)
+        _cache_timeout.pop(key, None)
+    print(f"Cleared games cache ({len(keys_to_remove)} entries)")
 
 def cache_result(timeout_seconds=3600):
     """Decorator to cache function results"""
@@ -264,7 +274,7 @@ def is_2025_26_season_game(game_id):
     return any(game_id_str.startswith(prefix) for prefix in valid_prefixes)
 
 
-@cache_result(timeout_seconds=1800)
+@cache_result(timeout_seconds=300)  # 5 minutes - shorter cache for faster updates
 def get_todays_games():
     """
     Get all games scheduled for today from the 2025-26 season (Mountain Time)
@@ -278,6 +288,7 @@ def get_todays_games():
         list of dicts with game info, filtered to 2025-26 season only
     """
     # Use Mountain Time for game date calculation
+    global _last_game_date
     from datetime import timezone, timedelta
     mst_offset = timedelta(hours=-7)  # MST (UTC-7)
     mst_time = datetime.now(timezone.utc) + mst_offset
@@ -290,6 +301,12 @@ def get_todays_games():
     else:
         # It's before 3 AM, show current day's games (games still finishing from tonight)
         today_str = mst_time.strftime('%Y-%m-%d')
+
+    # Clear cache if date changed (happens at 3 AM MST)
+    if _last_game_date is not None and _last_game_date != today_str:
+        print(f"Date changed from {_last_game_date} to {today_str}, clearing cache")
+        clear_games_cache()
+    _last_game_date = today_str
 
     print(f"Fetching games for {today_str} (MST time: {mst_time.strftime('%Y-%m-%d %I:%M %p')})")
 
