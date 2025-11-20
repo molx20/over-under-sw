@@ -1,27 +1,7 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "nixpacksPlan": {
-      "phases": {
-        "setup": {
-          "nixPkgs": ["python311", "python311Packages.pip", "nodejs_20"]
-        },
-        "install": {
-          "cmds": [
-            "pip install --upgrade pip",
-            "pip install -r requirements.txt",
-            "npm ci"
-          ]
-        },
-        "build": {
-          "cmds": ["npm run build"]
-        }
-      },
-      "start": {
-        "cmd": "gunicorn server:app --bind 0.0.0.0:$PORT"
-      }
-    }
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
