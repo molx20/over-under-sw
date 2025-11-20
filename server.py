@@ -367,18 +367,44 @@ def save_prediction():
 
         print(f'[save-prediction] Generating prediction for {away_team} @ {home_team} (game {game_id})')
 
-        # Generate prediction using enhanced model with bias
-        try:
-            prediction = team_ratings_model.predict_with_bias(home_team, away_team)
-        except ValueError as e:
+        # Get team IDs for the complex prediction engine
+        all_teams = get_all_teams()
+        home_team_data = next((t for t in all_teams if t['abbreviation'] == home_team), None)
+        away_team_data = next((t for t in all_teams if t['abbreviation'] == away_team), None)
+
+        if not home_team_data or not away_team_data:
             return jsonify({
                 'success': False,
-                'error': str(e)
+                'error': f'Team not found: {home_team if not home_team_data else away_team}'
+            }), 400
+
+        home_team_id = home_team_data['id']
+        away_team_id = away_team_data['id']
+
+        # Use the COMPLEX prediction engine (same as dashboard)
+        try:
+            matchup_data = get_matchup_data(home_team_id, away_team_id)
+            if matchup_data is None:
+                raise Exception('Failed to fetch matchup data from NBA API')
+
+            # Get prediction using the complex engine
+            prediction = predict_game_total(
+                matchup_data['home'],
+                matchup_data['away'],
+                betting_line=None  # No line yet
+            )
+
+            pred_home = prediction['projected_home_score']
+            pred_away = prediction['projected_away_score']
+            pred_total = prediction['projected_total']
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Prediction failed: {str(e)}'
             }), 400
 
         # Extract game date from game_id or use current date
-        # Game ID format: 00225YYSSSGGGGG where YY=year, SSS=season type, GGGGG=game number
-        # For now, just use current date
         game_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
         # Save to database
@@ -387,16 +413,22 @@ def save_prediction():
             home_team=home_team,
             away_team=away_team,
             game_date=game_date,
-            pred_home=prediction['home_pts'],
-            pred_away=prediction['away_pts'],
-            pred_total=prediction['predicted_total'],
-            model_version=prediction['model_version']
+            pred_home=pred_home,
+            pred_away=pred_away,
+            pred_total=pred_total,
+            model_version='complex_v1'
         )
 
         if not result['success']:
             return jsonify(result), 400
 
-        print(f'[save-prediction] ✓ Saved prediction: {prediction["predicted_total"]} total')
+        print(f'[save-prediction] ✓ Saved prediction: {pred_total} total')
+
+        # Add full prediction details to response
+        result['prediction']['home'] = pred_home
+        result['prediction']['away'] = pred_away
+        result['prediction']['recommendation'] = prediction.get('recommendation', '')
+        result['prediction']['confidence'] = prediction.get('confidence', 0)
 
         return jsonify(result)
 
@@ -646,6 +678,43 @@ def run_learning():
         print(f'[run-learning] ✓ Learning complete!')
 
         return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/prediction-history', methods=['GET'])
+def prediction_history():
+    """
+    Get prediction history with optional filters
+
+    Query params:
+        - limit: Number of records (default 50)
+        - with_learning: Only show predictions with completed learning (default false)
+    """
+    try:
+        limit = int(request.args.get('limit', 50))
+        with_learning = request.args.get('with_learning', 'false').lower() == 'true'
+
+        if with_learning:
+            predictions = db.get_predictions_with_learning(limit=limit)
+        else:
+            predictions = db.get_all_predictions(limit=limit)
+
+        # Calculate performance stats
+        stats = db.get_model_performance_stats(days=30)
+
+        return jsonify({
+            'success': True,
+            'predictions': predictions,
+            'stats': stats,
+            'count': len(predictions)
+        })
 
     except Exception as e:
         import traceback

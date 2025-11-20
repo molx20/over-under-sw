@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction History - NBA Over/Under</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .nav-button:hover {
+            background: #5568d3;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-value.good {
+            color: #10b981;
+        }
+
+        .stat-value.bad {
+            color: #ef4444;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.win {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.loss {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge.pending {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .action-button {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .action-button:hover {
+            background: #5568d3;
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            margin-bottom: 10px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>📊 Prediction History</h1>
+                    <p class="subtitle">View and manage past predictions</p>
+                </div>
+                <div class="nav-buttons">
+                    <a href="/" class="nav-button">← Dashboard</a>
+                    <a href="/admin.html" class="nav-button">Admin</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid" style="display:none;">
+            <div class="stat-card">
+                <div class="stat-label">Total Predictions</div>
+                <div class="stat-value" id="totalGames">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Model Error</div>
+                <div class="stat-value" id="avgModelError">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Line Error</div>
+                <div class="stat-value" id="avgLineError">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Model Win Rate</div>
+                <div class="stat-value" id="modelWinRate">-</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Show:</label>
+                <select id="filterType" onchange="loadHistory()">
+                    <option value="all">All Predictions</option>
+                    <option value="learned">With Learning Only</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Limit:</label>
+                <select id="limitSelect" onchange="loadHistory()">
+                    <option value="20">20</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <button class="action-button" onclick="loadHistory()">🔄 Refresh</button>
+        </div>
+
+        <div class="table-container">
+            <div id="loading" class="loading">Loading history...</div>
+            <div id="emptyState" class="empty-state" style="display:none;">
+                <h2>No Predictions Yet</h2>
+                <p>Start making predictions from the admin page!</p>
+                <br>
+                <a href="/admin.html" class="nav-button">Go to Admin</a>
+            </div>
+            <table id="historyTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Game</th>
+                        <th>Predicted Total</th>
+                        <th>Sportsbook Line</th>
+                        <th>Actual Total</th>
+                        <th>Model Error</th>
+                        <th>Result</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadHistory() {
+            const loading = document.getElementById('loading');
+            const emptyState = document.getElementById('emptyState');
+            const table = document.getElementById('historyTable');
+            const tbody = document.getElementById('historyBody');
+            const statsGrid = document.getElementById('statsGrid');
+
+            loading.style.display = 'block';
+            emptyState.style.display = 'none';
+            table.style.display = 'none';
+            tbody.innerHTML = '';
+
+            const filterType = document.getElementById('filterType').value;
+            const limit = document.getElementById('limitSelect').value;
+            const withLearning = filterType === 'learned';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/prediction-history?limit=${limit}&with_learning=${withLearning}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load history');
+                }
+
+                loading.style.display = 'none';
+
+                // Update stats
+                if (data.stats && data.stats.total_games > 0) {
+                    statsGrid.style.display = 'grid';
+                    document.getElementById('totalGames').textContent = data.stats.total_games;
+                    document.getElementById('avgModelError').textContent = data.stats.avg_model_error ? `${data.stats.avg_model_error} pts` : 'N/A';
+                    document.getElementById('avgLineError').textContent = data.stats.avg_line_error ? `${data.stats.avg_line_error} pts` : 'N/A';
+
+                    const winRate = data.stats.model_win_rate;
+                    const winRateEl = document.getElementById('modelWinRate');
+                    winRateEl.textContent = winRate ? `${winRate}%` : 'N/A';
+                    winRateEl.className = 'stat-value ' + (winRate >= 50 ? 'good' : 'bad');
+                }
+
+                if (data.predictions.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                // Populate table
+                table.style.display = 'table';
+                data.predictions.forEach(pred => {
+                    const row = document.createElement('tr');
+
+                    const gameDate = new Date(pred.game_date).toLocaleDateString();
+                    const matchup = `${pred.away_team} @ ${pred.home_team}`;
+                    const predTotal = pred.pred_total ? pred.pred_total.toFixed(1) : 'N/A';
+                    const line = pred.sportsbook_total_line ? pred.sportsbook_total_line.toFixed(1) : '-';
+                    const actual = pred.actual_total ? pred.actual_total.toFixed(1) : '-';
+                    const error = pred.model_abs_error ? pred.model_abs_error.toFixed(1) : '-';
+
+                    let resultBadge = '';
+                    if (pred.model_beat_line !== null) {
+                        if (pred.model_beat_line) {
+                            resultBadge = '<span class="badge win">✓ Beat Line</span>';
+                        } else {
+                            resultBadge = '<span class="badge loss">✗ Lost to Line</span>';
+                        }
+                    } else if (pred.actual_total) {
+                        resultBadge = '<span class="badge pending">No Line</span>';
+                    } else {
+                        resultBadge = '<span class="badge pending">Pending</span>';
+                    }
+
+                    let actions = '';
+                    if (!pred.learning_completed_at && pred.actual_total) {
+                        actions = `<button class="action-button" onclick="runLearningFor('${pred.game_id}')">Run Learning</button>`;
+                    } else if (!pred.actual_total) {
+                        actions = `<button class="action-button" onclick="runLearningFor('${pred.game_id}')">Check & Learn</button>`;
+                    } else {
+                        actions = '<span style="color:#10b981;">✓ Complete</span>';
+                    }
+
+                    row.innerHTML = `
+                        <td>${gameDate}</td>
+                        <td><strong>${matchup}</strong><br><small style="color:#666;">${pred.game_id}</small></td>
+                        <td>${predTotal}</td>
+                        <td>${line}</td>
+                        <td>${actual}</td>
+                        <td>${error}</td>
+                        <td>${resultBadge}</td>
+                        <td>${actions}</td>
+                    `;
+
+                    tbody.appendChild(row);
+                });
+
+            } catch (error) {
+                loading.style.display = 'none';
+                alert('Error loading history: ' + error.message);
+            }
+        }
+
+        async function runLearningFor(gameId) {
+            if (!confirm(`Run learning for game ${gameId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/run-learning`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_id: gameId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✓ Learning complete!\n\nActual: ${data.actual_total}\nPredicted: ${data.pred_total}\nModel beat line: ${data.model_beat_line ? 'Yes' : 'No'}`);
+                    loadHistory(); // Reload
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert('Error running learning: ' + error.message);
+            }
+        }
+
+        // Load on page load
+        loadHistory();
+    </script>
+</body>
+</html>
