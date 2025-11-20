@@ -35,16 +35,16 @@ railway up
 ## Configuration
 
 Railway will automatically:
-- Install Python dependencies from `requirements.txt`
-- Install Node.js dependencies from `package.json`
-- Build the frontend with `npm run build`
+- Detect the `Dockerfile` and build using Docker
+- Build the frontend with Node.js 20 (Stage 1)
+- Install Python dependencies and run the backend with Python 3.11 (Stage 2)
 - Start the server with `gunicorn server:app`
 
 The configuration is defined in:
-- `Procfile` - Defines the start command
-- `nixpacks.toml` - Defines build phases
+- `Dockerfile` - Multi-stage build configuration
+- `.dockerignore` - Files to exclude from build
 - `railway.json` - Railway-specific configuration
-- `runtime.txt` - Python version
+- `Procfile` - Alternative start command (Dockerfile takes precedence)
 
 ## Environment Variables
 
@@ -76,15 +76,15 @@ Your app is deployed as a **monorepo**:
 ```
 .
 ├── server.py              # Flask application (main entry point)
-├── Procfile              # Tells Railway how to start the app
-├── nixpacks.toml         # Build configuration
+├── Dockerfile            # Multi-stage build configuration
+├── .dockerignore         # Files excluded from Docker build
 ├── railway.json          # Railway deployment settings
-├── runtime.txt           # Python version
+├── Procfile              # Alternative start command (Dockerfile takes precedence)
 ├── requirements.txt      # Python dependencies
 ├── package.json          # Node dependencies + build script
 ├── api/                  # Python API modules
 │   └── utils/           # NBA data fetching and prediction logic
-└── dist/                # Built React app (generated)
+└── dist/                # Built React app (generated during Docker build)
 ```
 
 ## Monitoring
