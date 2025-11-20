@@ -394,9 +394,9 @@ def save_prediction():
                 betting_line=None  # No line yet
             )
 
-            pred_home = prediction['projected_home_score']
-            pred_away = prediction['projected_away_score']
-            pred_total = prediction['projected_total']
+            pred_home = prediction['breakdown']['home_projected']
+            pred_away = prediction['breakdown']['away_projected']
+            pred_total = prediction['predicted_total']
 
         except Exception as e:
             return jsonify({
