@@ -184,6 +184,8 @@ function GamePage() {
           awayStats={away_stats}
           homeTeam={home_team?.abbreviation || 'Home'}
           awayTeam={away_team?.abbreviation || 'Away'}
+          homeTeamId={home_team?.id}
+          awayTeamId={away_team?.id}
         />
       </div>
 

@@ -16,6 +16,7 @@ from api.utils.prediction_engine import predict_game_total
 from api.utils import db
 from api.utils import team_ratings_model
 from api.utils.github_persistence import commit_model_to_github
+from api.utils import team_rankings
 
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
@@ -271,6 +272,68 @@ def game_detail():
         }
 
         return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/team-stats-with-ranks')
+def team_stats_with_ranks():
+    """
+    Get team statistics with league rankings
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'team_id': 1610612747,
+            'team_abbreviation': 'LAL',
+            'season': '2025-26',
+            'stats': {
+                'ppg': {'value': 111.7, 'rank': 18},
+                'opp_ppg': {'value': 116.3, 'rank': 25},
+                'fg_pct': {'value': 47.3, 'rank': 12},
+                'three_pct': {'value': 35.9, 'rank': 9},
+                'ft_pct': {'value': 83.3, 'rank': 4},
+                'off_rtg': {'value': 113.9, 'rank': 15},
+                'def_rtg': {'value': 118.5, 'rank': 27},
+                'net_rtg': {'value': -4.6, 'rank': 24},
+                'pace': {'value': 96.7, 'rank': 20}
+            }
+        }
+    """
+    try:
+        team_id = request.args.get('team_id')
+        season = request.args.get('season', '2025-26')
+
+        if not team_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing team_id parameter'
+            }), 400
+
+        print(f'[team_stats_with_ranks] Fetching stats with ranks for team {team_id}, season {season}')
+
+        # Get team stats with rankings
+        team_data = team_rankings.get_team_stats_with_ranks(int(team_id), season)
+
+        if not team_data:
+            return jsonify({
+                'success': False,
+                'error': f'Stats not found for team {team_id}'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            **team_data
+        })
 
     except Exception as e:
         import traceback

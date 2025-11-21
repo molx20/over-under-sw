@@ -137,6 +137,25 @@ export const checkAPIHealth = async () => {
   }
 }
 
+// Fetch team stats with league rankings
+export const fetchTeamStatsWithRanks = async (teamId, season = '2025-26') => {
+  try {
+    const response = await api.get('/team-stats-with-ranks', {
+      params: { team_id: teamId, season },
+      timeout: 10000
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data
+  } catch (error) {
+    console.error('[fetchTeamStatsWithRanks] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch team stats with rankings')
+  }
+}
+
 // ============================================
 // React Query Hooks for Optimized Caching
 // ============================================
@@ -177,5 +196,22 @@ export const useGameDetail = (gameId, bettingLine = null) => {
     refetchOnWindowFocus: false,
     // Keep previous data while fetching new data (smoother UX)
     keepPreviousData: true,
+  })
+}
+
+/**
+ * Hook to fetch team stats with league rankings
+ * Cache key: ['team-stats-ranks', teamId, season]
+ * Stale time: 6 hours (rankings don't change frequently)
+ */
+export const useTeamStatsWithRanks = (teamId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['team-stats-ranks', teamId, season],
+    queryFn: () => fetchTeamStatsWithRanks(teamId, season),
+    enabled: !!teamId,
+    staleTime: 21_600_000,    // Fresh for 6 hours (rankings change slowly)
+    cacheTime: 86_400_000,    // Keep in memory for 24 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
   })
 }
