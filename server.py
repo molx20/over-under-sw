@@ -450,16 +450,18 @@ def save_prediction():
             if matchup_data is None:
                 raise Exception('Failed to fetch matchup data from NBA API')
 
-            # Get prediction using the complex engine
+            # Get BASE prediction using the complex engine
             prediction = predict_game_total(
                 matchup_data['home'],
                 matchup_data['away'],
                 betting_line=None  # No line yet
             )
 
-            pred_home = prediction['breakdown']['home_projected']
-            pred_away = prediction['breakdown']['away_projected']
-            pred_total = prediction['predicted_total']
+            base_home = prediction['breakdown']['home_projected']
+            base_away = prediction['breakdown']['away_projected']
+            base_total = prediction['predicted_total']
+
+            print(f'[save-prediction] Base prediction: {base_total} ({base_home} - {base_away})')
 
         except Exception as e:
             return jsonify({
@@ -470,7 +472,58 @@ def save_prediction():
         # Extract game date from game_id or use current date
         game_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
-        # Save to database
+        # Build feature vector and compute correction
+        feature_correction = 0.0
+        feature_vector_dict = None
+        feature_metadata = None
+
+        try:
+            from api.utils.feature_builder import build_feature_vector, compute_feature_correction
+            import json
+
+            print(f'[save-prediction] Building feature vector...')
+            feature_data = build_feature_vector(
+                home_team=home_team,
+                away_team=away_team,
+                game_id=game_id,
+                as_of_date=game_date,
+                home_team_id=home_team_id,
+                away_team_id=away_team_id,
+                n_recent_games=model_params.get('recent_games_n', 10),
+                season='2025-26'
+            )
+
+            # Load feature weights from model
+            feature_weights = model_params.get('feature_weights', {})
+
+            # Compute correction: w·x
+            feature_correction = compute_feature_correction(
+                feature_data['features'],
+                feature_weights
+            )
+
+            print(f'[save-prediction] Feature correction: {feature_correction:+.2f}')
+
+            # Store feature data for database
+            feature_vector_dict = json.dumps(feature_data['features'])
+            feature_metadata = json.dumps(feature_data['metadata'])
+
+        except Exception as e:
+            print(f'[save-prediction] Warning: Could not compute features: {e}')
+            print('[save-prediction] Falling back to base prediction only')
+            # Continue with base prediction, feature_correction = 0
+
+        # Apply correction to base prediction
+        pred_total = base_total + feature_correction
+
+        # Split total back into team scores, preserving original ratio
+        base_ratio = base_home / (base_home + base_away) if (base_home + base_away) > 0 else 0.5
+        pred_home = pred_total * base_ratio
+        pred_away = pred_total * (1 - base_ratio)
+
+        print(f'[save-prediction] Final prediction: {pred_total:.1f} ({pred_home:.1f} - {pred_away:.1f})')
+
+        # Save to database with feature data
         result = db.save_prediction(
             game_id=game_id,
             home_team=home_team,
@@ -479,7 +532,11 @@ def save_prediction():
             pred_home=pred_home,
             pred_away=pred_away,
             pred_total=pred_total,
-            model_version='complex_v1'
+            model_version='3.0',
+            base_prediction=base_total,
+            feature_correction=feature_correction,
+            feature_vector=feature_vector_dict,
+            feature_metadata=feature_metadata
         )
 
         if not result['success']:
@@ -490,6 +547,8 @@ def save_prediction():
         # Add full prediction details to response
         result['prediction']['home'] = pred_home
         result['prediction']['away'] = pred_away
+        result['prediction']['base'] = base_total
+        result['prediction']['correction'] = feature_correction
         result['prediction']['recommendation'] = prediction.get('recommendation', '')
         result['prediction']['confidence'] = prediction.get('confidence', 0)
 
@@ -650,7 +709,7 @@ def run_learning():
             away_pts_final=actual_away
         )
 
-        # 7. Run line-aware learning (NEW)
+        # 7. Run line-aware learning (existing)
         line_metrics = None
         if prediction_data['sportsbook_total_line'] is not None:
             print(f'[run-learning] Running line-aware learning...')
@@ -684,6 +743,91 @@ def run_learning():
                 'model_beat_line': None
             })
 
+        # 7b. Update feature weights (NEW)
+        feature_weights_updated = False
+        if prediction_data.get('feature_vector'):
+            try:
+                import json
+                print(f'[run-learning] Updating feature weights...')
+
+                # Load stored feature vector
+                feature_vector = json.loads(prediction_data['feature_vector'])
+
+                # Compute model error
+                model_error = actual_total - prediction_data['pred_total']
+
+                # Get current model and feature weights
+                model = team_ratings_model.load_model()
+                feature_weights = model.get('feature_weights', {})
+                feature_lr = model['parameters'].get('feature_learning_rate', 0.01)
+
+                # Update each feature weight: w = w + η * error * x
+                for feature_name, feature_value in feature_vector.items():
+                    old_weight = feature_weights.get(feature_name, 0.0)
+                    new_weight = old_weight + (feature_lr * model_error * feature_value)
+
+                    # Clamp weights to [-10, +10] to prevent runaway values
+                    new_weight = max(-10.0, min(10.0, new_weight))
+
+                    feature_weights[feature_name] = round(new_weight, 4)
+
+                # Update model with new feature weights
+                model['feature_weights'] = feature_weights
+                team_ratings_model.save_model(model)
+                feature_weights_updated = True
+
+                print(f'[run-learning] ✓ Feature weights updated (error: {model_error:+.1f})')
+
+            except Exception as e:
+                print(f'[run-learning] Warning: Could not update feature weights: {e}')
+        else:
+            print(f'[run-learning] No feature vector found, skipping feature weight updates')
+
+        # 7c. Record game to team_game_history for both teams (NEW)
+        try:
+            from api.utils.matchup_profile import update_team_game_history_entry
+
+            print(f'[run-learning] Recording game to team_game_history...')
+
+            # Get team IDs
+            all_teams = get_all_teams()
+            home_team_data = next((t for t in all_teams if t['abbreviation'] == prediction_data['home_team']), None)
+            away_team_data = next((t for t in all_teams if t['abbreviation'] == prediction_data['away_team']), None)
+
+            if home_team_data and away_team_data:
+                # Record home team's performance
+                update_team_game_history_entry(
+                    game_id=game_id,
+                    team_tricode=prediction_data['home_team'],
+                    opponent_tricode=prediction_data['away_team'],
+                    stats={
+                        'points_scored': actual_home,
+                        'points_allowed': actual_away,
+                        'is_home': True
+                    },
+                    game_date=prediction_data['game_date']
+                )
+
+                # Record away team's performance
+                update_team_game_history_entry(
+                    game_id=game_id,
+                    team_tricode=prediction_data['away_team'],
+                    opponent_tricode=prediction_data['home_team'],
+                    stats={
+                        'points_scored': actual_away,
+                        'points_allowed': actual_home,
+                        'is_home': False
+                    },
+                    game_date=prediction_data['game_date']
+                )
+
+                print(f'[run-learning] ✓ Game recorded to team_game_history for both teams')
+            else:
+                print(f'[run-learning] Warning: Could not find team data for history recording')
+
+        except Exception as e:
+            print(f'[run-learning] Warning: Could not record game to team_game_history: {e}')
+
         # 9. Commit updated model to GitHub (optional - works without GH_TOKEN in local dev)
         print(f'[run-learning] Committing model to GitHub...')
 
@@ -713,7 +857,8 @@ def run_learning():
             'game_id': game_id,
             'actual_total': actual_total,
             'pred_total': prediction_data['pred_total'],
-            'model_committed': model_committed
+            'model_committed': model_committed,
+            'feature_weights_updated': feature_weights_updated
         }
 
         # Add line comparison if available

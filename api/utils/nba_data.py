@@ -461,7 +461,7 @@ def get_matchup_data(home_team_id, away_team_id, season='2025-26'):
             'stats': get_team_stats(team_id, season),
             'advanced': get_team_advanced_stats(team_id, season),
             'opponent': get_team_opponent_stats(team_id, season),
-            'recent_games': []  # Skipped for speed - not critical for O/U predictions
+            'recent_games': get_team_last_n_games(team_id, n=10, season=season)
         }
 
     # Fetch both teams in parallel with timeout protection

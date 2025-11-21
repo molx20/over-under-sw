@@ -1,12 +1,25 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "last_updated": "2025-11-20T14:03:37.334993+00:00",
   "parameters": {
     "base": 100,
     "hca": 2,
     "learning_rate": 0.02,
     "line_learning_rate": 0.005,
-    "total_bias": 0.21039999999999992
+    "total_bias": 0.21039999999999992,
+    "feature_learning_rate": 0.01,
+    "recent_games_n": 10
+  },
+  "feature_weights": {
+    "bias": 0.0,
+    "home_recent_off_delta": 0.0,
+    "home_recent_def_delta": 0.0,
+    "away_recent_off_delta": 0.0,
+    "away_recent_def_delta": 0.0,
+    "home_vs_off_bucket_total": 0.0,
+    "away_vs_off_bucket_total": 0.0,
+    "home_vs_def_bucket_total": 0.0,
+    "away_vs_def_bucket_total": 0.0
   },
   "teams": {
     "ATL": {

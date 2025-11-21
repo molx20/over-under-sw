@@ -97,6 +97,17 @@ def init_db():
     conn.close()
     print(f"Database initialized at {DB_PATH}")
 
+    # Run migrations for feature-enhanced predictions
+    try:
+        from api.utils.db_migrations import migrate_to_v3_features
+        migrate_to_v3_features()
+    except ImportError:
+        try:
+            from db_migrations import migrate_to_v3_features
+            migrate_to_v3_features()
+        except:
+            print("Warning: Could not run migrations, db_migrations module not found")
+
 
 def save_prediction(
     game_id: str,
@@ -106,7 +117,11 @@ def save_prediction(
     pred_home: float,
     pred_away: float,
     pred_total: float,
-    model_version: str = "2.0"
+    model_version: str = "2.0",
+    base_prediction: float = None,
+    feature_correction: float = None,
+    feature_vector: str = None,
+    feature_metadata: str = None
 ) -> Dict:
     """
     Save a pre-game prediction to the database.
@@ -118,8 +133,12 @@ def save_prediction(
         game_date: Game date in YYYY-MM-DD format
         pred_home: Predicted home team score
         pred_away: Predicted away team score
-        pred_total: Predicted total points
+        pred_total: Predicted total points (base + feature correction)
         model_version: Model version string (default "2.0")
+        base_prediction: Base prediction from complex engine (optional)
+        feature_correction: Feature-based correction amount (optional)
+        feature_vector: JSON string of feature vector (optional)
+        feature_metadata: JSON string of feature metadata (optional)
 
     Returns:
         Dict with success status and saved data
@@ -134,11 +153,15 @@ def save_prediction(
             INSERT INTO game_predictions (
                 game_id, home_team, away_team, game_date,
                 pred_total, pred_home, pred_away,
+                base_prediction, feature_correction,
+                feature_vector, feature_metadata,
                 prediction_created_at, model_version
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             game_id, home_team, away_team, game_date,
             pred_total, pred_home, pred_away,
+            base_prediction, feature_correction,
+            feature_vector, feature_metadata,
             now, model_version
         ))
 
@@ -150,7 +173,9 @@ def save_prediction(
             "prediction": {
                 "home": pred_home,
                 "away": pred_away,
-                "total": pred_total
+                "total": pred_total,
+                "base": base_prediction,
+                "correction": feature_correction
             },
             "saved_at": now
         }
