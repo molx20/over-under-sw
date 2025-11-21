@@ -218,8 +218,7 @@ def save_rankings_to_cache(rankings: List[Dict]):
                 ppg, opp_ppg, fg_pct, three_pct, ft_pct,
                 off_rtg, def_rtg, net_rtg, pace,
                 ppg_rank, opp_ppg_rank, fg_pct_rank, three_pct_rank, ft_pct_rank,
-                off_rtg_rank, def_rtg_rank, net_rtg_rank, pace_rank,
-                updated_at
+                off_rtg_rank, def_rtg_rank, net_rtg_rank, pace_rank
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             team['team_id'], team['team_abbreviation'], team['season'],
@@ -227,8 +226,7 @@ def save_rankings_to_cache(rankings: List[Dict]):
             team['off_rtg'], team['def_rtg'], team['net_rtg'], team['pace'],
             team['ppg_rank'], team['opp_ppg_rank'], team['fg_pct_rank'],
             team['three_pct_rank'], team['ft_pct_rank'],
-            team['off_rtg_rank'], team['def_rtg_rank'], team['net_rtg_rank'], team['pace_rank'],
-            datetime.now().isoformat()
+            team['off_rtg_rank'], team['def_rtg_rank'], team['net_rtg_rank'], team['pace_rank']
         ))
 
     conn.commit()
