@@ -3,12 +3,77 @@ Database Migration Helpers
 
 Manages schema migrations for feature enhancements.
 Safe to run multiple times (idempotent).
+
+Uses migration version tracking to avoid redundant checks on every startup.
 """
 
 import sqlite3
 import os
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'predictions.db')
+
+# Import connection pool
+try:
+    from api.utils.connection_pool import get_db_pool
+except ImportError:
+    try:
+        from connection_pool import get_db_pool
+    except ImportError:
+        # Fallback for standalone execution
+        get_db_pool = None
+
+
+def _get_connection():
+    """Get database connection (pooled if available, direct otherwise)."""
+    if get_db_pool:
+        pool = get_db_pool('predictions')
+        return pool.get_connection()
+    else:
+        # Fallback for standalone execution
+        class DirectConnection:
+            def __enter__(self):
+                self.conn = sqlite3.connect(DB_PATH)
+                self.conn.row_factory = sqlite3.Row
+                return self.conn
+            def __exit__(self, *args):
+                self.conn.close()
+        return DirectConnection()
+
+
+def _ensure_migration_table():
+    """Create migration tracking table if it doesn't exist."""
+    with _get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+
+
+def _is_migration_applied(version: int) -> bool:
+    """Check if a migration version has been applied."""
+    with _get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT version FROM schema_migrations WHERE version = ?
+        ''', (version,))
+        return cursor.fetchone() is not None
+
+
+def _mark_migration_applied(version: int, name: str):
+    """Mark a migration as applied."""
+    from datetime import datetime
+    with _get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO schema_migrations (version, name, applied_at)
+            VALUES (?, ?, ?)
+        ''', (version, name, datetime.utcnow().isoformat()))
+        conn.commit()
 
 
 def migrate_to_v3_features():
@@ -22,100 +87,126 @@ def migrate_to_v3_features():
 
     Safe to run multiple times - will skip existing columns/tables
     """
-    print('[db_migrations] Running migration to v3 (feature-enhanced predictions)...')
+    version = 3
+    name = 'feature_enhanced_predictions'
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    # Check if already applied
+    if _is_migration_applied(version):
+        print(f'[db_migrations] Migration v{version} ({name}) already applied, skipping')
+        return
 
-    # Part 1: Add columns to existing game_predictions table
-    print('[db_migrations] Adding feature columns to game_predictions...')
+    print(f'[db_migrations] Running migration v{version} ({name})...')
 
-    new_columns = [
-        ('feature_vector', 'TEXT'),
-        ('base_prediction', 'REAL'),
-        ('feature_correction', 'REAL'),
-        ('feature_metadata', 'TEXT')
-    ]
+    with _get_connection() as conn:
+        cursor = conn.cursor()
 
-    for col_name, col_type in new_columns:
-        try:
-            cursor.execute(f'ALTER TABLE game_predictions ADD COLUMN {col_name} {col_type}')
-            print(f'[db_migrations] Added column: {col_name}')
-        except sqlite3.OperationalError:
-            print(f'[db_migrations] Column {col_name} already exists, skipping')
+        # Part 1: Add columns to existing game_predictions table
+        print('[db_migrations] Adding feature columns to game_predictions...')
 
-    # Part 2: Create team_game_history table
-    print('[db_migrations] Creating team_game_history table...')
+        new_columns = [
+            ('feature_vector', 'TEXT'),
+            ('base_prediction', 'REAL'),
+            ('feature_correction', 'REAL'),
+            ('feature_metadata', 'TEXT')
+        ]
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS team_game_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            game_id TEXT NOT NULL,
-            team_id INTEGER NOT NULL,
-            team_tricode TEXT NOT NULL,
-            opponent_id INTEGER NOT NULL,
-            opponent_tricode TEXT,
-            game_date TEXT NOT NULL,
-            is_home INTEGER NOT NULL DEFAULT 1,
+        for col_name, col_type in new_columns:
+            try:
+                cursor.execute(f'ALTER TABLE game_predictions ADD COLUMN {col_name} {col_type}')
+                print(f'[db_migrations] Added column: {col_name}')
+            except sqlite3.OperationalError:
+                print(f'[db_migrations] Column {col_name} already exists, skipping')
 
-            -- Performance stats for this game
-            points_scored REAL NOT NULL,
-            points_allowed REAL NOT NULL,
-            off_rtg REAL,
-            def_rtg REAL,
-            pace REAL,
-            fg_pct REAL,
-            three_pct REAL,
+        # Part 2: Create team_game_history table
+        print('[db_migrations] Creating team_game_history table...')
 
-            -- Opponent strength classification at game time
-            opp_off_bucket TEXT,  -- 'top', 'mid', 'bottom'
-            opp_def_bucket TEXT,
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS team_game_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_id TEXT NOT NULL,
+                team_id INTEGER NOT NULL,
+                team_tricode TEXT NOT NULL,
+                opponent_id INTEGER NOT NULL,
+                opponent_tricode TEXT,
+                game_date TEXT NOT NULL,
+                is_home INTEGER NOT NULL DEFAULT 1,
 
-            created_at TEXT NOT NULL
-        )
-    ''')
+                -- Performance stats for this game
+                points_scored REAL NOT NULL,
+                points_allowed REAL NOT NULL,
+                off_rtg REAL,
+                def_rtg REAL,
+                pace REAL,
+                fg_pct REAL,
+                three_pct REAL,
 
-    # Create indexes for team_game_history
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_team_date
-        ON team_game_history(team_id, game_date DESC)
-    ''')
+                -- Opponent strength classification at game time
+                opp_off_bucket TEXT,  -- 'top', 'mid', 'bottom'
+                opp_def_bucket TEXT,
 
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_team_history
-        ON team_game_history(team_tricode, game_date DESC)
-    ''')
+                created_at TEXT NOT NULL
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_game_team
-        ON team_game_history(game_id, team_tricode)
-    ''')
+        # Create indexes for team_game_history
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_team_date
+            ON team_game_history(team_id, game_date DESC)
+        ''')
 
-    print('[db_migrations] team_game_history table ready')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_team_history
+            ON team_game_history(team_tricode, game_date DESC)
+        ''')
 
-    # Part 3: Create matchup_profile_cache table
-    print('[db_migrations] Creating matchup_profile_cache table...')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_game_team
+            ON team_game_history(game_id, team_tricode)
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS matchup_profile_cache (
-            team_tricode TEXT NOT NULL,
-            vs_bucket_type TEXT NOT NULL,  -- 'vs_off_top', 'vs_off_mid', etc.
-            games_count INTEGER DEFAULT 0,
-            avg_total REAL,
-            avg_points_scored REAL,
-            avg_points_allowed REAL,
-            last_updated TEXT,
-            PRIMARY KEY (team_tricode, vs_bucket_type)
-        )
-    ''')
+        print('[db_migrations] team_game_history table ready')
 
-    print('[db_migrations] matchup_profile_cache table ready')
+        # Part 3: Create matchup_profile_cache table
+        print('[db_migrations] Creating matchup_profile_cache table...')
 
-    conn.commit()
-    conn.close()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS matchup_profile_cache (
+                team_tricode TEXT NOT NULL,
+                vs_bucket_type TEXT NOT NULL,  -- 'vs_off_top', 'vs_off_mid', etc.
+                games_count INTEGER DEFAULT 0,
+                avg_total REAL,
+                avg_points_scored REAL,
+                avg_points_allowed REAL,
+                last_updated TEXT,
+                PRIMARY KEY (team_tricode, vs_bucket_type)
+            )
+        ''')
 
-    print('[db_migrations] Migration to v3 completed successfully')
+        print('[db_migrations] matchup_profile_cache table ready')
+
+        conn.commit()
+
+    # Mark migration as applied
+    _mark_migration_applied(version, name)
+
+    print(f'[db_migrations] Migration v{version} completed successfully')
     print('[db_migrations] Database is ready for feature-enhanced predictions')
+
+
+def run_migrations():
+    """
+    Run all pending migrations.
+
+    This is the main entry point called from init_db().
+    Ensures migration tracking table exists and runs any pending migrations.
+    """
+    # Ensure migration tracking table exists
+    _ensure_migration_table()
+
+    # Run all migrations in order
+    migrate_to_v3_features()
+
+    print('[db_migrations] All migrations completed')
 
 
 def check_migration_status():

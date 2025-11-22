@@ -41,57 +41,63 @@ _http_session.mount('https://', adapter)
 _http_session.mount('http://', adapter)
 
 # ============================================================================
-# CACHING WRAPPER (to avoid rate limits)
+# CACHING WRAPPER (LRU with memory limits)
 # ============================================================================
 
-_cache = {}
-_cache_timeout = {}
+# Import bounded LRU cache manager
+try:
+    from api.utils.cache_manager import cached, get_cache_stats, clear_cache
+except ImportError:
+    from cache_manager import cached, get_cache_stats, clear_cache
+
 _last_game_date = None  # Track the last date we fetched games for
 
 def clear_games_cache():
-    """Clear only the games cache (when date changes at 3 AM MST)"""
-    global _cache, _cache_timeout
-    keys_to_remove = [k for k in _cache.keys() if 'get_todays_games' in k]
-    for key in keys_to_remove:
-        _cache.pop(key, None)
-        _cache_timeout.pop(key, None)
-    print(f"Cleared games cache ({len(keys_to_remove)} entries)")
+    """
+    Clear only the games cache (when date changes at 3 AM MST).
+    Note: With new LRU cache, we clear all cache for simplicity.
+    Individual key clearing could be added if needed.
+    """
+    clear_cache()
+    print("[cache] Cleared games cache")
 
 def cache_result(timeout_seconds=3600):
-    """Decorator to cache function results"""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
-            current_time = time.time()
-
-            # Check if cached and not expired
-            if cache_key in _cache and cache_key in _cache_timeout:
-                if current_time - _cache_timeout[cache_key] < timeout_seconds:
-                    print(f"Cache hit for {func.__name__}")
-                    return _cache[cache_key]
-
-            # Call function and cache result
-            print(f"Cache miss for {func.__name__}, fetching from API...")
-            result = func(*args, **kwargs)
-            _cache[cache_key] = result
-            _cache_timeout[cache_key] = current_time
-
-            return result
-        return wrapper
-    return decorator
+    """
+    Decorator to cache function results with LRU eviction.
+    This replaces the old unbounded cache.
+    """
+    return cached(ttl_seconds=timeout_seconds)
 
 def safe_api_call(func):
-    """Decorator to add error handling to API calls"""
+    """Decorator to add error handling and retries to API calls"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            # Add minimal delay to respect rate limits (50ms)
-            time.sleep(0.05)
-            return func(*args, **kwargs)
-        except Exception as e:
-            print(f"API Error in {func.__name__}: {str(e)}")
-            return None
+        max_retries = 3
+        retry_delay = 1.0  # Start with 1 second
+
+        for attempt in range(max_retries):
+            try:
+                # Add minimal delay to respect rate limits (50ms)
+                time.sleep(0.05)
+                result = func(*args, **kwargs)
+                return result
+            except Exception as e:
+                error_msg = str(e)
+
+                if attempt < max_retries - 1:
+                    # Retry on timeout or connection errors
+                    if 'timeout' in error_msg.lower() or 'connection' in error_msg.lower():
+                        print(f"API Error in {func.__name__} (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                        print(f"Retrying in {retry_delay}s...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+
+                # Final attempt failed or non-retryable error
+                print(f"API Error in {func.__name__}: {error_msg}")
+                return None
+
+        return None
     return wrapper
 
 # ============================================================================
@@ -449,7 +455,8 @@ def get_matchup_data(home_team_id, away_team_id, season='2025-26'):
     Get all relevant data for a matchup prediction
     Using 2025-26 season data (current season)
 
-    Returns comprehensive dict with all stats needed for O/U prediction
+    Returns comprehensive dict with all stats needed for O/U prediction.
+    Now more resilient - provides partial data if some API calls fail.
     """
     print(f"Fetching matchup data for teams {home_team_id} vs {away_team_id} (Season: {season})")
 
@@ -457,45 +464,89 @@ def get_matchup_data(home_team_id, away_team_id, season='2025-26'):
     import concurrent.futures
 
     def fetch_team_data(team_id):
+        """Fetch team data with individual error handling for each stat type"""
+        print(f"  Fetching stats for team {team_id}...")
+
+        # Fetch each stat type independently - don't let one failure break everything
+        stats = get_team_stats(team_id, season)
+        if stats is None:
+            print(f"  WARNING: Failed to fetch basic stats for team {team_id}")
+
+        advanced = get_team_advanced_stats(team_id, season)
+        if advanced is None:
+            print(f"  WARNING: Failed to fetch advanced stats for team {team_id}")
+
+        opponent = get_team_opponent_stats(team_id, season)
+        if opponent is None:
+            print(f"  WARNING: Failed to fetch opponent stats for team {team_id}")
+
+        recent_games = get_team_last_n_games(team_id, n=10, season=season)
+        if recent_games is None:
+            print(f"  WARNING: Failed to fetch recent games for team {team_id}")
+            recent_games = []  # Default to empty list
+
         return {
-            'stats': get_team_stats(team_id, season),
-            'advanced': get_team_advanced_stats(team_id, season),
-            'opponent': get_team_opponent_stats(team_id, season),
-            'recent_games': get_team_last_n_games(team_id, n=10, season=season)
+            'stats': stats,
+            'advanced': advanced,
+            'opponent': opponent,
+            'recent_games': recent_games
         }
 
     # Fetch both teams in parallel with timeout protection
-    # Vercel has 60s limit, so we timeout at 50s to return a proper error
+    # Railway has 10min limit, use 8min timeout to allow for processing
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_home = executor.submit(fetch_team_data, home_team_id)
             future_away = executor.submit(fetch_team_data, away_team_id)
 
-            # Wait for results with 50-second timeout (leaves 10s for processing)
-            home_data = future_home.result(timeout=50)
-            away_data = future_away.result(timeout=50)
+            # Wait for results with 480-second timeout (8 minutes)
+            home_data = future_home.result(timeout=480)
+            away_data = future_away.result(timeout=480)
 
     except concurrent.futures.TimeoutError:
-        print("ERROR: NBA API timeout - requests took longer than 50 seconds")
-        print("This usually happens when the NBA API is slow or rate limiting")
+        print("ERROR: NBA API timeout - requests took longer than 8 minutes")
+        print("This usually happens when the NBA API is extremely slow or down")
+        print("Suggestion: Try again in 30-60 seconds or use cached data if available")
         return None
     except Exception as e:
         print(f"ERROR: Exception while fetching team data: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
-    # Validate that critical data was fetched successfully
+    # Validate that we got at least basic data
     if not home_data or not away_data:
-        print("ERROR: Failed to fetch team data")
+        print("ERROR: Failed to fetch team data structures")
         return None
 
-    # Check if stats are missing (API calls failed)
-    if home_data.get('stats') is None or away_data.get('stats') is None:
-        print("ERROR: Team stats API calls failed")
+    # Check if CRITICAL stats are missing (overall stats needed for prediction)
+    home_stats = home_data.get('stats')
+    away_stats = away_data.get('stats')
+
+    if home_stats is None or away_stats is None:
+        print("ERROR: Critical team stats API calls failed")
+        print(f"  Home stats: {'✓' if home_stats else '✗'}")
+        print(f"  Away stats: {'✓' if away_stats else '✗'}")
         return None
 
-    # Warn if advanced stats are missing (not critical, but impacts prediction quality)
-    if home_data.get('advanced') is None or away_data.get('advanced') is None:
-        print("WARNING: Advanced stats API calls failed - prediction quality may be reduced")
+    # Log what we successfully fetched
+    home_complete = all([
+        home_data.get('stats'),
+        home_data.get('advanced'),
+        home_data.get('opponent'),
+        home_data.get('recent_games')
+    ])
+    away_complete = all([
+        away_data.get('stats'),
+        away_data.get('advanced'),
+        away_data.get('opponent'),
+        away_data.get('recent_games')
+    ])
+
+    if home_complete and away_complete:
+        print("✓ Successfully fetched complete matchup data")
+    else:
+        print("⚠ Fetched partial matchup data (some stats missing but prediction can continue)")
 
     return {
         'home': home_data,

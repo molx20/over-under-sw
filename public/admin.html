@@ -204,6 +204,9 @@
             <div class="form-group">
                 <label>Load Today's Games</label>
                 <button onclick="loadGames()">Load Games</button>
+                <span id="gamesLoadingSpinner" style="display:none; margin-left: 10px; color: #007bff;">
+                    ⏳ Loading games...
+                </span>
             </div>
             <div id="gamesList" class="games-list" style="display:none;"></div>
             <div class="form-group">
@@ -254,23 +257,42 @@
 
         async function loadGames() {
             const button = event.target;
+            const spinner = document.getElementById('gamesLoadingSpinner');
+            const gamesList = document.getElementById('gamesList');
+
             button.disabled = true;
             button.textContent = 'Loading...';
+            spinner.style.display = 'inline';
+            gamesList.style.display = 'none'; // Hide until loaded
 
             try {
-                const response = await fetch(`${API_BASE}/api/games`);
+                // Add timeout to prevent hanging
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                const startTime = performance.now();
+                const response = await fetch(`${API_BASE}/api/games`, {
+                    signal: controller.signal,
+                    headers: {
+                        'Cache-Control': 'max-age=30' // Use browser cache if available
+                    }
+                });
+                const loadTime = Math.round(performance.now() - startTime);
+                console.log(`Games loaded in ${loadTime}ms`);
+
+                clearTimeout(timeoutId);
+
                 const data = await response.json();
 
                 if (!data.success) {
                     throw new Error(data.error || 'Failed to load games');
                 }
 
-                const gamesList = document.getElementById('gamesList');
-                gamesList.style.display = 'block';
                 gamesList.innerHTML = '';
 
                 if (data.games.length === 0) {
                     gamesList.innerHTML = '<div class="loading">No games found for today</div>';
+                    gamesList.style.display = 'block';
                     return;
                 }
 
@@ -304,13 +326,34 @@
                     gamesList.appendChild(div);
                 });
 
+                gamesList.style.display = 'block';
+                spinner.textContent = `✓ Loaded ${data.games.length} games`;
+                setTimeout(() => { spinner.style.display = 'none'; }, 2000);
+
             } catch (error) {
-                alert('Error loading games: ' + error.message);
+                spinner.style.display = 'none';
+                if (error.name === 'AbortError') {
+                    alert('Request timed out. The NBA API is slow right now. Please try again.');
+                } else {
+                    alert('Error loading games: ' + error.message);
+                }
             } finally {
                 button.disabled = false;
                 button.textContent = 'Load Games';
             }
         }
+
+        // Auto-load games when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Auto-loading games...');
+            // Simulate button click to load games automatically
+            setTimeout(() => {
+                const loadButton = document.querySelector('button[onclick="loadGames()"]');
+                if (loadButton) {
+                    loadButton.click();
+                }
+            }, 500); // Small delay to ensure page is ready
+        });
 
         async function savePrediction() {
             const button = event.target;

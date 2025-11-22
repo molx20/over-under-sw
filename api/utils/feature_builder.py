@@ -118,6 +118,10 @@ def build_feature_vector(
 
     # Step 2: Get opponent classifications (what bucket is each team in?)
     print(f'[feature_builder] Classifying teams into strength buckets...')
+
+    # Trigger background refresh if needed (non-blocking)
+    team_rankings.refresh_rankings_if_needed(season, background=True)
+
     home_stats = team_rankings.get_team_stats_with_ranks(home_team_id, season)
     away_stats = team_rankings.get_team_stats_with_ranks(away_team_id, season)
 

@@ -17,9 +17,28 @@ from api.utils import db
 from api.utils import team_ratings_model
 from api.utils.github_persistence import commit_model_to_github
 from api.utils import team_rankings
+from api.utils.performance import create_timing_middleware
+import json
+import os
+
+# Load model parameters on startup
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'api', 'data', 'model.json')
+try:
+    with open(MODEL_PATH, 'r') as f:
+        model_params = json.load(f)
+    print(f"[server] Loaded model parameters: version {model_params.get('version', 'unknown')}")
+except Exception as e:
+    print(f"[server] Warning: Could not load model.json: {e}")
+    model_params = {
+        'parameters': {'recent_games_n': 10},
+        'feature_weights': {}
+    }
 
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
+
+# Enable performance logging middleware
+create_timing_middleware(app)
 
 # Initialize database on startup
 db.init_db()
@@ -29,19 +48,25 @@ _prediction_cache = {}
 _CACHE_MAX_SIZE = 128
 
 def get_cached_prediction(home_team_id, away_team_id, betting_line):
-    """Get prediction from cache or generate new one"""
+    """
+    Get prediction from cache or generate new one.
+
+    Returns:
+        tuple: (prediction_dict, matchup_data_dict) or (None, None) on error
+    """
     cache_key = (int(home_team_id), int(away_team_id), betting_line)
 
     if cache_key in _prediction_cache:
         print(f'[cache] HIT: Returning cached prediction for game {away_team_id}@{home_team_id} (line: {betting_line})')
-        return _prediction_cache[cache_key]
+        cached_prediction, cached_matchup_data = _prediction_cache[cache_key]
+        return cached_prediction, cached_matchup_data
 
     print(f'[cache] MISS: Generating prediction for game {away_team_id}@{home_team_id} (line: {betting_line})')
 
     matchup_data = get_matchup_data(home_team_id, away_team_id)
     if matchup_data is None:
         print('[cache] ERROR: Failed to fetch matchup data')
-        return None
+        return None, None
 
     prediction = predict_game_total(
         matchup_data['home'],
@@ -54,10 +79,11 @@ def get_cached_prediction(home_team_id, away_team_id, betting_line):
         print(f'[cache] EVICT: Removing oldest entry {oldest_key}')
         _prediction_cache.pop(oldest_key)
 
-    _prediction_cache[cache_key] = prediction
-    print(f'[cache] STORE: Cached prediction for {cache_key}')
+    # Cache both prediction and matchup_data to avoid duplicate API calls
+    _prediction_cache[cache_key] = (prediction, matchup_data)
+    print(f'[cache] STORE: Cached prediction and matchup data for {cache_key}')
 
-    return prediction
+    return prediction, matchup_data
 
 @app.route('/')
 def index():
@@ -75,18 +101,21 @@ def health():
 @app.route('/api/games')
 def get_games():
     """Get all games for today with predictions"""
+    from api.utils.performance import log_slow_operation
+
     try:
-        print('[games] Fetching today\'s games from NBA API...')
-        games = get_todays_games()
+        with log_slow_operation("Fetch today's games", threshold_ms=1000):
+            print('[games] Fetching today\'s games from NBA API...')
+            games = get_todays_games()
 
-        if games is None:
-            print('[games] ERROR: NBA API returned None')
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch games from NBA API'
-            }), 500
+            if games is None:
+                print('[games] ERROR: NBA API returned None')
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to fetch games from NBA API'
+                }), 500
 
-        print(f'[games] Successfully fetched {len(games)} games')
+            print(f'[games] Successfully fetched {len(games)} games')
 
         games_with_predictions = []
         for game in games:
@@ -127,7 +156,11 @@ def get_games():
             'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
         }
 
-        return jsonify(response)
+        # Add caching headers for faster subsequent loads
+        resp = jsonify(response)
+        resp.cache_control.max_age = 30  # Cache for 30 seconds in browser
+        resp.cache_control.public = True
+        return resp
 
     except Exception as e:
         import traceback
@@ -179,25 +212,16 @@ def game_detail():
         betting_line = float(betting_line_str) if betting_line_str else None
 
         print(f'[game_detail] Fetching prediction for teams {home_team_id} vs {away_team_id} (betting_line: {betting_line})')
-        prediction = get_cached_prediction(int(home_team_id), int(away_team_id), betting_line)
+        prediction, matchup_data = get_cached_prediction(int(home_team_id), int(away_team_id), betting_line)
 
-        if prediction is None:
-            print('[game_detail] ERROR: Failed to generate prediction')
+        if prediction is None or matchup_data is None:
+            print('[game_detail] ERROR: Failed to generate prediction or fetch matchup data')
             return jsonify({
                 'success': False,
                 'error': 'The NBA API is currently slow or unavailable. Please try again in a moment.'
             }), 500
 
         print(f'[game_detail] Prediction ready: {prediction.get("recommendation")} ({prediction.get("confidence")}% confidence)')
-
-        matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
-
-        if matchup_data is None:
-            print('[game_detail] ERROR: Failed to fetch matchup data for stats display')
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch game stats'
-            }), 500
 
         all_teams = get_all_teams()
         home_team_info = next((t for t in all_teams if t['id'] == int(home_team_id)), {})
@@ -414,6 +438,8 @@ def save_prediction():
         "away_team": "LAL"
     }
     """
+    from api.utils.performance import log_slow_operation
+
     try:
         data = request.get_json()
 
@@ -446,28 +472,62 @@ def save_prediction():
 
         # Use the COMPLEX prediction engine (same as dashboard)
         try:
-            matchup_data = get_matchup_data(home_team_id, away_team_id)
-            if matchup_data is None:
-                raise Exception('Failed to fetch matchup data from NBA API')
+            with log_slow_operation("Fetch matchup data from NBA API", threshold_ms=3000):
+                matchup_data = get_matchup_data(home_team_id, away_team_id)
+                if matchup_data is None:
+                    error_details = """
+NBA API Failed to Return Data
 
-            # Get BASE prediction using the complex engine
-            prediction = predict_game_total(
-                matchup_data['home'],
-                matchup_data['away'],
-                betting_line=None  # No line yet
-            )
+Possible causes:
+1. NBA API is currently slow or down (check stats.nba.com)
+2. Rate limiting after multiple requests
+3. Network connectivity issues
+4. Invalid team IDs
 
-            base_home = prediction['breakdown']['home_projected']
-            base_away = prediction['breakdown']['away_projected']
-            base_total = prediction['predicted_total']
+What to try:
+• Wait 30-60 seconds and try again
+• Check if the NBA API is operational at https://stats.nba.com
+• Try a different game
+• Check Railway logs for detailed error messages
+                    """
+                    print(f'[save-prediction] NBA API failure for teams {home_team} vs {away_team}')
+                    return jsonify({
+                        'success': False,
+                        'error': 'NBA API is currently unavailable',
+                        'details': error_details.strip(),
+                        'retry': True
+                    }), 503  # Service Unavailable
 
-            print(f'[save-prediction] Base prediction: {base_total} ({base_home} - {base_away})')
+            with log_slow_operation("Generate base prediction", threshold_ms=500):
+                # Get BASE prediction using the complex engine
+                prediction = predict_game_total(
+                    matchup_data['home'],
+                    matchup_data['away'],
+                    betting_line=None  # No line yet
+                )
 
-        except Exception as e:
+                base_home = prediction['breakdown']['home_projected']
+                base_away = prediction['breakdown']['away_projected']
+                base_total = prediction['predicted_total']
+
+                print(f'[save-prediction] Base prediction: {base_total} ({base_home} - {base_away})')
+
+        except KeyError as e:
+            print(f'[save-prediction] Data structure error: {str(e)}')
             return jsonify({
                 'success': False,
-                'error': f'Prediction failed: {str(e)}'
-            }), 400
+                'error': f'Incomplete data from NBA API (missing {str(e)})',
+                'retry': True
+            }), 500
+        except Exception as e:
+            print(f'[save-prediction] Unexpected error: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': f'Prediction failed: {str(e)}',
+                'retry': False
+            }), 500
 
         # Extract game date from game_id or use current date
         game_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
@@ -481,17 +541,18 @@ def save_prediction():
             from api.utils.feature_builder import build_feature_vector, compute_feature_correction
             import json
 
-            print(f'[save-prediction] Building feature vector...')
-            feature_data = build_feature_vector(
-                home_team=home_team,
-                away_team=away_team,
-                game_id=game_id,
-                as_of_date=game_date,
-                home_team_id=home_team_id,
-                away_team_id=away_team_id,
-                n_recent_games=model_params.get('recent_games_n', 10),
-                season='2025-26'
-            )
+            with log_slow_operation("Build feature vector (rankings + recent games)", threshold_ms=2000):
+                print(f'[save-prediction] Building feature vector...')
+                feature_data = build_feature_vector(
+                    home_team=home_team,
+                    away_team=away_team,
+                    game_id=game_id,
+                    as_of_date=game_date,
+                    home_team_id=home_team_id,
+                    away_team_id=away_team_id,
+                    n_recent_games=model_params.get('parameters', {}).get('recent_games_n', 10),
+                    season='2025-26'
+                )
 
             # Load feature weights from model
             feature_weights = model_params.get('feature_weights', {})
