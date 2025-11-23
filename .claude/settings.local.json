@@ -25,7 +25,10 @@
       "Bash(printf:*)",
       "Bash(git pull:*)",
       "Bash(git checkout:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(/tmp/old_predictions.db)",
+      "WebSearch",
+      "WebFetch(domain:docs.railway.com)"
     ],
     "deny": [],
     "ask": []

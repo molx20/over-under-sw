@@ -15,7 +15,13 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 12px;
+        }
+
+        @media (min-width: 640px) {
+            body {
+                padding: 20px;
+            }
         }
 
         .container {
@@ -25,41 +31,85 @@
 
         .header {
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        @media (min-width: 640px) {
+            .header {
+                padding: 30px;
+                margin-bottom: 20px;
+            }
         }
 
         .header-content {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        @media (min-width: 640px) {
+            .header-content {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0;
+            }
         }
 
         h1 {
             color: #333;
             margin-bottom: 5px;
+            font-size: 1.5rem;
+        }
+
+        @media (min-width: 640px) {
+            h1 {
+                font-size: 2rem;
+            }
         }
 
         .subtitle {
             color: #666;
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        @media (min-width: 640px) {
+            .subtitle {
+                font-size: 14px;
+            }
         }
 
         .nav-buttons {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 640px) {
+            .nav-buttons {
+                gap: 10px;
+            }
         }
 
         .nav-button {
             background: #667eea;
             color: white;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 5px;
             text-decoration: none;
             font-weight: 600;
             transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        @media (min-width: 640px) {
+            .nav-button {
+                padding: 10px 20px;
+                font-size: 16px;
+            }
         }
 
         .nav-button:hover {
@@ -68,28 +118,54 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        @media (min-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin-bottom: 20px;
+            }
         }
 
         .stat-card {
             background: white;
-            padding: 20px;
+            padding: 16px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
+        @media (min-width: 640px) {
+            .stat-card {
+                padding: 20px;
+            }
+        }
+
         .stat-label {
             color: #666;
-            font-size: 14px;
+            font-size: 12px;
             margin-bottom: 5px;
+        }
+
+        @media (min-width: 640px) {
+            .stat-label {
+                font-size: 14px;
+            }
         }
 
         .stat-value {
             color: #333;
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
+        }
+
+        @media (min-width: 640px) {
+            .stat-value {
+                font-size: 32px;
+            }
         }
 
         .stat-value.good {
@@ -102,24 +178,46 @@
 
         .filters {
             background: white;
-            padding: 20px;
+            padding: 16px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: flex;
-            gap: 15px;
-            align-items: center;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        @media (min-width: 640px) {
+            .filters {
+                flex-direction: row;
+                padding: 20px;
+                margin-bottom: 20px;
+                gap: 15px;
+                align-items: center;
+            }
         }
 
         .filter-group {
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+
+        @media (min-width: 640px) {
+            .filter-group {
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+                width: auto;
+            }
         }
 
         .filter-group label {
             font-weight: 600;
             color: #555;
+            font-size: 14px;
         }
 
         .filter-group select {
@@ -127,33 +225,65 @@
             border: 2px solid #e0e0e0;
             border-radius: 5px;
             font-size: 14px;
+            width: 100%;
+        }
+
+        @media (min-width: 640px) {
+            .filter-group select {
+                width: auto;
+            }
         }
 
         .table-container {
             background: white;
             border-radius: 10px;
-            padding: 20px;
+            padding: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (min-width: 768px) {
+            .table-container {
+                padding: 20px;
+            }
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 800px;
         }
 
         th {
             background: #f3f4f6;
-            padding: 12px;
+            padding: 8px;
             text-align: left;
             font-weight: 600;
             color: #374151;
             border-bottom: 2px solid #e5e7eb;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            th {
+                padding: 12px;
+                font-size: 14px;
+            }
         }
 
         td {
-            padding: 12px;
+            padding: 8px;
             border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+        }
+
+        @media (min-width: 768px) {
+            td {
+                padding: 12px;
+                font-size: 14px;
+            }
         }
 
         tr:hover {
@@ -164,8 +294,14 @@
             display: inline-block;
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
+        }
+
+        @media (min-width: 768px) {
+            .badge {
+                font-size: 12px;
+            }
         }
 
         .badge.win {
@@ -186,12 +322,20 @@
         .action-button {
             background: #667eea;
             color: white;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border: none;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
             transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .action-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
         }
 
         .action-button:hover {

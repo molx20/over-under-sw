@@ -116,10 +116,12 @@ function StatsTable({ homeStats, awayStats, homeTeam, awayTeam, homeTeamId, away
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Team Statistics Comparison</h3>
+      <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Team Statistics Comparison</h3>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Desktop Table View - Hidden on mobile */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
@@ -160,6 +162,48 @@ function StatsTable({ homeStats, awayStats, homeTeam, awayTeam, homeTeamId, away
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View - Shown on mobile only */}
+      <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+        {stats.map((stat, index) => (
+          <div key={index} className="p-4">
+            <div className="text-center mb-3">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                {stat.label}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="flex-1 text-left">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{awayTeam}</div>
+                <div className="text-base font-bold text-gray-900 dark:text-white">
+                  {stat.awayValue}
+                </div>
+                {stat.awayRank && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formatRank(stat.awayRank)}
+                  </div>
+                )}
+              </div>
+              <div className="px-4 text-gray-400 dark:text-gray-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </div>
+              <div className="flex-1 text-right">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{homeTeam}</div>
+                <div className="text-base font-bold text-gray-900 dark:text-white">
+                  {stat.homeValue}
+                </div>
+                {stat.homeRank && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formatRank(stat.homeRank)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

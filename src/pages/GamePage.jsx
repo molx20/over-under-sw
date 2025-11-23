@@ -95,9 +95,9 @@ function GamePage() {
       )}
 
       {/* Betting Line Input */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Enter Betting Line</h3>
-        <div className="flex items-center space-x-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Enter Betting Line</h3>
+        <div className="flex flex-col sm:flex-row sm:items-end space-y-3 sm:space-y-0 sm:space-x-4">
           <div className="flex-1">
             <label htmlFor="betting-line" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Your Sportsbook's Over/Under Line
@@ -109,13 +109,13 @@ function GamePage() {
               placeholder="e.g. 220.5"
               value={bettingLine}
               onChange={(e) => setBettingLine(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-base"
             />
           </div>
           <button
             onClick={handleCalculatePrediction}
             disabled={isFetching}
-            className="mt-7 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="w-full sm:w-auto px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
           >
             {isFetching && (
               <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -127,31 +127,31 @@ function GamePage() {
 
       {/* Prediction Summary */}
       {prediction && prediction.betting_line && (
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-8 mb-8 text-white">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white">
           <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
-            <p className="text-lg opacity-90">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
-            <div className="flex justify-center items-center space-x-8 mt-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
+            <p className="text-sm sm:text-base md:text-lg opacity-90 mb-4 sm:mb-0">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
+            <div className="flex flex-col sm:flex-row justify-center items-center sm:space-x-8 space-y-4 sm:space-y-0 mt-4 sm:mt-6">
               <div>
-                <div className="text-sm opacity-80 mb-1">Betting Line</div>
-                <div className="text-4xl font-bold">{prediction.betting_line}</div>
+                <div className="text-xs sm:text-sm opacity-80 mb-1">Betting Line</div>
+                <div className="text-3xl sm:text-4xl font-bold">{prediction.betting_line}</div>
               </div>
-              <div className="text-4xl opacity-50">→</div>
+              <div className="text-3xl sm:text-4xl opacity-50 rotate-90 sm:rotate-0">→</div>
               <div>
-                <div className="text-sm opacity-80 mb-1">Predicted Total</div>
-                <div className="text-4xl font-bold">{prediction.predicted_total}</div>
+                <div className="text-xs sm:text-sm opacity-80 mb-1">Predicted Total</div>
+                <div className="text-3xl sm:text-4xl font-bold">{prediction.predicted_total}</div>
               </div>
             </div>
-            <div className="mt-6 flex justify-center items-center space-x-6">
-              <div className={`px-8 py-3 rounded-full text-2xl font-bold ${
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-6">
+              <div className={`px-6 sm:px-8 py-2 sm:py-3 rounded-full text-xl sm:text-2xl font-bold ${
                 prediction.recommendation === 'OVER' ? 'bg-green-500' :
                 prediction.recommendation === 'UNDER' ? 'bg-red-500' : 'bg-yellow-500'
               }`}>
                 {prediction.recommendation}
               </div>
               <div>
-                <div className="text-sm opacity-80">Confidence</div>
-                <div className="text-3xl font-bold">{prediction.confidence}%</div>
+                <div className="text-xs sm:text-sm opacity-80">Confidence</div>
+                <div className="text-2xl sm:text-3xl font-bold">{prediction.confidence}%</div>
               </div>
             </div>
           </div>
@@ -160,18 +160,18 @@ function GamePage() {
 
       {/* Show predicted total without betting line comparison */}
       {prediction && !prediction.betting_line && (
-        <div className="bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg shadow-lg p-8 mb-8 text-white">
+        <div className="bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white">
           <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
-            <p className="text-lg opacity-90">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
-            <div className="flex justify-center items-center mt-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
+            <p className="text-sm sm:text-base md:text-lg opacity-90">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
+            <div className="flex justify-center items-center mt-4 sm:mt-6">
               <div>
-                <div className="text-sm opacity-80 mb-1">Predicted Total</div>
-                <div className="text-5xl font-bold">{prediction.predicted_total}</div>
+                <div className="text-xs sm:text-sm opacity-80 mb-1">Predicted Total</div>
+                <div className="text-4xl sm:text-5xl font-bold">{prediction.predicted_total}</div>
               </div>
             </div>
-            <div className="mt-6">
-              <p className="text-sm opacity-80">Enter a betting line above to get a recommendation</p>
+            <div className="mt-4 sm:mt-6">
+              <p className="text-xs sm:text-sm opacity-80">Enter a betting line above to get a recommendation</p>
             </div>
           </div>
         </div>
@@ -191,24 +191,24 @@ function GamePage() {
 
       {/* Prediction Breakdown */}
       {prediction && prediction.breakdown && prediction.factors && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Prediction Breakdown</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Prediction Breakdown</h3>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Home Projected</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.home_projected || 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Away Projected</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.away_projected || 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Game Pace</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.game_pace || 'N/A'}</span>
               </div>
               {prediction.betting_line && prediction.breakdown?.difference !== undefined && (
-                <div className="flex justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 text-sm sm:text-base">
                   <span className="text-gray-600 dark:text-gray-400">Total Difference</span>
                   <span className={`font-bold ${prediction.breakdown.difference > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {prediction.breakdown.difference > 0 ? '+' : ''}{prediction.breakdown.difference}
@@ -218,18 +218,18 @@ function GamePage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Key Factors</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Key Factors</h3>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Home Team Pace</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.home_pace ? prediction.factors.home_pace.toFixed(1) : 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Away Team Pace</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.away_pace ? prediction.factors.away_pace.toFixed(1) : 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm sm:text-base">
                 <span className="text-gray-600 dark:text-gray-400">Projected Game Pace</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.game_pace || 'N/A'}</span>
               </div>
@@ -240,13 +240,13 @@ function GamePage() {
 
       {/* Recent Games */}
       {(home_recent_games?.length > 0 || away_recent_games?.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {away_recent_games?.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Away Team Recent Games</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Away Team Recent Games</h3>
               <div className="space-y-2">
                 {away_recent_games.map((game, index) => (
-                  <div key={index} className="flex justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                  <div key={index} className="flex flex-col xs:flex-row xs:justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 gap-1 xs:gap-0">
                     <span className="text-gray-600 dark:text-gray-400">{game.matchup}</span>
                     <span className="font-semibold text-gray-900 dark:text-white">Total: {game.total}</span>
                   </div>
@@ -256,11 +256,11 @@ function GamePage() {
           )}
 
           {home_recent_games?.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Home Team Recent Games</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Home Team Recent Games</h3>
               <div className="space-y-2">
                 {home_recent_games.map((game, index) => (
-                  <div key={index} className="flex justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                  <div key={index} className="flex flex-col xs:flex-row xs:justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 gap-1 xs:gap-0">
                     <span className="text-gray-600 dark:text-gray-400">{game.matchup}</span>
                     <span className="font-semibold text-gray-900 dark:text-white">Total: {game.total}</span>
                   </div>
