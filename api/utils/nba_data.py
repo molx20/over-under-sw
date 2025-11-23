@@ -5,6 +5,7 @@ from nba_api.stats.endpoints import (
     leaguegamefinder,
     teamdashboardbygeneralsplits,
     teamgamelog,
+    teamgamelogs,  # Better endpoint for last N games
     commonteamroster,
 )
 from nba_api.stats.static import teams
@@ -234,15 +235,19 @@ def get_team_opponent_stats(team_id, season='2025-26'):
 @safe_api_call
 def get_team_last_n_games(team_id, n=5, season='2025-26'):
     """
-    Get team's last N games
+    Get team's last N games using optimized endpoint
+    Uses TeamGameLogs with last_n_games parameter for better performance
     """
-    gamelog = teamgamelog.TeamGameLog(
-        team_id=team_id,
-        season=season
+    # Use TeamGameLogs endpoint which has last_n_games built-in
+    gamelogs = teamgamelogs.TeamGameLogs(
+        team_id_nullable=team_id,
+        season_nullable=season,
+        season_type_nullable='Regular Season',
+        last_n_games_nullable=n  # Request only N games from API
     )
 
-    games = gamelog.get_data_frames()[0]
-    return games.head(n).to_dict('records') if len(games) > 0 else []
+    games = gamelogs.get_data_frames()[0]
+    return games.to_dict('records') if len(games) > 0 else []
 
 # ============================================================================
 # GAME SCHEDULE FUNCTIONS
