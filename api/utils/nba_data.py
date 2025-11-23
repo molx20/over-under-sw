@@ -72,8 +72,8 @@ def safe_api_call(func):
     """Decorator to add error handling and retries to API calls"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        max_retries = 3
-        retry_delay = 1.0  # Start with 1 second
+        max_retries = 2  # Reduced from 3 to avoid worker timeout
+        retry_delay = 0.5  # Faster retries
 
         for attempt in range(max_retries):
             try:
@@ -90,7 +90,7 @@ def safe_api_call(func):
                         print(f"API Error in {func.__name__} (attempt {attempt + 1}/{max_retries}): {error_msg}")
                         print(f"Retrying in {retry_delay}s...")
                         time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
+                        retry_delay *= 1.5  # Slower backoff: 0.5s, 0.75s
                         continue
 
                 # Final attempt failed or non-retryable error
@@ -115,7 +115,7 @@ def get_team_id(team_name):
             team_name.lower() in t['nickname'].lower()]
     return team[0]['id'] if team else None
 
-@cache_result(timeout_seconds=14400)  # 4 hours - stats don't change often
+@cache_result(timeout_seconds=86400)  # 24 hours - stats change slowly, prioritize speed
 @safe_api_call
 def get_team_stats(team_id, season='2025-26', per_mode='PerGame'):
     """
@@ -168,7 +168,7 @@ def get_team_stats(team_id, season='2025-26', per_mode='PerGame'):
         'away': away
     }
 
-@cache_result(timeout_seconds=14400)  # 4 hours
+@cache_result(timeout_seconds=86400)  # 24 hours - prioritize speed
 @safe_api_call
 def get_team_advanced_stats(team_id, season='2025-26'):
     """
@@ -194,7 +194,7 @@ def get_team_advanced_stats(team_id, season='2025-26'):
 
     return overall
 
-@cache_result(timeout_seconds=14400)  # 4 hours
+@cache_result(timeout_seconds=86400)  # 24 hours - prioritize speed
 @safe_api_call
 def get_team_opponent_stats(team_id, season='2025-26'):
     """
@@ -230,7 +230,7 @@ def get_team_opponent_stats(team_id, season='2025-26'):
 
     return overall
 
-@cache_result(timeout_seconds=14400)  # 4 hours
+@cache_result(timeout_seconds=86400)  # 24 hours - prioritize speed over freshness
 @safe_api_call
 def get_team_last_n_games(team_id, n=5, season='2025-26'):
     """
@@ -406,7 +406,7 @@ def get_todays_games():
         traceback.print_exc()
         return []
 
-@cache_result(timeout_seconds=1800)
+@cache_result(timeout_seconds=3600)  # 1 hour - balance freshness with speed
 @safe_api_call
 def get_games_by_date(date_str):
     """
@@ -432,7 +432,7 @@ def get_games_by_date(date_str):
 # INJURY & ROSTER FUNCTIONS
 # ============================================================================
 
-@cache_result(timeout_seconds=7200)
+@cache_result(timeout_seconds=86400)  # 24 hours - rosters change infrequently
 @safe_api_call
 def get_team_roster(team_id, season='2025-26'):
     """
