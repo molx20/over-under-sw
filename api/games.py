@@ -11,7 +11,7 @@ import os
 # Add the api directory to path
 sys.path.append(os.path.dirname(__file__))
 
-from utils.nba_data import get_todays_games, get_matchup_data, get_all_teams
+from utils.db_queries import get_todays_games, get_matchup_data, get_all_teams
 from utils.prediction_engine import predict_game_total
 
 # In-memory prediction cache for serverless function instance

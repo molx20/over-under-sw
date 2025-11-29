@@ -8,7 +8,7 @@ import os
 
 sys.path.append(os.path.dirname(__file__))
 
-from utils.nba_data import get_matchup_data
+from utils.db_queries import get_matchup_data
 from utils.prediction_engine import predict_game_total
 
 app = Flask(__name__)

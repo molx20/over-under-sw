@@ -13,16 +13,11 @@ from datetime import datetime
 
 # Import existing infrastructure
 try:
-    from api.utils.nba_data import get_team_last_n_games
-    from api.utils.team_rankings import get_team_stats_with_ranks
-    from api.utils.cache_manager import cached
+    from api.utils.db_queries import get_team_last_n_games, get_team_stats_with_ranks
 except ImportError:
-    from nba_data import get_team_last_n_games
-    from team_rankings import get_team_stats_with_ranks
-    from cache_manager import cached
+    from db_queries import get_team_last_n_games, get_team_stats_with_ranks
 
 
-@cached(ttl_seconds=3600)  # 1 hour cache
 def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') -> Dict:
     """
     Fetch last 5 games, enrich with opponent profiles, analyze trends.

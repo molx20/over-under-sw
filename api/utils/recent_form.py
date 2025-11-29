@@ -16,13 +16,11 @@ from typing import Dict, Optional
 import sqlite3
 import os
 
-# Import NBA data fetcher for fallback
+# Import NBA data fetcher (now from db_queries - SQLite only, no live API calls)
 try:
-    from api.utils.nba_data import get_team_last_n_games
-    from api.utils import team_rankings
+    from api.utils.db_queries import get_team_last_n_games, get_team_stats_with_ranks
 except ImportError:
-    from nba_data import get_team_last_n_games
-    import team_rankings
+    from db_queries import get_team_last_n_games, get_team_stats_with_ranks
 
 # Database path for team game history
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'predictions.db')
@@ -178,10 +176,9 @@ def _get_season_stats(team_tricode: str, season: str) -> Dict:
     Returns dict with off_rtg, def_rtg, pace
     """
     try:
-        # Get team ID from static teams list
-        from api.utils.nba_data import get_all_teams
-        all_teams = get_all_teams()
-        team_data = next((t for t in all_teams if t['abbreviation'] == team_tricode), None)
+        # Get team ID from database
+        from api.utils.db_queries import get_team_by_abbreviation
+        team_data = get_team_by_abbreviation(team_tricode)
 
         if not team_data:
             print(f'[recent_form] WARNING: Could not find team {team_tricode}')
@@ -189,8 +186,8 @@ def _get_season_stats(team_tricode: str, season: str) -> Dict:
 
         team_id = team_data['id']
 
-        # Get from rankings cache
-        rankings = team_rankings.get_team_stats_with_ranks(team_id, season)
+        # Get from database
+        rankings = get_team_stats_with_ranks(team_id, season)
 
         if rankings and rankings.get('stats'):
             return {

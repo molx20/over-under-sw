@@ -15,16 +15,20 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET /api/health"""
         try:
-            # Test basic imports
-            from utils.nba_data import get_all_teams
+            # Test basic imports and database connectivity
+            from utils.db_queries import get_all_teams, get_data_freshness
 
             # Test GitHub credentials (for self-learning feature)
             gh_token_set = bool(os.getenv('GH_TOKEN'))
             gh_repo_set = bool(os.getenv('GH_REPO'))
 
-            # Attempt to fetch teams to verify NBA API connectivity
+            # Check database connectivity
             teams = get_all_teams()
-            nba_api_working = teams is not None and len(teams) > 0
+            db_working = teams is not None and len(teams) > 0
+
+            # Check data freshness
+            freshness = get_data_freshness()
+            data_stale = freshness.get('is_stale', False)
 
             response = {
                 'success': True,
@@ -32,17 +36,22 @@ class handler(BaseHTTPRequestHandler):
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'checks': {
                     'api_server': 'up',
-                    'nba_api': 'connected' if nba_api_working else 'degraded',
+                    'database': 'connected' if db_working else 'degraded',
+                    'data_freshness': 'stale (>12hrs old)' if data_stale else 'fresh',
                     'github_credentials': 'configured' if (gh_token_set and gh_repo_set) else 'not configured',
                 },
-                'version': '1.0.0',
+                'data_freshness': freshness,
+                'version': '2.0.0',
                 'environment': 'production' if os.getenv('VERCEL') else 'development',
             }
 
-            # If NBA API is down, still return 200 but mark as degraded
-            if not nba_api_working:
+            # If database is down or data is stale, still return 200 but mark as degraded
+            if not db_working or data_stale:
                 response['status'] = 'degraded'
-                response['message'] = 'NBA API connectivity issues detected'
+                if not db_working:
+                    response['message'] = 'Database connectivity issues detected'
+                elif data_stale:
+                    response['message'] = 'Data is stale (>12 hours old) - sync may be needed'
 
             self.send_json_response(response, 200)
 
