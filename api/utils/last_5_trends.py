@@ -147,7 +147,7 @@ def _enrich_game_with_opponent(game: Dict, season: str) -> Optional[Dict]:
             return None
 
         # Get opponent's team_id
-        from api.utils.nba_data import get_all_teams
+        from api.utils.db_queries import get_all_teams
         all_teams = get_all_teams()
         opponent_team = next((t for t in all_teams if t['abbreviation'] == opponent_abbr), None)
 

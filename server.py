@@ -11,7 +11,7 @@ import os
 # Add the api directory to path
 sys.path.append(os.path.dirname(__file__))
 
-from api.utils.nba_data import get_todays_games, get_matchup_data, get_all_teams
+from api.utils.db_queries import get_todays_games, get_matchup_data, get_all_teams
 from api.utils.prediction_engine import predict_game_total
 from api.utils import db
 from api.utils import team_ratings_model

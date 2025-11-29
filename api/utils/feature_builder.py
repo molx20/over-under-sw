@@ -26,7 +26,7 @@ try:
         get_matchup_profile
     )
     from api.utils import team_rankings
-    from api.utils.nba_data import get_all_teams
+    from api.utils.db_queries import get_all_teams
 except ImportError:
     from recent_form import compute_recent_form_features
     from matchup_profile import (
@@ -34,7 +34,7 @@ except ImportError:
         get_matchup_profile
     )
     import team_rankings
-    from nba_data import get_all_teams
+    from db_queries import get_all_teams
 
 
 # Feature names in order (for reference)

@@ -21,10 +21,10 @@ import os
 
 try:
     from api.utils import team_rankings
-    from api.utils.nba_data import get_all_teams
+    from api.utils.db_queries import get_all_teams
 except ImportError:
     import team_rankings
-    from nba_data import get_all_teams
+    from db_queries import get_all_teams
 
 # Database path
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'predictions.db')
