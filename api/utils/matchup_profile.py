@@ -323,6 +323,22 @@ def update_team_game_history_entry(
     opp_off_bucket = classify_team_bucket(opp_stats, 'off_rtg') if opp_stats else 'mid'
     opp_def_bucket = classify_team_bucket(opp_stats, 'def_rtg') if opp_stats else 'mid'
 
+    # Extract opponent league ranks for last-5 opponent features
+    opp_ppg_rank = None
+    opp_pace_rank = None
+    opp_off_rtg_rank = None
+    opp_def_rtg_rank = None
+
+    if opp_stats and 'stats' in opp_stats:
+        try:
+            opp_ppg_rank = opp_stats['stats']['ppg']['rank']
+            opp_pace_rank = opp_stats['stats']['pace']['rank']
+            opp_off_rtg_rank = opp_stats['stats']['off_rtg']['rank']
+            opp_def_rtg_rank = opp_stats['stats']['def_rtg']['rank']
+            print(f'[matchup_profile] Opponent {opponent_tricode} ranks: PPG={opp_ppg_rank}, Pace={opp_pace_rank}')
+        except (KeyError, TypeError) as e:
+            print(f'[matchup_profile] Could not extract opponent ranks: {e}')
+
     # Insert into database
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -337,8 +353,10 @@ def update_team_game_history_entry(
                 off_rtg, def_rtg, pace,
                 fg_pct, three_pct,
                 opp_off_bucket, opp_def_bucket,
+                opp_ppg_rank, opp_pace_rank,
+                opp_off_rtg_rank, opp_def_rtg_rank,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             game_id,
             team_data['id'],
@@ -356,6 +374,10 @@ def update_team_game_history_entry(
             stats.get('three_pct'),
             opp_off_bucket,
             opp_def_bucket,
+            opp_ppg_rank,
+            opp_pace_rank,
+            opp_off_rtg_rank,
+            opp_def_rtg_rank,
             datetime.now().isoformat()
         ))
 

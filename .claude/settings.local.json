@@ -28,7 +28,10 @@
       "Bash(sqlite3:*)",
       "Bash(/tmp/old_predictions.db)",
       "WebSearch",
-      "WebFetch(domain:docs.railway.com)"
+      "WebFetch(domain:docs.railway.com)",
+      "Bash(find:*)",
+      "Bash(timeout 10 python3 server.py)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

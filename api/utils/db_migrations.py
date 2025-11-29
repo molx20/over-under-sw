@@ -193,6 +193,54 @@ def migrate_to_v3_features():
     print('[db_migrations] Database is ready for feature-enhanced predictions')
 
 
+def migrate_to_v4_opponent_ranks():
+    """
+    Migrate database to store opponent ranking data
+
+    Adds opponent PPG, Pace, Off Rating, and Def Rating ranks to team_game_history
+    so we can compute "last 5 opponents" features accurately.
+
+    Safe to run multiple times - will skip existing columns
+    """
+    version = 4
+    name = 'opponent_rankings'
+
+    # Check if already applied
+    if _is_migration_applied(version):
+        print(f'[db_migrations] Migration v{version} ({name}) already applied, skipping')
+        return
+
+    print(f'[db_migrations] Running migration v{version} ({name})...')
+
+    with _get_connection() as conn:
+        cursor = conn.cursor()
+
+        # Add opponent rank columns to team_game_history
+        print('[db_migrations] Adding opponent rank columns to team_game_history...')
+
+        rank_columns = [
+            ('opp_ppg_rank', 'INTEGER'),          # Opponent's PPG rank (1-30)
+            ('opp_pace_rank', 'INTEGER'),         # Opponent's Pace rank (1-30)
+            ('opp_off_rtg_rank', 'INTEGER'),      # Opponent's Off Rating rank (1-30)
+            ('opp_def_rtg_rank', 'INTEGER')       # Opponent's Def Rating rank (1-30)
+        ]
+
+        for col_name, col_type in rank_columns:
+            try:
+                cursor.execute(f'ALTER TABLE team_game_history ADD COLUMN {col_name} {col_type}')
+                print(f'[db_migrations] Added column: {col_name}')
+            except sqlite3.OperationalError:
+                print(f'[db_migrations] Column {col_name} already exists, skipping')
+
+        conn.commit()
+
+    # Mark migration as applied
+    _mark_migration_applied(version, name)
+
+    print(f'[db_migrations] Migration v{version} completed successfully')
+    print('[db_migrations] Database ready for opponent last-5 rank features')
+
+
 def run_migrations():
     """
     Run all pending migrations.
@@ -205,6 +253,7 @@ def run_migrations():
 
     # Run all migrations in order
     migrate_to_v3_features()
+    migrate_to_v4_opponent_ranks()
 
     print('[db_migrations] All migrations completed')
 

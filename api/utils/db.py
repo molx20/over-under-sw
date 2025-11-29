@@ -14,14 +14,20 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from contextlib import contextmanager
 
-# Database file location
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'predictions.db')
-
-# Import connection pool
+# Import centralized database configuration
 try:
-    from api.utils.connection_pool import get_db_pool
+    from api.utils.db_config import get_db_path
 except ImportError:
-    from connection_pool import get_db_pool
+    from db_config import get_db_path
+
+# Database file location (now uses centralized config)
+DB_PATH = get_db_path('predictions.db')
+
+# Import connection pool and retry decorator
+try:
+    from api.utils.connection_pool import get_db_pool, retry_on_db_lock
+except ImportError:
+    from connection_pool import get_db_pool, retry_on_db_lock
 
 
 @contextmanager
@@ -40,12 +46,35 @@ def get_connection():
         yield conn
 
 
+@contextmanager
+def get_write_connection():
+    """
+    Get a connection for write operations with BEGIN IMMEDIATE.
+
+    BEGIN IMMEDIATE acquires a write lock immediately, preventing
+    database locked errors from other transactions.
+    """
+    pool = get_db_pool('predictions')
+    with pool.get_connection() as conn:
+        # Begin immediate transaction for writes
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
+@retry_on_db_lock(max_retries=5)
 def init_db():
     """Initialize the database schema if it doesn't exist."""
     with get_connection() as conn:
         cursor = conn.cursor()
 
         # Create game_predictions table
+        # NOTE: As of v4.0-deterministic, several columns are deprecated (no longer updated)
+        # but kept for historical data compatibility
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS game_predictions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +96,7 @@ def init_db():
                 actual_away REAL,
                 actual_total REAL,
 
-                -- Error metrics (computed during learning)
+                -- Error metrics (DEPRECATED in v4.0 - kept for historical analysis)
                 model_error REAL,
                 line_error REAL,
                 model_abs_error REAL,
@@ -77,7 +106,7 @@ def init_db():
                 -- Timestamps
                 prediction_created_at TEXT NOT NULL,
                 line_submitted_at TEXT,
-                learning_completed_at TEXT,
+                learning_completed_at TEXT,  -- DEPRECATED in v4.0
 
                 -- Model snapshot (for debugging)
                 model_version TEXT
@@ -122,6 +151,7 @@ def init_db():
             print("Warning: Could not run migrations, db_migrations module not found")
 
 
+@retry_on_db_lock(max_retries=5)
 def save_prediction(
     game_id: str,
     home_team: str,
@@ -159,7 +189,7 @@ def save_prediction(
     now = datetime.utcnow().isoformat()
 
     try:
-        with get_connection() as conn:
+        with get_write_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO game_predictions (
@@ -176,8 +206,6 @@ def save_prediction(
                 feature_vector, feature_metadata,
                 now, model_version
             ))
-
-            conn.commit()
 
             return {
                 "success": True,
@@ -200,6 +228,7 @@ def save_prediction(
         }
 
 
+@retry_on_db_lock(max_retries=5)
 def submit_line(game_id: str, sportsbook_total_line: float) -> Dict:
     """
     Submit the sportsbook closing total line for a game.
@@ -213,7 +242,7 @@ def submit_line(game_id: str, sportsbook_total_line: float) -> Dict:
     """
     now = datetime.utcnow().isoformat()
 
-    with get_connection() as conn:
+    with get_write_connection() as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -228,8 +257,6 @@ def submit_line(game_id: str, sportsbook_total_line: float) -> Dict:
                 "error": f"No prediction found for game {game_id}. Save prediction first."
             }
 
-        conn.commit()
-
         return {
             "success": True,
             "game_id": game_id,
@@ -238,6 +265,7 @@ def submit_line(game_id: str, sportsbook_total_line: float) -> Dict:
         }
 
 
+@retry_on_db_lock(max_retries=5)
 def update_actual_results(
     game_id: str,
     actual_home: float,
@@ -256,7 +284,7 @@ def update_actual_results(
     """
     actual_total = actual_home + actual_away
 
-    with get_connection() as conn:
+    with get_write_connection() as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -271,8 +299,6 @@ def update_actual_results(
                 "error": f"No prediction found for game {game_id}"
             }
 
-        conn.commit()
-
         return {
             "success": True,
             "game_id": game_id,
@@ -280,6 +306,7 @@ def update_actual_results(
         }
 
 
+@retry_on_db_lock(max_retries=5)
 def update_error_metrics(game_id: str, metrics: Dict) -> Dict:
     """
     Update error metrics after learning is complete.
@@ -298,7 +325,7 @@ def update_error_metrics(game_id: str, metrics: Dict) -> Dict:
     """
     now = datetime.utcnow().isoformat()
 
-    with get_connection() as conn:
+    with get_write_connection() as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -326,8 +353,6 @@ def update_error_metrics(game_id: str, metrics: Dict) -> Dict:
                 "success": False,
                 "error": f"No prediction found for game {game_id}"
             }
-
-        conn.commit()
 
         return {
             "success": True,
@@ -457,6 +482,7 @@ def get_model_performance_stats(days: int = 30) -> Dict:
         }
 
 
+@retry_on_db_lock(max_retries=5)
 def save_performance_snapshot(date: str = None) -> Dict:
     """
     Save a snapshot of model performance for historical tracking.
@@ -480,7 +506,7 @@ def save_performance_snapshot(date: str = None) -> Dict:
 
     now = datetime.utcnow().isoformat()
 
-    with get_connection() as conn:
+    with get_write_connection() as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -496,8 +522,6 @@ def save_performance_snapshot(date: str = None) -> Dict:
             stats['model_win_rate'],
             now
         ))
-
-        conn.commit()
 
         return {
             "success": True,

@@ -194,33 +194,7 @@ def build_feature_vector(
     }
 
 
-def compute_feature_correction(feature_vector: Dict, feature_weights: Dict) -> float:
-    """
-    Compute total correction from feature vector and weights
-
-    total_correction = w·x = Σ(w_i * x_i)
-
-    Args:
-        feature_vector: Dict from build_feature_vector()['features']
-        feature_weights: Dict from model.json['feature_weights']
-
-    Returns:
-        float: Total correction to add to base prediction
-
-    Example:
-        >>> w = {'bias': 0.5, 'home_recent_off_delta': 0.3, ...}
-        >>> x = {'bias': 1.0, 'home_recent_off_delta': -2.9, ...}
-        >>> compute_feature_correction(x, w)
-        1.23  # Add 1.23 points to base prediction
-    """
-    total_corr = 0.0
-
-    for feature_name in FEATURE_NAMES:
-        weight = feature_weights.get(feature_name, 0.0)
-        value = feature_vector.get(feature_name, 0.0)
-        total_corr += weight * value
-
-    return round(total_corr, 2)
+# compute_feature_correction() removed - system is now deterministic (no learned weights)
 
 
 def get_empty_feature_vector() -> Dict:

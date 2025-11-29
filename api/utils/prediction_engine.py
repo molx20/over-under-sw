@@ -171,7 +171,7 @@ def calculate_confidence(predicted_total, betting_line, factors):
     # Cap confidence at 95%
     return max(40, min(confidence, 95))
 
-def predict_game_total(home_data, away_data, betting_line=None):
+def predict_game_total(home_data, away_data, betting_line=None, home_team_id=None, away_team_id=None, home_team_abbr=None, away_team_abbr=None, season='2025-26'):
     """
     Main prediction function for game total
 
@@ -181,6 +181,11 @@ def predict_game_total(home_data, away_data, betting_line=None):
                                        'opponent': {...}, 'recent_games': [...]}
         away_data: Dictionary with away team's comprehensive data
         betting_line: Current betting O/U line (optional)
+        home_team_id: Home team NBA ID (optional, for trend analysis)
+        away_team_id: Away team NBA ID (optional, for trend analysis)
+        home_team_abbr: Home team abbreviation (optional, for trend analysis)
+        away_team_abbr: Away team abbreviation (optional, for trend analysis)
+        season: Season string (default '2025-26')
 
     Returns:
         Dictionary with prediction details
@@ -233,6 +238,37 @@ def predict_game_total(home_data, away_data, betting_line=None):
         home_projected += home_form
         away_projected += away_form
 
+        # Apply trend-based adjustments (new deterministic layer)
+        home_last5_trends = None
+        away_last5_trends = None
+        trend_adjustment = None
+
+        if home_team_id and away_team_id and home_team_abbr and away_team_abbr:
+            try:
+                from api.utils.last_5_trends import get_last_5_trends
+                from api.utils.trend_adjustment import compute_trend_adjustment
+
+                # Get last 5 trends for both teams
+                home_last5_trends = get_last_5_trends(home_team_id, home_team_abbr, season)
+                away_last5_trends = get_last_5_trends(away_team_id, away_team_abbr, season)
+
+                # Compute trend adjustment
+                trend_adjustment = compute_trend_adjustment(
+                    home_trends=home_last5_trends,
+                    away_trends=away_last5_trends,
+                    base_home_score=home_projected,
+                    base_away_score=away_projected,
+                    base_total=home_projected + away_projected
+                )
+
+                # Apply adjustments
+                home_projected = trend_adjustment['adjusted_home']
+                away_projected = trend_adjustment['adjusted_away']
+
+            except Exception as e:
+                print(f'[prediction_engine] Error computing trend adjustment: {e}')
+                # Continue without trend adjustment on error
+
         # Total prediction
         predicted_total = round(home_projected + away_projected, 1)
 
@@ -281,7 +317,7 @@ def predict_game_total(home_data, away_data, betting_line=None):
         home_ortg = home_advanced.get('OFF_RATING', 0) if home_advanced else 0
         away_ortg = away_advanced.get('OFF_RATING', 0) if away_advanced else 0
 
-        return {
+        result = {
             'predicted_total': predicted_total,
             'betting_line': betting_line,
             'recommendation': recommendation,
@@ -305,6 +341,16 @@ def predict_game_total(home_data, away_data, betting_line=None):
                 'pace_variance': round(pace_variance, 1),
             }
         }
+
+        # Add trend data if available
+        if home_last5_trends:
+            result['home_last5_trends'] = home_last5_trends
+        if away_last5_trends:
+            result['away_last5_trends'] = away_last5_trends
+        if trend_adjustment:
+            result['trend_adjustment'] = trend_adjustment
+
+        return result
 
     except Exception as e:
         print(f"Error in predict_game_total: {str(e)}")

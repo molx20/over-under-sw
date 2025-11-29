@@ -20,8 +20,20 @@ import threading
 from typing import Dict, List, Optional
 from api.utils.nba_data import get_all_teams, get_matchup_data
 
-# Database path for rankings cache
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'team_rankings.db')
+# Import centralized database configuration
+try:
+    from api.utils.db_config import get_db_path
+except ImportError:
+    try:
+        from db_config import get_db_path
+    except ImportError:
+        # Fallback for standalone execution
+        get_db_path = None
+
+# Database path for rankings cache (now uses centralized config)
+DB_PATH = get_db_path('team_rankings.db') if get_db_path else os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'data', 'team_rankings.db'
+)
 
 # Import connection pool
 try:

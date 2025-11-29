@@ -157,6 +157,50 @@ export const fetchTeamStatsWithRanks = async (teamId, season = '2025-26') => {
 }
 
 // ============================================
+// Auto-Learning Endpoints
+// ============================================
+
+/**
+ * Trigger the full auto-learning cycle
+ */
+export const runAutoLearning = async () => {
+  try {
+    const response = await api.post('/auto-learning/run', {}, {
+      timeout: 180000  // 3 minutes - can take a while
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Auto-learning failed')
+    }
+
+    return response.data
+  } catch (error) {
+    console.error('[runAutoLearning] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to run auto-learning')
+  }
+}
+
+/**
+ * Get prediction history
+ */
+export const getPredictionHistory = async (limit = 50, withLearning = false) => {
+  try {
+    const response = await api.get('/prediction-history', {
+      params: { limit, with_learning: withLearning }
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Failed to fetch history')
+    }
+
+    return response.data
+  } catch (error) {
+    console.error('[getPredictionHistory] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch prediction history')
+  }
+}
+
+// ============================================
 // React Query Hooks for Optimized Caching
 // ============================================
 

@@ -228,8 +228,130 @@ def _empty_form_features(team_tricode: str, n: int) -> Dict:
         'season_def_rtg': 0.0,
         'season_pace': 0.0,
         'recent_off_delta': 0.0,
-        'recent_def_delta': 0.0,
+        'recent_def_rtg': 0.0,
         'recent_pace_delta': 0.0,
         'games_found': 0,
         'data_quality': 'none'
     }
+
+
+def get_last_n_opponents_avg_ranks(team_tricode: str, as_of_date: str, n: int = 5) -> Dict:
+    """
+    Get average opponent ranks from a team's last N games
+
+    This is used for the opponent-profile adjustment layer to understand
+    whether a team's recent performance was against strong/weak opponents.
+
+    Args:
+        team_tricode: Team abbreviation (e.g., 'BOS', 'LAL')
+        as_of_date: Only consider games before this date (YYYY-MM-DD)
+        n: Number of recent games to analyze (default 5)
+
+    Returns:
+        Dict with:
+            - avg_ppg_rank: Average PPG rank of last N opponents (1-30, lower = better offense)
+            - avg_pace_rank: Average Pace rank of last N opponents (1-30, lower = faster)
+            - avg_off_rtg_rank: Average Off Rating rank (1-30, lower = better offense)
+            - avg_def_rtg_rank: Average Def Rating rank (1-30, lower = better defense)
+            - games_found: How many games had rank data
+            - opponents: List of opponent details for debugging
+
+    Example:
+        >>> get_last_n_opponents_avg_ranks('BOS', '2025-11-20', n=5)
+        {
+            'avg_ppg_rank': 12.4,
+            'avg_pace_rank': 8.6,
+            'avg_off_rtg_rank': 11.2,
+            'avg_def_rtg_rank': 15.8,
+            'games_found': 5,
+            'opponents': [
+                {'tricode': 'LAL', 'ppg_rank': 15, 'pace_rank': 3, ...},
+                ...
+            ]
+        }
+    """
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Query last N games with opponent rank data
+        cursor.execute('''
+            SELECT
+                opponent_tricode,
+                opp_ppg_rank,
+                opp_pace_rank,
+                opp_off_rtg_rank,
+                opp_def_rtg_rank,
+                game_date
+            FROM team_game_history
+            WHERE team_tricode = ?
+              AND game_date < ?
+              AND opp_ppg_rank IS NOT NULL
+            ORDER BY game_date DESC
+            LIMIT ?
+        ''', (team_tricode, as_of_date, n))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            print(f'[recent_form] No opponent rank data found for {team_tricode}')
+            return {
+                'avg_ppg_rank': None,
+                'avg_pace_rank': None,
+                'avg_off_rtg_rank': None,
+                'avg_def_rtg_rank': None,
+                'games_found': 0,
+                'opponents': []
+            }
+
+        # Extract opponent details
+        opponents = []
+        ppg_ranks = []
+        pace_ranks = []
+        off_ranks = []
+        def_ranks = []
+
+        for row in rows:
+            opp = {
+                'tricode': row['opponent_tricode'],
+                'ppg_rank': row['opp_ppg_rank'],
+                'pace_rank': row['opp_pace_rank'],
+                'off_rtg_rank': row['opp_off_rtg_rank'],
+                'def_rtg_rank': row['opp_def_rtg_rank'],
+                'game_date': row['game_date']
+            }
+            opponents.append(opp)
+
+            if row['opp_ppg_rank']:
+                ppg_ranks.append(row['opp_ppg_rank'])
+            if row['opp_pace_rank']:
+                pace_ranks.append(row['opp_pace_rank'])
+            if row['opp_off_rtg_rank']:
+                off_ranks.append(row['opp_off_rtg_rank'])
+            if row['opp_def_rtg_rank']:
+                def_ranks.append(row['opp_def_rtg_rank'])
+
+        # Compute averages
+        return {
+            'avg_ppg_rank': _safe_avg(ppg_ranks) if ppg_ranks else None,
+            'avg_pace_rank': _safe_avg(pace_ranks) if pace_ranks else None,
+            'avg_off_rtg_rank': _safe_avg(off_ranks) if off_ranks else None,
+            'avg_def_rtg_rank': _safe_avg(def_ranks) if def_ranks else None,
+            'games_found': len(rows),
+            'opponents': opponents[:5]  # Return max 5 for display
+        }
+
+    except Exception as e:
+        print(f'[recent_form] Error querying opponent ranks: {e}')
+        return {
+            'avg_ppg_rank': None,
+            'avg_pace_rank': None,
+            'avg_off_rtg_rank': None,
+            'avg_def_rtg_rank': None,
+            'games_found': 0,
+            'opponents': []
+        }

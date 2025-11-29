@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import StatsTable from '../components/StatsTable'
+import Last5TrendsCard from '../components/Last5TrendsCard'
 import { useGameDetail } from '../utils/api'
 
 function GamePage() {
@@ -234,6 +235,49 @@ function GamePage() {
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.game_pace || 'N/A'}</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Last 5 Game Trends */}
+      {(prediction?.home_last5_trends || prediction?.away_last5_trends) && (
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Last 5 Game Trends
+          </h2>
+
+          {/* Trend Adjustment Summary */}
+          {prediction?.trend_adjustment && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">Trend Adjustment:</span>{' '}
+                  {prediction.trend_adjustment.explanation}
+                </p>
+                <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                  {prediction.trend_adjustment.total_adjustment > 0 ? '+' : ''}
+                  {prediction.trend_adjustment.total_adjustment} pts
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Side-by-side cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {prediction?.away_last5_trends && (
+              <Last5TrendsCard
+                teamAbbr={away_team?.abbreviation}
+                trends={prediction.away_last5_trends}
+                side="away"
+              />
+            )}
+            {prediction?.home_last5_trends && (
+              <Last5TrendsCard
+                teamAbbr={home_team?.abbreviation}
+                trends={prediction.home_last5_trends}
+                side="home"
+              />
+            )}
           </div>
         </div>
       )}

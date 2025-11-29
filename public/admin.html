@@ -308,12 +308,12 @@
     <div class="container">
         <div class="header">
             <h1>🏀 NBA Prediction Admin</h1>
-            <p class="subtitle">Self-Learning Feature Management</p>
+            <p class="subtitle">Deterministic Prediction System (v4.0)</p>
         </div>
 
-        <!-- Step 1: Save Prediction -->
+        <!-- Step 1: Generate Prediction -->
         <div class="section">
-            <h2>1️⃣ Save Pre-Game Prediction</h2>
+            <h2>1️⃣ Generate Prediction</h2>
             <div class="form-group">
                 <label>Load Today's Games</label>
                 <button onclick="loadGames()">Load Games</button>
@@ -341,6 +341,9 @@
         <!-- Step 2: Submit Line -->
         <div class="section">
             <h2>2️⃣ Submit Sportsbook Line</h2>
+            <p style="color: #555; margin-bottom: 15px; font-size: 14px;">
+                Track sportsbook lines for analysis only (no learning applied)
+            </p>
             <div class="form-group">
                 <label>Game ID</label>
                 <input type="text" id="gameId2" placeholder="0022500123">
@@ -352,21 +355,12 @@
             <button onclick="submitLine()">Submit Line</button>
             <div id="result2"></div>
         </div>
-
-        <!-- Step 3: Run Learning -->
-        <div class="section">
-            <h2>3️⃣ Run Post-Game Learning</h2>
-            <div class="form-group">
-                <label>Game ID</label>
-                <input type="text" id="gameId3" placeholder="0022500123">
-            </div>
-            <button onclick="runLearning()">Run Learning</button>
-            <div id="result3"></div>
-        </div>
     </div>
 
     <script>
         const API_BASE = window.location.origin;
+
+        // Auto-learning functions removed - system is now deterministic
 
         async function loadGames() {
             const button = event.target;
@@ -433,7 +427,6 @@
                         document.getElementById('homeTeam').value = game.home_team.abbreviation;
                         document.getElementById('awayTeam').value = game.away_team.abbreviation;
                         document.getElementById('gameId2').value = game.game_id;
-                        document.getElementById('gameId3').value = game.game_id;
                     };
 
                     gamesList.appendChild(div);
@@ -456,17 +449,7 @@
             }
         }
 
-        // Auto-load games when page loads
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('Auto-loading games...');
-            // Simulate button click to load games automatically
-            setTimeout(() => {
-                const loadButton = document.querySelector('button[onclick="loadGames()"]');
-                if (loadButton) {
-                    loadButton.click();
-                }
-            }, 500); // Small delay to ensure page is ready
-        });
+        // Note: Auto-load of games is handled by manual click now to reduce API calls
 
         async function savePrediction() {
             const button = event.target;
@@ -552,52 +535,7 @@
             }
         }
 
-        async function runLearning() {
-            const button = event.target;
-            const gameId = document.getElementById('gameId3').value;
-            const resultDiv = document.getElementById('result3');
-
-            if (!gameId) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = 'Please enter a game ID';
-                return;
-            }
-
-            button.disabled = true;
-            button.textContent = 'Learning...';
-            resultDiv.innerHTML = '';
-
-            try {
-                const response = await fetch(`${API_BASE}/api/run-learning`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ game_id: gameId })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    const beatLine = data.model_beat_line ? '✓ Model beat line!' : '✗ Line beat model';
-                    resultDiv.className = 'result success';
-                    resultDiv.innerHTML = `
-                        <strong>✓ Learning Complete!</strong><br>
-                        Actual Total: ${data.actual_total}<br>
-                        Model Predicted: ${data.pred_total} (Error: ${Math.abs(data.model_error).toFixed(2)})<br>
-                        Sportsbook Line: ${data.sportsbook_line || 'N/A'} ${data.line_error ? `(Error: ${Math.abs(data.line_error).toFixed(2)})` : ''}<br>
-                        <strong>${beatLine}</strong>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                } else {
-                    throw new Error(data.error);
-                }
-            } catch (error) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = '✗ Error: ' + error.message;
-            } finally {
-                button.disabled = false;
-                button.textContent = 'Run Learning';
-            }
-        }
+        // runLearning() function removed - system is now deterministic
     </script>
 </body>
 </html>

@@ -15,7 +15,6 @@ from api.utils.nba_data import get_todays_games, get_matchup_data, get_all_teams
 from api.utils.prediction_engine import predict_game_total
 from api.utils import db
 from api.utils import team_ratings_model
-from api.utils.github_persistence import commit_model_to_github
 from api.utils import team_rankings
 from api.utils.performance import create_timing_middleware
 import json
@@ -40,8 +39,60 @@ CORS(app)
 # Enable performance logging middleware
 create_timing_middleware(app)
 
+# Add cache control headers to prevent browser caching issues on deployment
+@app.after_request
+def add_cache_headers(response):
+    """
+    Add cache control headers to prevent stale frontend after deployments.
+
+    Strategy:
+    - index.html: No cache (always fetch fresh)
+    - JS/CSS assets: Cache for 1 year (Vite adds hashes to filenames)
+    - API responses: No cache (always fresh data)
+    """
+    # Don't cache index.html - always fetch fresh on reload
+    if request.path == '/' or request.path.endswith('.html'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    # Cache JS/CSS assets aggressively (Vite adds content hashes to filenames)
+    elif request.path.endswith(('.js', '.css', '.woff', '.woff2', '.ttf', '.eot')):
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+
+    # Don't cache API responses
+    elif request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    # Images can be cached for a day
+    elif request.path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico')):
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+
+    return response
+
 # Initialize database on startup
 db.init_db()
+
+# Self-learning disabled - using deterministic predictions
+print("[startup] Running in deterministic mode (no automated learning)")
+
+# Force WAL mode and verify connection health on all database pools
+print("[startup] Initializing database connections...")
+try:
+    from api.utils.connection_pool import get_db_pool
+
+    for db_name in ['predictions', 'team_rankings']:
+        pool = get_db_pool(db_name)
+        with pool.get_connection() as conn:
+            # Force WAL mode for better concurrency
+            conn.execute("PRAGMA journal_mode=WAL")
+            # Verify connection is healthy
+            conn.execute("SELECT 1")
+            print(f"[startup] ✓ {db_name} database ready (WAL mode enabled)")
+except Exception as e:
+    print(f"[startup] Warning: Database initialization had issues: {e}")
 
 # In-memory prediction cache
 _prediction_cache = {}
@@ -68,10 +119,20 @@ def get_cached_prediction(home_team_id, away_team_id, betting_line):
         print('[cache] ERROR: Failed to fetch matchup data')
         return None, None
 
+    # Get team abbreviations for trend analysis
+    all_teams = get_all_teams()
+    home_team_info = next((t for t in all_teams if t['id'] == int(home_team_id)), None)
+    away_team_info = next((t for t in all_teams if t['id'] == int(away_team_id)), None)
+
     prediction = predict_game_total(
         matchup_data['home'],
         matchup_data['away'],
-        betting_line
+        betting_line,
+        home_team_id=int(home_team_id),
+        away_team_id=int(away_team_id),
+        home_team_abbr=home_team_info['abbreviation'] if home_team_info else None,
+        away_team_abbr=away_team_info['abbreviation'] if away_team_info else None,
+        season='2025-26'
     )
 
     if len(_prediction_cache) >= _CACHE_MAX_SIZE:
@@ -532,17 +593,17 @@ What to try:
         # Extract game date from game_id or use current date
         game_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
-        # Build feature vector and compute correction
-        feature_correction = 0.0
+        # Build feature vector for analytics (no learning applied)
+        feature_correction = 0.0  # Always 0 in deterministic mode
         feature_vector_dict = None
         feature_metadata = None
 
         try:
-            from api.utils.feature_builder import build_feature_vector, compute_feature_correction
+            from api.utils.feature_builder import build_feature_vector
             import json
 
             with log_slow_operation("Build feature vector (rankings + recent games)", threshold_ms=2000):
-                print(f'[save-prediction] Building feature vector...')
+                print(f'[save-prediction] Building feature vector for analytics...')
                 feature_data = build_feature_vector(
                     home_team=home_team,
                     away_team=away_team,
@@ -554,35 +615,56 @@ What to try:
                     season='2025-26'
                 )
 
-            # Load feature weights from model
-            feature_weights = model_params.get('feature_weights', {})
-
-            # Compute correction: w·x
-            feature_correction = compute_feature_correction(
-                feature_data['features'],
-                feature_weights
-            )
-
-            print(f'[save-prediction] Feature correction: {feature_correction:+.2f}')
-
-            # Store feature data for database
+            # Store feature data for analytics only (no weights applied)
             feature_vector_dict = json.dumps(feature_data['features'])
             feature_metadata = json.dumps(feature_data['metadata'])
+            print(f'[save-prediction] Feature vector saved for analytics (no correction applied)')
 
         except Exception as e:
             print(f'[save-prediction] Warning: Could not compute features: {e}')
-            print('[save-prediction] Falling back to base prediction only')
-            # Continue with base prediction, feature_correction = 0
+            print('[save-prediction] Continuing with base prediction')
+            # Continue with base prediction
 
-        # Apply correction to base prediction
-        pred_total = base_total + feature_correction
+        # Use base total directly (no learned feature correction)
+        intermediate_total = base_total
 
-        # Split total back into team scores, preserving original ratio
-        base_ratio = base_home / (base_home + base_away) if (base_home + base_away) > 0 else 0.5
-        pred_home = pred_total * base_ratio
-        pred_away = pred_total * (1 - base_ratio)
+        # Apply deterministic opponent-profile adjustment (NEW LAYER)
+        try:
+            from api.utils.opponent_profile_adjustment import compute_opponent_profile_adjustment
+
+            print('[save-prediction] Computing opponent-profile adjustment...')
+            opp_adjustment_result = compute_opponent_profile_adjustment(
+                home_tricode=home_team,
+                away_tricode=away_team,
+                as_of_date=game_date,
+                base_total=base_total,
+                base_home=base_home,
+                base_away=base_away
+            )
+
+            opponent_adjustment = opp_adjustment_result['adjustment']
+            print(f'[save-prediction] Opponent-profile adjustment: {opponent_adjustment:+.2f}')
+
+            # Final prediction = base + learned_features + deterministic_opponent_adjustment
+            pred_total = intermediate_total + opponent_adjustment
+            pred_home = opp_adjustment_result['adjusted_home']
+            pred_away = opp_adjustment_result['adjusted_away']
+
+        except Exception as e:
+            print(f'[save-prediction] Warning: Could not compute opponent adjustment: {e}')
+            print('[save-prediction] Falling back to intermediate prediction (base + features)')
+            # Fallback: use intermediate total without opponent adjustment
+            opponent_adjustment = 0.0
+            opp_adjustment_result = None
+            pred_total = intermediate_total
+
+            # Split intermediate total into team scores
+            base_ratio = base_home / (base_home + base_away) if (base_home + base_away) > 0 else 0.5
+            pred_home = pred_total * base_ratio
+            pred_away = pred_total * (1 - base_ratio)
 
         print(f'[save-prediction] Final prediction: {pred_total:.1f} ({pred_home:.1f} - {pred_away:.1f})')
+        print(f'[save-prediction] Breakdown: base={base_total:.1f}, feature_corr={feature_correction:+.1f}, opp_adj={opponent_adjustment:+.1f}')
 
         # Save to database with feature data
         result = db.save_prediction(
@@ -605,13 +687,37 @@ What to try:
 
         print(f'[save-prediction] ✓ Saved prediction: {pred_total} total')
 
-        # Add full prediction details to response
-        result['prediction']['home'] = pred_home
-        result['prediction']['away'] = pred_away
-        result['prediction']['base'] = base_total
-        result['prediction']['correction'] = feature_correction
-        result['prediction']['recommendation'] = prediction.get('recommendation', '')
-        result['prediction']['confidence'] = prediction.get('confidence', 0)
+        # Build detailed response with all prediction layers
+        result['prediction'] = {
+            'base': {
+                'total': base_total,
+                'home': base_home,
+                'away': base_away
+            },
+            'with_learned_features': {
+                'total': base_total + feature_correction,
+                'correction': feature_correction
+            },
+            'with_opponent_profile': {
+                'total': pred_total,
+                'home': pred_home,
+                'away': pred_away,
+                'adjustment': opponent_adjustment,
+                'explanation': opp_adjustment_result['explanation'] if opp_adjustment_result else 'No adjustment applied'
+            },
+            'layers_breakdown': {
+                'base': base_total,
+                'feature_correction': feature_correction,
+                'opponent_adjustment': opponent_adjustment,
+                'final': pred_total
+            },
+            'recommendation': prediction.get('recommendation', ''),
+            'confidence': prediction.get('confidence', 0)
+        }
+
+        # Add opponent details if available
+        if opp_adjustment_result:
+            result['prediction']['opponent_details'] = opp_adjustment_result['details']
 
         return jsonify(result)
 
@@ -678,283 +784,7 @@ def submit_line():
         }), 500
 
 
-@app.route('/api/run-learning', methods=['POST'])
-def run_learning():
-    """
-    Run post-game learning after a game completes
-
-    This endpoint:
-    1. Fetches the final score from NBA API
-    2. Compares model prediction vs sportsbook line vs actual result
-    3. Updates team ratings and total_bias
-    4. Commits updated model to GitHub
-    5. Saves error metrics to database
-
-    Request body:
-    {
-        "game_id": "0022500123"
-    }
-    """
-    try:
-        data = request.get_json()
-
-        # Validate required fields
-        game_id = data.get('game_id')
-
-        if not game_id:
-            return jsonify({
-                'success': False,
-                'error': 'Missing required field: game_id'
-            }), 400
-
-        print(f'[run-learning] Starting learning process for game {game_id}')
-
-        # 1. Get the saved prediction from database
-        prediction_data = db.get_prediction(game_id)
-
-        if not prediction_data:
-            return jsonify({
-                'success': False,
-                'error': f'No prediction found for game {game_id}. Save a prediction first.'
-            }), 404
-
-        # 2. Fetch final score from NBA API
-        print(f'[run-learning] Fetching final score from NBA API...')
-        games = get_todays_games()
-
-        if not games:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch games from NBA API'
-            }), 500
-
-        game = next((g for g in games if str(g.get('game_id')) == str(game_id)), None)
-
-        if not game:
-            return jsonify({
-                'success': False,
-                'error': f'Game {game_id} not found in NBA API response'
-            }), 404
-
-        # 3. Check if game is finished
-        game_status = game.get('game_status', '')
-        if game_status != 'Final':
-            return jsonify({
-                'success': False,
-                'error': f'Game is not finished yet. Current status: {game_status}'
-            }), 400
-
-        # 4. Get actual scores
-        actual_home = game.get('home_team_score')
-        actual_away = game.get('away_team_score')
-
-        if actual_home is None or actual_away is None:
-            return jsonify({
-                'success': False,
-                'error': 'Final scores not available in NBA API response'
-            }), 500
-
-        actual_total = actual_home + actual_away
-
-        print(f'[run-learning] Final score: {prediction_data["away_team"]} {actual_away}, {prediction_data["home_team"]} {actual_home} (Total: {actual_total})')
-
-        # 5. Update actual results in database
-        db.update_actual_results(game_id, actual_home, actual_away)
-
-        # 6. Run team rating updates (existing logic)
-        print(f'[run-learning] Updating team ratings...')
-        rating_update = team_ratings_model.update_ratings(
-            home_tricode=prediction_data['home_team'],
-            away_tricode=prediction_data['away_team'],
-            home_pts_final=actual_home,
-            away_pts_final=actual_away
-        )
-
-        # 7. Run line-aware learning (existing)
-        line_metrics = None
-        if prediction_data['sportsbook_total_line'] is not None:
-            print(f'[run-learning] Running line-aware learning...')
-            line_metrics = team_ratings_model.update_from_sportsbook_line(
-                pred_total=prediction_data['pred_total'],
-                sportsbook_line=prediction_data['sportsbook_total_line'],
-                actual_total=actual_total
-            )
-
-            # 8. Save error metrics to database
-            db.update_error_metrics(game_id, {
-                'model_error': line_metrics['model_error'],
-                'line_error': line_metrics['line_error'],
-                'model_abs_error': line_metrics['model_abs_error'],
-                'line_abs_error': line_metrics['line_abs_error'],
-                'model_beat_line': line_metrics['model_beat_line']
-            })
-
-            print(f'[run-learning] Model error: {line_metrics["model_abs_error"]}, Line error: {line_metrics["line_abs_error"]}')
-            print(f'[run-learning] {"✓ Model beat line!" if line_metrics["model_beat_line"] else "✗ Line beat model"}')
-        else:
-            print(f'[run-learning] No sportsbook line submitted, skipping line-aware learning')
-
-            # Still save basic error metrics
-            model_error = actual_total - prediction_data['pred_total']
-            db.update_error_metrics(game_id, {
-                'model_error': model_error,
-                'line_error': None,
-                'model_abs_error': abs(model_error),
-                'line_abs_error': None,
-                'model_beat_line': None
-            })
-
-        # 7b. Update feature weights (NEW)
-        feature_weights_updated = False
-        if prediction_data.get('feature_vector'):
-            try:
-                import json
-                print(f'[run-learning] Updating feature weights...')
-
-                # Load stored feature vector
-                feature_vector = json.loads(prediction_data['feature_vector'])
-
-                # Compute model error
-                model_error = actual_total - prediction_data['pred_total']
-
-                # Get current model and feature weights
-                model = team_ratings_model.load_model()
-                feature_weights = model.get('feature_weights', {})
-                feature_lr = model['parameters'].get('feature_learning_rate', 0.01)
-
-                # Update each feature weight: w = w + η * error * x
-                for feature_name, feature_value in feature_vector.items():
-                    old_weight = feature_weights.get(feature_name, 0.0)
-                    new_weight = old_weight + (feature_lr * model_error * feature_value)
-
-                    # Clamp weights to [-10, +10] to prevent runaway values
-                    new_weight = max(-10.0, min(10.0, new_weight))
-
-                    feature_weights[feature_name] = round(new_weight, 4)
-
-                # Update model with new feature weights
-                model['feature_weights'] = feature_weights
-                team_ratings_model.save_model(model)
-                feature_weights_updated = True
-
-                print(f'[run-learning] ✓ Feature weights updated (error: {model_error:+.1f})')
-
-            except Exception as e:
-                print(f'[run-learning] Warning: Could not update feature weights: {e}')
-        else:
-            print(f'[run-learning] No feature vector found, skipping feature weight updates')
-
-        # 7c. Record game to team_game_history for both teams (NEW)
-        try:
-            from api.utils.matchup_profile import update_team_game_history_entry
-
-            print(f'[run-learning] Recording game to team_game_history...')
-
-            # Get team IDs
-            all_teams = get_all_teams()
-            home_team_data = next((t for t in all_teams if t['abbreviation'] == prediction_data['home_team']), None)
-            away_team_data = next((t for t in all_teams if t['abbreviation'] == prediction_data['away_team']), None)
-
-            if home_team_data and away_team_data:
-                # Record home team's performance
-                update_team_game_history_entry(
-                    game_id=game_id,
-                    team_tricode=prediction_data['home_team'],
-                    opponent_tricode=prediction_data['away_team'],
-                    stats={
-                        'points_scored': actual_home,
-                        'points_allowed': actual_away,
-                        'is_home': True
-                    },
-                    game_date=prediction_data['game_date']
-                )
-
-                # Record away team's performance
-                update_team_game_history_entry(
-                    game_id=game_id,
-                    team_tricode=prediction_data['away_team'],
-                    opponent_tricode=prediction_data['home_team'],
-                    stats={
-                        'points_scored': actual_away,
-                        'points_allowed': actual_home,
-                        'is_home': False
-                    },
-                    game_date=prediction_data['game_date']
-                )
-
-                print(f'[run-learning] ✓ Game recorded to team_game_history for both teams')
-            else:
-                print(f'[run-learning] Warning: Could not find team data for history recording')
-
-        except Exception as e:
-            print(f'[run-learning] Warning: Could not record game to team_game_history: {e}')
-
-        # 9. Commit updated model to GitHub (optional - works without GH_TOKEN in local dev)
-        print(f'[run-learning] Committing model to GitHub...')
-
-        # Use the updated model from line_metrics if available, otherwise from rating_update
-        updated_model = line_metrics['updated_model'] if line_metrics else rating_update['updated_model']
-
-        model_committed = False
-        try:
-            commit_result = commit_model_to_github(
-                updated_model,
-                commit_message=f"Learn from game {game_id}: {prediction_data['away_team']}@{prediction_data['home_team']} ({actual_away}-{actual_home})"
-            )
-            model_committed = commit_result.get('success', False) if commit_result else False
-        except ValueError as e:
-            print(f'[run-learning] ⚠ GitHub commit skipped: {str(e)}')
-        except Exception as e:
-            print(f'[run-learning] ⚠ GitHub commit failed: {str(e)}')
-
-        if model_committed:
-            print(f'[run-learning] ✓ Model committed to GitHub')
-        else:
-            print(f'[run-learning] ℹ Local model updated (GitHub commit skipped)')
-
-        # 10. Build response
-        response = {
-            'success': True,
-            'game_id': game_id,
-            'actual_total': actual_total,
-            'pred_total': prediction_data['pred_total'],
-            'model_committed': model_committed,
-            'feature_weights_updated': feature_weights_updated
-        }
-
-        # Add line comparison if available
-        if line_metrics:
-            response.update({
-                'sportsbook_line': prediction_data['sportsbook_total_line'],
-                'model_error': line_metrics['model_error'],
-                'line_error': line_metrics['line_error'],
-                'model_beat_line': line_metrics['model_beat_line'],
-                'total_bias_update': {
-                    'old': line_metrics['old_total_bias'],
-                    'new': line_metrics['new_total_bias'],
-                    'adjustment': line_metrics['bias_adjustment']
-                }
-            })
-
-        # Add team rating updates
-        response['updates'] = {
-            f'{prediction_data["home_team"]}_off': rating_update['new_ratings'][prediction_data['home_team']]['off'],
-            f'{prediction_data["home_team"]}_def': rating_update['new_ratings'][prediction_data['home_team']]['def'],
-            f'{prediction_data["away_team"]}_off': rating_update['new_ratings'][prediction_data['away_team']]['off'],
-            f'{prediction_data["away_team"]}_def': rating_update['new_ratings'][prediction_data['away_team']]['def']
-        }
-
-        print(f'[run-learning] ✓ Learning complete!')
-
-        return jsonify(response)
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# Learning endpoint removed - system is now deterministic
 
 
 @app.route('/api/prediction-history', methods=['GET'])
@@ -992,6 +822,9 @@ def prediction_history():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# Automated learning endpoints removed - system is now deterministic
 
 
 # Catch-all route to serve React app for client-side routing
