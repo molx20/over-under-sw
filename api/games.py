@@ -11,6 +11,13 @@ import os
 # Add the api directory to path
 sys.path.append(os.path.dirname(__file__))
 
+# Initialize NBA data database if it doesn't exist (Railway deployment)
+try:
+    from utils.init_db_on_startup import init_nba_data_db_if_needed
+    init_nba_data_db_if_needed()
+except Exception as e:
+    print(f"Warning: Could not initialize NBA data DB: {e}")
+
 from utils.db_queries import get_todays_games, get_matchup_data, get_all_teams
 from utils.prediction_engine import predict_game_total
 
