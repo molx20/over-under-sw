@@ -369,12 +369,16 @@ def get_todays_games(season: str = '2025-26') -> List[Dict]:
     mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
     today = datetime.now(mountain_tz).strftime('%Y-%m-%d')
 
+    # Also get yesterday's date to catch games that might be dated differently
+    yesterday = (datetime.now(mountain_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    # Query for today's or yesterday's games (NBA games can span dates due to timezones)
     cursor.execute('''
         SELECT *
         FROM todays_games
-        WHERE game_date = ? AND season = ?
+        WHERE (game_date = ? OR game_date = ?) AND season = ?
         ORDER BY game_time_utc
-    ''', (today, season))
+    ''', (today, yesterday, season))
 
     rows = cursor.fetchall()
     conn.close()
