@@ -183,7 +183,7 @@ def admin_sync():
     try:
         data = request.get_json() or {}
         sync_type = data.get('sync_type', 'full')
-        season = data.get('season', '2025-26')
+        season = data.get('season', '2024-25')
     except Exception as e:
         return jsonify({'error': f'Invalid request body: {str(e)}'}), 400
 

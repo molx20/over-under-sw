@@ -150,7 +150,7 @@ def _log_sync_complete(sync_id: int, records_synced: int,
 # SYNC FUNCTIONS (Called by cron or admin endpoint)
 # ============================================================================
 
-def sync_teams(season: str = '2025-26') -> Tuple[int, Optional[str]]:
+def sync_teams(season: str = '2024-25') -> Tuple[int, Optional[str]]:
     """
     Sync NBA teams data
 
@@ -197,13 +197,13 @@ def sync_teams(season: str = '2025-26') -> Tuple[int, Optional[str]]:
         return 0, error_msg
 
 
-def sync_season_stats(season: str = '2025-26',
+def sync_season_stats(season: str = '2024-25',
                      team_ids: Optional[List[int]] = None) -> Tuple[int, Optional[str]]:
     """
     Sync team season statistics with home/away splits and rankings
 
     Args:
-        season: Season string (e.g., '2025-26')
+        season: Season string (e.g., '2024-25')
         team_ids: Optional list of specific team IDs to sync (None = all teams)
 
     Returns:
@@ -241,7 +241,12 @@ def sync_season_stats(season: str = '2025-26',
                 logger.warning(f"Skipping team {team_id}: failed to fetch stats")
                 continue
 
-            stats_df = stats_endpoint.get_data_frames()[0]
+            # Get all dataframes
+            # Index 0: Overall (GROUP_VALUE = season year)
+            # Index 1: Home/Road splits (GROUP_VALUE = 'Home'/'Road')
+            all_dfs = stats_endpoint.get_data_frames()
+            overall_df = all_dfs[0]
+            splits_df = all_dfs[1] if len(all_dfs) > 1 else None
 
             # Get advanced stats
             advanced_endpoint = _safe_api_call(
@@ -251,7 +256,9 @@ def sync_season_stats(season: str = '2025-26',
                 measure_type_detailed_defense='Advanced'
             )
 
-            advanced_df = advanced_endpoint.get_data_frames()[0] if advanced_endpoint else None
+            advanced_dfs = advanced_endpoint.get_data_frames() if advanced_endpoint else None
+            advanced_overall_df = advanced_dfs[0] if advanced_dfs and len(advanced_dfs) > 0 else None
+            advanced_splits_df = advanced_dfs[1] if advanced_dfs and len(advanced_dfs) > 1 else None
 
             # Get opponent stats
             opponent_endpoint = _safe_api_call(
@@ -261,40 +268,44 @@ def sync_season_stats(season: str = '2025-26',
                 measure_type_detailed_defense='Opponent'
             )
 
-            opponent_df = opponent_endpoint.get_data_frames()[0] if opponent_endpoint else None
+            opponent_dfs = opponent_endpoint.get_data_frames() if opponent_endpoint else None
+            opponent_overall_df = opponent_dfs[0] if opponent_dfs and len(opponent_dfs) > 0 else None
+            opponent_splits_df = opponent_dfs[1] if opponent_dfs and len(opponent_dfs) > 1 else None
 
-            # Process each split (Overall, Home, Road)
-            for split_type in ['Overall', 'Home', 'Road']:
-                split_row = stats_df[stats_df['GROUP_VALUE'] == split_type]
+            # Process each split
+            splits_to_process = [
+                ('overall', overall_df, season, advanced_overall_df, opponent_overall_df),
+                ('home', splits_df, 'Home', advanced_splits_df, opponent_splits_df),
+                ('away', splits_df, 'Road', advanced_splits_df, opponent_splits_df)
+            ]
+
+            for db_split_type, source_df, group_value, adv_df, opp_df in splits_to_process:
+                if source_df is None:
+                    continue
+
+                # Find the row with matching GROUP_VALUE
+                split_row = source_df[source_df['GROUP_VALUE'] == group_value]
                 if len(split_row) == 0:
                     continue
 
                 split_row = split_row.iloc[0]
 
-                # Get corresponding advanced and opponent rows
+                # Get corresponding advanced row
                 adv_row = None
-                if advanced_df is not None:
-                    adv_split = advanced_df[advanced_df['GROUP_VALUE'] == split_type]
+                if adv_df is not None:
+                    adv_split = adv_df[adv_df['GROUP_VALUE'] == group_value]
                     if len(adv_split) > 0:
                         adv_row = adv_split.iloc[0]
 
+                # Get corresponding opponent row
                 opp_row = None
                 opp_ppg = 0
-                if opponent_df is not None:
-                    opp_split = opponent_df[opponent_df['GROUP_VALUE'] == split_type]
+                if opp_df is not None:
+                    opp_split = opp_df[opp_df['GROUP_VALUE'] == group_value]
                     if len(opp_split) > 0:
                         opp_row = opp_split.iloc[0]
-                        # Convert opponent totals to per-game
-                        games_played = split_row.get('GP', 1)
-                        if games_played > 0:
-                            opp_ppg = opp_row.get('OPP_PTS', 0) / games_played
-
-                # Map split name
-                db_split_type = {
-                    'Overall': 'overall',
-                    'Home': 'home',
-                    'Road': 'away'
-                }[split_type]
+                        # Opponent stats are already per-game
+                        opp_ppg = opp_row.get('PTS', 0)
 
                 # Insert into database
                 cursor.execute('''
@@ -370,7 +381,7 @@ def sync_season_stats(season: str = '2025-26',
         return 0, error_msg
 
 
-def sync_game_logs(season: str = '2025-26',
+def sync_game_logs(season: str = '2024-25',
                    team_ids: Optional[List[int]] = None,
                    last_n_games: int = 10) -> Tuple[int, Optional[str]]:
     """
@@ -490,7 +501,7 @@ def sync_game_logs(season: str = '2025-26',
         return 0, error_msg
 
 
-def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
+def sync_todays_games(season: str = '2024-25') -> Tuple[int, Optional[str]]:
     """
     Sync today's games from NBA CDN scoreboard
 
@@ -573,7 +584,7 @@ def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
         return 0, error_msg
 
 
-def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
+def sync_all(season: str = '2024-25', triggered_by: str = 'manual') -> Dict:
     """
     Full data sync (teams, stats, game logs, today's games)
 
@@ -759,7 +770,7 @@ def get_last_sync_status(sync_type: Optional[str] = None) -> Optional[Dict]:
 if __name__ == '__main__':
     # Example usage for manual testing
     print("Starting manual sync...")
-    result = sync_all(season='2025-26', triggered_by='manual')
+    result = sync_all(season='2024-25', triggered_by='manual')
     print(f"\nSync Results:")
     print(f"  Success: {result['success']}")
     print(f"  Teams: {result['teams']}")
