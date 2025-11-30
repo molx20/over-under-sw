@@ -535,6 +535,25 @@ def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
     sync_id = _log_sync_start('todays_games', season)
 
     try:
+        from datetime import timedelta
+
+        # Define Eastern Time (UTC-5, fixed offset for determinism)
+        et_tz = timezone(timedelta(hours=-5))
+
+        # Calculate current times for logging
+        utc_now = datetime.now(timezone.utc)
+        mt_now = datetime.now(timezone(timedelta(hours=-7)))
+        et_now = datetime.now(et_tz)
+
+        # Log all timezone contexts for debugging
+        logger.info(f"[SYNC] UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"[SYNC] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"[SYNC] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S')}")
+
+        # Determine "today" in Eastern Time
+        today_et = et_now.strftime('%Y-%m-%d')
+        logger.info(f"[SYNC] Using ET date for NBA data: {today_et}")
+
         # Fetch from NBA CDN (more reliable than stats.nba.com)
         response = requests.get(NBA_CDN_SCOREBOARD_URL, timeout=30)
         response.raise_for_status()
@@ -545,7 +564,9 @@ def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
 
         scoreboard = data['scoreboard']
         games = scoreboard.get('games', [])
-        game_date = scoreboard.get('gameDate', datetime.now().strftime('%Y-%m-%d'))
+
+        # Use ET date instead of CDN's gameDate
+        game_date = today_et
 
         conn = _get_db_connection()
         cursor = conn.cursor()
@@ -596,7 +617,7 @@ def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
         conn.close()
 
         _log_sync_complete(sync_id, records_synced)
-        logger.info(f"Synced {records_synced} games for {game_date}")
+        logger.info(f"[SYNC] Saved {records_synced} games for ET date {game_date} into SQLite")
         return records_synced, None
 
     except Exception as e:

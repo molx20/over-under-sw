@@ -132,15 +132,15 @@ class handler(BaseHTTPRequestHandler):
                     'prediction': None,  # Will be fetched on game detail page
                 })
 
-            # Use Mountain Time for consistency with NBA game schedules
-            # NBA games are dated in US timezones, not UTC
+            # Use Eastern Time for consistency with NBA game schedules
+            # NBA games are scheduled in ET
             from datetime import timedelta
-            mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
-            mt_time = datetime.now(mountain_tz)
+            et_tz = timezone(timedelta(hours=-5))  # EST (UTC-5)
+            et_time = datetime.now(et_tz)
 
             response = {
                 'success': True,
-                'date': mt_time.strftime('%Y-%m-%d'),
+                'date': et_time.strftime('%Y-%m-%d'),  # Display ET date
                 'games': games_with_predictions,
                 'count': len(games_with_predictions),
                 'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')

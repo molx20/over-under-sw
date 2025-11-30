@@ -263,15 +263,12 @@ def get_games():
                 'prediction': None,
             })
 
-        # Use MST for date display (matches game fetching logic)
-        mst_offset = timedelta(hours=-7)
-        mst_time = datetime.now(timezone.utc) + mst_offset
+        # Use ET for date display (matches sync and query logic)
+        et_offset = timedelta(hours=-5)
+        et_time = datetime.now(timezone.utc) + et_offset
 
-        # After 3 AM MST, show tomorrow's date
-        if mst_time.hour >= 3:
-            display_date = (mst_time + timedelta(days=1)).strftime('%Y-%m-%d')
-        else:
-            display_date = mst_time.strftime('%Y-%m-%d')
+        # Display current ET date (no offset needed - sync already handles this)
+        display_date = et_time.strftime('%Y-%m-%d')
 
         response = {
             'success': True,

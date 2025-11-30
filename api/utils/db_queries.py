@@ -364,21 +364,36 @@ def get_todays_games(season: str = '2025-26') -> List[Dict]:
     conn = _get_db_connection()
     cursor = conn.cursor()
 
-    # Get today's date in US Mountain Time (NBA schedules use US timezones)
+    # Get today's date in Eastern Time (NBA schedules use ET)
     from datetime import timezone, timedelta
-    mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
-    today = datetime.now(mountain_tz).strftime('%Y-%m-%d')
+    import logging
 
-    # Also get yesterday's date to catch games that might be dated differently
-    yesterday = (datetime.now(mountain_tz) - timedelta(days=1)).strftime('%Y-%m-%d')
+    logger = logging.getLogger(__name__)
 
-    # Query for today's or yesterday's games (NBA games can span dates due to timezones)
+    # Define Eastern Time (UTC-5, matching sync logic)
+    et_tz = timezone(timedelta(hours=-5))
+
+    # Calculate current times
+    utc_now = datetime.now(timezone.utc)
+    mt_now = datetime.now(timezone(timedelta(hours=-7)))
+    et_now = datetime.now(et_tz)
+
+    # Log timezone context
+    logger.info(f"[BOARD] UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"[BOARD] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"[BOARD] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # Determine "today" in Eastern Time (matches sync logic)
+    today_et = et_now.strftime('%Y-%m-%d')
+    logger.info(f"[BOARD] Fetching today's games for ET date: {today_et}")
+
+    # Query for today's ET games only
     cursor.execute('''
         SELECT *
         FROM todays_games
-        WHERE (game_date = ? OR game_date = ?) AND season = ?
+        WHERE game_date = ? AND season = ?
         ORDER BY game_time_utc
-    ''', (today, yesterday, season))
+    ''', (today_et, season))
 
     rows = cursor.fetchall()
     conn.close()
