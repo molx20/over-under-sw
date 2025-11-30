@@ -451,6 +451,26 @@ def sync_game_logs(season: str = '2025-26',
                     if opp_row:
                         opponent_team_id = opp_row['team_id']
 
+                # Calculate stats from available data
+                team_pts = float(game.get('PTS', 0))
+                plus_minus = float(game.get('PLUS_MINUS', 0))
+                opp_pts = team_pts - plus_minus  # Opponent points = Team points - Plus/minus
+
+                # Calculate possessions (simplified formula)
+                # Possessions ≈ FGA + 0.44×FTA - OREB + TOV
+                fga = float(game.get('FGA', 0))
+                fta = float(game.get('FTA', 0))
+                oreb = float(game.get('OREB', 0))
+                tov = float(game.get('TOV', 0))
+                possessions = fga + (0.44 * fta) - oreb + tov
+
+                # Pace is just the possessions (already per 48-minute game)
+                pace = possessions
+
+                # Calculate ratings (per 100 possessions)
+                off_rating = (team_pts / possessions * 100) if possessions > 0 else 0
+                def_rating = (opp_pts / possessions * 100) if possessions > 0 else 0
+
                 # Insert game log
                 # Convert pandas/numpy types to Python native types to avoid BLOB storage
                 cursor.execute('''
@@ -472,12 +492,12 @@ def sync_game_logs(season: str = '2025-26',
                     1 if is_home else 0,
                     int(opponent_team_id) if opponent_team_id else None,
                     opponent_abbr,
-                    int(game.get('PTS', 0)),
-                    int(game.get('OPP_PTS', 0)),
+                    int(team_pts),
+                    int(opp_pts),
                     str(game.get('WL', '')),
-                    float(game.get('OFF_RATING', 0)),
-                    float(game.get('DEF_RATING', 0)),
-                    float(game.get('PACE', 0)),
+                    float(off_rating),
+                    float(def_rating),
+                    float(pace),
                     float(game.get('FG_PCT', 0)),
                     float(game.get('FG3_PCT', 0)),
                     float(game.get('FT_PCT', 0)),
