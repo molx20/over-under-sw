@@ -18,7 +18,7 @@ import sqlite3
 import os
 import threading
 from typing import Dict, List, Optional
-from api.utils.db_queries import get_all_teams
+from api.utils.db_queries import get_all_teams, get_matchup_data
 
 # Import centralized database configuration
 try:
