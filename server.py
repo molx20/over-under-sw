@@ -162,6 +162,7 @@ def health():
 @app.route('/api/admin/sync', methods=['POST'])
 def admin_sync():
     """Admin endpoint to trigger data sync (protected by secret token)"""
+    import threading
     from api.utils.sync_nba_data import sync_all
 
     # Check authentication
@@ -184,18 +185,43 @@ def admin_sync():
         data = request.get_json() or {}
         sync_type = data.get('sync_type', 'full')
         season = data.get('season', '2024-25')
+        async_mode = data.get('async', True)  # Run async by default to avoid timeout
     except Exception as e:
         return jsonify({'error': f'Invalid request body: {str(e)}'}), 400
 
-    # Trigger sync
-    try:
-        print(f'[admin/sync] Starting {sync_type} sync for {season}')
-        result = sync_all(season=season, triggered_by='admin_api')
-        print(f'[admin/sync] Sync completed: {result}')
-        return jsonify(result), 200
-    except Exception as e:
-        print(f'[admin/sync] Sync failed: {e}')
-        return jsonify({'error': str(e), 'success': False}), 500
+    # Run sync in background thread if async mode
+    if async_mode:
+        def background_sync():
+            try:
+                print(f'[admin/sync] Starting background {sync_type} sync for {season}')
+                result = sync_all(season=season, triggered_by='admin_api')
+                print(f'[admin/sync] Background sync completed: {result}')
+            except Exception as e:
+                print(f'[admin/sync] Background sync failed: {e}')
+                import traceback
+                traceback.print_exc()
+
+        thread = threading.Thread(target=background_sync, daemon=True)
+        thread.start()
+
+        print(f'[admin/sync] Started background sync thread for {season}')
+        return jsonify({
+            'success': True,
+            'message': 'Sync started in background',
+            'season': season,
+            'sync_type': sync_type,
+            'note': 'Check server logs for completion status'
+        }), 202  # 202 Accepted
+    else:
+        # Synchronous mode (may timeout on Railway)
+        try:
+            print(f'[admin/sync] Starting synchronous {sync_type} sync for {season}')
+            result = sync_all(season=season, triggered_by='admin_api')
+            print(f'[admin/sync] Sync completed: {result}')
+            return jsonify(result), 200
+        except Exception as e:
+            print(f'[admin/sync] Sync failed: {e}')
+            return jsonify({'error': str(e), 'success': False}), 500
 
 @app.route('/api/games')
 def get_games():
