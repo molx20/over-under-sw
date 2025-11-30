@@ -159,6 +159,44 @@ def health():
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
 
+@app.route('/api/admin/sync', methods=['POST'])
+def admin_sync():
+    """Admin endpoint to trigger data sync (protected by secret token)"""
+    from api.utils.sync_nba_data import sync_all
+
+    # Check authentication
+    auth_header = request.headers.get('Authorization', '')
+    expected_token = os.environ.get('ADMIN_SYNC_SECRET', '')
+
+    if not expected_token:
+        return jsonify({'error': 'Admin sync not configured'}), 500
+
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    provided_token = auth_header.replace('Bearer ', '').strip()
+
+    if provided_token != expected_token:
+        return jsonify({'error': 'Invalid authentication token'}), 401
+
+    # Parse request body
+    try:
+        data = request.get_json() or {}
+        sync_type = data.get('sync_type', 'full')
+        season = data.get('season', '2025-26')
+    except Exception as e:
+        return jsonify({'error': f'Invalid request body: {str(e)}'}), 400
+
+    # Trigger sync
+    try:
+        print(f'[admin/sync] Starting {sync_type} sync for {season}')
+        result = sync_all(season=season, triggered_by='admin_api')
+        print(f'[admin/sync] Sync completed: {result}')
+        return jsonify(result), 200
+    except Exception as e:
+        print(f'[admin/sync] Sync failed: {e}')
+        return jsonify({'error': str(e), 'success': False}), 500
+
 @app.route('/api/games')
 def get_games():
     """Get all games for today with predictions"""
