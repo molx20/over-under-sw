@@ -354,7 +354,7 @@ def get_team_last_n_games(team_id: int, n: int = 5, season: str = '2025-26') -> 
 # TODAY'S GAMES QUERIES
 # ============================================================================
 
-def get_todays_games(season: str = '2025-26') -> List[Dict]:
+def get_todays_games(season: str = '2024-25') -> List[Dict]:
     """
     Get all games scheduled for today
 
@@ -364,8 +364,10 @@ def get_todays_games(season: str = '2025-26') -> List[Dict]:
     conn = _get_db_connection()
     cursor = conn.cursor()
 
-    # Get today's date (use UTC for consistency)
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Get today's date in US Mountain Time (NBA schedules use US timezones)
+    from datetime import timezone, timedelta
+    mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
+    today = datetime.now(mountain_tz).strftime('%Y-%m-%d')
 
     cursor.execute('''
         SELECT *
