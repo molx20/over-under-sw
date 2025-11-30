@@ -308,6 +308,7 @@ def sync_season_stats(season: str = '2025-26',
                         opp_ppg = opp_row.get('PTS', 0)
 
                 # Insert into database
+                # Convert pandas/numpy types to Python native types to avoid BLOB storage
                 cursor.execute('''
                     INSERT OR REPLACE INTO team_season_stats (
                         team_id, season, split_type,
@@ -319,26 +320,26 @@ def sync_season_stats(season: str = '2025-26',
                         synced_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    team_id, season, db_split_type,
-                    split_row.get('GP', 0),
-                    split_row.get('W', 0),
-                    split_row.get('L', 0),
-                    split_row.get('PTS', 0),
-                    opp_ppg,
-                    split_row.get('FG_PCT', 0),
-                    split_row.get('FG3_PCT', 0),
-                    split_row.get('FT_PCT', 0),
-                    split_row.get('REB', 0),
-                    split_row.get('AST', 0),
-                    split_row.get('STL', 0),
-                    split_row.get('BLK', 0),
-                    split_row.get('TOV', 0),
-                    adv_row.get('OFF_RATING', 0) if adv_row is not None else 0,
-                    adv_row.get('DEF_RATING', 0) if adv_row is not None else 0,
-                    adv_row.get('NET_RATING', 0) if adv_row is not None else 0,
-                    adv_row.get('PACE', 0) if adv_row is not None else 0,
-                    adv_row.get('TS_PCT', 0) if adv_row is not None else 0,
-                    adv_row.get('EFG_PCT', 0) if adv_row is not None else 0,
+                    int(team_id), season, db_split_type,
+                    int(split_row.get('GP', 0)),
+                    int(split_row.get('W', 0)),
+                    int(split_row.get('L', 0)),
+                    float(split_row.get('PTS', 0)),
+                    float(opp_ppg),
+                    float(split_row.get('FG_PCT', 0)),
+                    float(split_row.get('FG3_PCT', 0)),
+                    float(split_row.get('FT_PCT', 0)),
+                    float(split_row.get('REB', 0)),
+                    float(split_row.get('AST', 0)),
+                    float(split_row.get('STL', 0)),
+                    float(split_row.get('BLK', 0)),
+                    float(split_row.get('TOV', 0)),
+                    float(adv_row.get('OFF_RATING', 0) if adv_row is not None else 0),
+                    float(adv_row.get('DEF_RATING', 0) if adv_row is not None else 0),
+                    float(adv_row.get('NET_RATING', 0) if adv_row is not None else 0),
+                    float(adv_row.get('PACE', 0) if adv_row is not None else 0),
+                    float(adv_row.get('TS_PCT', 0) if adv_row is not None else 0),
+                    float(adv_row.get('EFG_PCT', 0) if adv_row is not None else 0),
                     synced_at
                 ))
 
@@ -449,6 +450,7 @@ def sync_game_logs(season: str = '2025-26',
                         opponent_team_id = opp_row['team_id']
 
                 # Insert game log
+                # Convert pandas/numpy types to Python native types to avoid BLOB storage
                 cursor.execute('''
                     INSERT OR REPLACE INTO team_game_logs (
                         game_id, team_id, game_date, season,
@@ -460,26 +462,26 @@ def sync_game_logs(season: str = '2025-26',
                         synced_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    game.get('GAME_ID'),
-                    team_id,
-                    game.get('GAME_DATE'),
+                    str(game.get('GAME_ID')),
+                    int(team_id),
+                    str(game.get('GAME_DATE')),
                     season,
                     matchup,
                     1 if is_home else 0,
-                    opponent_team_id,
+                    int(opponent_team_id) if opponent_team_id else None,
                     opponent_abbr,
-                    game.get('PTS', 0),
-                    game.get('OPP_PTS', 0),
-                    game.get('WL', ''),
-                    game.get('OFF_RATING', 0),
-                    game.get('DEF_RATING', 0),
-                    game.get('PACE', 0),
-                    game.get('FG_PCT', 0),
-                    game.get('FG3_PCT', 0),
-                    game.get('FT_PCT', 0),
-                    game.get('REB', 0),
-                    game.get('AST', 0),
-                    game.get('TOV', 0),
+                    int(game.get('PTS', 0)),
+                    int(game.get('OPP_PTS', 0)),
+                    str(game.get('WL', '')),
+                    float(game.get('OFF_RATING', 0)),
+                    float(game.get('DEF_RATING', 0)),
+                    float(game.get('PACE', 0)),
+                    float(game.get('FG_PCT', 0)),
+                    float(game.get('FG3_PCT', 0)),
+                    float(game.get('FT_PCT', 0)),
+                    int(game.get('REB', 0)),
+                    int(game.get('AST', 0)),
+                    int(game.get('TOV', 0)),
                     synced_at
                 ))
 
