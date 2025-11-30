@@ -133,6 +133,7 @@ class handler(BaseHTTPRequestHandler):
                 })
 
             # Use Mountain Time for consistency with NBA game schedules
+            # NBA games are dated in US timezones, not UTC
             from datetime import timedelta
             mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
             mt_time = datetime.now(mountain_tz)
