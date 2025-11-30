@@ -304,8 +304,10 @@ def sync_season_stats(season: str = '2025-26',
                     opp_split = opp_df[opp_df['GROUP_VALUE'] == group_value]
                     if len(opp_split) > 0:
                         opp_row = opp_split.iloc[0]
-                        # Opponent stats are already per-game
-                        opp_ppg = opp_row.get('PTS', 0)
+                        # Opponent stats: OPP_PTS is total, need to divide by GP for per-game
+                        opp_pts_total = opp_row.get('OPP_PTS', 0)
+                        games_played = opp_row.get('GP', 1)  # Avoid division by zero
+                        opp_ppg = opp_pts_total / games_played if games_played > 0 else 0
 
                 # Insert into database
                 # Convert pandas/numpy types to Python native types to avoid BLOB storage
