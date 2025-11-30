@@ -399,7 +399,7 @@ def get_todays_games(season: str = '2024-25') -> List[Dict]:
 # ============================================================================
 
 def get_matchup_data(home_team_id: int, away_team_id: int,
-                    season: str = '2025-26') -> Optional[Dict]:
+                    season: str = '2024-25') -> Optional[Dict]:
     """
     Get comprehensive matchup data for prediction
 
