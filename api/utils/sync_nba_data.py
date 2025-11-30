@@ -150,7 +150,7 @@ def _log_sync_complete(sync_id: int, records_synced: int,
 # SYNC FUNCTIONS (Called by cron or admin endpoint)
 # ============================================================================
 
-def sync_teams(season: str = '2024-25') -> Tuple[int, Optional[str]]:
+def sync_teams(season: str = '2025-26') -> Tuple[int, Optional[str]]:
     """
     Sync NBA teams data
 
@@ -197,7 +197,7 @@ def sync_teams(season: str = '2024-25') -> Tuple[int, Optional[str]]:
         return 0, error_msg
 
 
-def sync_season_stats(season: str = '2024-25',
+def sync_season_stats(season: str = '2025-26',
                      team_ids: Optional[List[int]] = None) -> Tuple[int, Optional[str]]:
     """
     Sync team season statistics with home/away splits and rankings
@@ -381,7 +381,7 @@ def sync_season_stats(season: str = '2024-25',
         return 0, error_msg
 
 
-def sync_game_logs(season: str = '2024-25',
+def sync_game_logs(season: str = '2025-26',
                    team_ids: Optional[List[int]] = None,
                    last_n_games: int = 10) -> Tuple[int, Optional[str]]:
     """
@@ -501,7 +501,7 @@ def sync_game_logs(season: str = '2024-25',
         return 0, error_msg
 
 
-def sync_todays_games(season: str = '2024-25') -> Tuple[int, Optional[str]]:
+def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
     """
     Sync today's games from NBA CDN scoreboard
 
@@ -584,7 +584,7 @@ def sync_todays_games(season: str = '2024-25') -> Tuple[int, Optional[str]]:
         return 0, error_msg
 
 
-def sync_all(season: str = '2024-25', triggered_by: str = 'manual') -> Dict:
+def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
     """
     Full data sync (teams, stats, game logs, today's games)
 
@@ -770,7 +770,7 @@ def get_last_sync_status(sync_type: Optional[str] = None) -> Optional[Dict]:
 if __name__ == '__main__':
     # Example usage for manual testing
     print("Starting manual sync...")
-    result = sync_all(season='2024-25', triggered_by='manual')
+    result = sync_all(season='2025-26', triggered_by='manual')
     print(f"\nSync Results:")
     print(f"  Success: {result['success']}")
     print(f"  Teams: {result['teams']}")

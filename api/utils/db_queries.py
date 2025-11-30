@@ -354,7 +354,7 @@ def get_team_last_n_games(team_id: int, n: int = 5, season: str = '2025-26') -> 
 # TODAY'S GAMES QUERIES
 # ============================================================================
 
-def get_todays_games(season: str = '2024-25') -> List[Dict]:
+def get_todays_games(season: str = '2025-26') -> List[Dict]:
     """
     Get all games scheduled for today
 
@@ -399,7 +399,7 @@ def get_todays_games(season: str = '2024-25') -> List[Dict]:
 # ============================================================================
 
 def get_matchup_data(home_team_id: int, away_team_id: int,
-                    season: str = '2024-25') -> Optional[Dict]:
+                    season: str = '2025-26') -> Optional[Dict]:
     """
     Get comprehensive matchup data for prediction
 

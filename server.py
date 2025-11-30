@@ -184,7 +184,7 @@ def admin_sync():
     try:
         data = request.get_json() or {}
         sync_type = data.get('sync_type', 'full')
-        season = data.get('season', '2024-25')
+        season = data.get('season', '2025-26')
         async_mode = data.get('async', True)  # Run async by default to avoid timeout
     except Exception as e:
         return jsonify({'error': f'Invalid request body: {str(e)}'}), 400
