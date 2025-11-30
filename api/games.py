@@ -132,14 +132,14 @@ class handler(BaseHTTPRequestHandler):
                     'prediction': None,  # Will be fetched on game detail page
                 })
 
-            # Use Eastern Time for consistency with game dates
+            # Use Mountain Time for consistency with NBA game schedules
             from datetime import timedelta
-            et_offset = timedelta(hours=-5)
-            et_time = datetime.now(timezone.utc) + et_offset
+            mountain_tz = timezone(timedelta(hours=-7))  # MST (UTC-7)
+            mt_time = datetime.now(mountain_tz)
 
             response = {
                 'success': True,
-                'date': et_time.strftime('%Y-%m-%d'),
+                'date': mt_time.strftime('%Y-%m-%d'),
                 'games': games_with_predictions,
                 'count': len(games_with_predictions),
                 'last_updated': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
