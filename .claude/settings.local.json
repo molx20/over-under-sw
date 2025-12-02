@@ -36,7 +36,8 @@
       "Bash(railway domain:*)",
       "Bash(railway variables:*)",
       "Bash(timeout 20 python3:*)",
-      "Bash(timeout 5 python3 server.py)"
+      "Bash(timeout 5 python3 server.py)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

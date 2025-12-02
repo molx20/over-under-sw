@@ -396,21 +396,153 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
             # Fallback if team IDs not provided
             game_pace = calculate_pace_projection(home_season_pace, away_season_pace)
 
-        # Calculate expected scoring for each team (with profile-aware weights)
-        home_projected = calculate_team_scoring_with_profile(
-            home_team_id, home_stats_dict, away_stats_dict, game_pace, is_home=True, season=season
-        ) if home_team_id else calculate_team_scoring(home_stats_dict, away_stats_dict, game_pace, is_home=True)
+        # ========================================================================
+        # DEFENSE-FIRST ARCHITECTURE (Dec 2025 Refactor)
+        # ========================================================================
+        # STEP 1: Get defense-adjusted base PPG (NEW FOUNDATION)
+        # This replaces the old rating-based baseline approach
+        home_base_ppg = None
+        away_base_ppg = None
+        home_data_quality = 'fallback'
+        away_data_quality = 'fallback'
 
-        away_projected = calculate_team_scoring_with_profile(
-            away_team_id, away_stats_dict, home_stats_dict, game_pace, is_home=False, season=season
-        ) if away_team_id else calculate_team_scoring(away_stats_dict, home_stats_dict, game_pace, is_home=False)
+        if home_team_id and away_team_id:
+            try:
+                from api.utils.defense_adjusted_scoring import get_defense_adjusted_ppg
+                from api.utils.db_queries import get_team_stats_with_ranks
 
-        # Apply recent form adjustments
-        home_form = calculate_recent_form_factor(home_data.get('recent_games', []))
-        away_form = calculate_recent_form_factor(away_data.get('recent_games', []))
+                # Get opponent defensive ranks
+                home_stats_with_ranks = get_team_stats_with_ranks(home_team_id, season)
+                away_stats_with_ranks = get_team_stats_with_ranks(away_team_id, season)
 
-        home_projected += home_form
-        away_projected += away_form
+                if home_stats_with_ranks and away_stats_with_ranks:
+                    home_def_rank = home_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
+                    away_def_rank = away_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
+
+                    # Get season PPG as fallback
+                    home_season_ppg = home_stats.get('overall', {}).get('PTS', 115.0)
+                    away_season_ppg = away_stats.get('overall', {}).get('PTS', 115.0)
+
+                    # Get defense-adjusted PPG for home team vs away defense
+                    home_base_ppg, home_data_quality = get_defense_adjusted_ppg(
+                        team_id=home_team_id,
+                        opponent_def_rank=away_def_rank,
+                        is_home=True,
+                        season=season,
+                        fallback_ppg=home_season_ppg
+                    )
+
+                    # Get defense-adjusted PPG for away team vs home defense
+                    away_base_ppg, away_data_quality = get_defense_adjusted_ppg(
+                        team_id=away_team_id,
+                        opponent_def_rank=home_def_rank,
+                        is_home=False,
+                        season=season,
+                        fallback_ppg=away_season_ppg
+                    )
+
+                    print(f'[prediction_engine] Defense-adjusted base PPG:')
+                    print(f'  Home: {home_base_ppg:.1f} ({home_data_quality} quality)')
+                    print(f'  Away: {away_base_ppg:.1f} ({away_data_quality} quality)')
+
+            except Exception as e:
+                print(f'[prediction_engine] Error getting defense-adjusted base: {e}')
+                # Will fall through to rating-based baseline
+
+        # If defense-adjusted PPG not available, fall back to rating-based baseline
+        if home_base_ppg is None or away_base_ppg is None:
+            print('[prediction_engine] Using rating-based baseline (no defense context available)')
+
+            # Use old baseline calculation as fallback
+            home_base_ppg = calculate_team_scoring_with_profile(
+                home_team_id, home_stats_dict, away_stats_dict, game_pace, is_home=True, season=season
+            ) if home_team_id else calculate_team_scoring(home_stats_dict, away_stats_dict, game_pace, is_home=True)
+
+            away_base_ppg = calculate_team_scoring_with_profile(
+                away_team_id, away_stats_dict, home_stats_dict, game_pace, is_home=False, season=season
+            ) if away_team_id else calculate_team_scoring(away_stats_dict, home_stats_dict, game_pace, is_home=False)
+
+            home_data_quality = 'fallback'
+            away_data_quality = 'fallback'
+
+        # Start with defense-adjusted base PPG as foundation
+        home_projected = home_base_ppg
+        away_projected = away_base_ppg
+
+        # STEP 2: Apply pace multiplier (small adjustment ~3%)
+        league_avg_pace = 100.0
+        home_pace_multiplier = 1.0
+        away_pace_multiplier = 1.0
+
+        if game_pace and game_pace > 0:
+            # Calculate pace differential from league average
+            pace_diff = game_pace - league_avg_pace
+
+            # Convert to small multiplier (3% per 10 pace units)
+            # Example: pace=105 (+5 from avg) -> multiplier=1.015 (1.5% boost)
+            pace_multiplier_base = 1.0 + (pace_diff / 100.0) * 0.3
+
+            # Get team-specific pace weights from profiles (if available)
+            try:
+                from api.utils.db_queries import get_team_profile
+                home_profile = get_team_profile(home_team_id, season) if home_team_id else None
+                away_profile = get_team_profile(away_team_id, season) if away_team_id else None
+
+                home_pace_weight = home_profile['pace_weight'] if home_profile else 1.0
+                away_pace_weight = away_profile['pace_weight'] if away_profile else 1.0
+            except Exception as e:
+                home_pace_weight = 1.0
+                away_pace_weight = 1.0
+
+            # Apply team-specific pace sensitivity
+            home_pace_multiplier = 1.0 + (pace_multiplier_base - 1.0) * home_pace_weight
+            away_pace_multiplier = 1.0 + (pace_multiplier_base - 1.0) * away_pace_weight
+
+            home_projected *= home_pace_multiplier
+            away_projected *= away_pace_multiplier
+
+            print(f'[prediction_engine] Pace multiplier: {pace_multiplier_base:.4f} (game_pace: {game_pace:.1f}, avg: {league_avg_pace:.1f})')
+            print(f'  Home: {home_pace_multiplier:.4f} -> {home_projected:.1f} PPG')
+            print(f'  Away: {away_pace_multiplier:.4f} -> {away_projected:.1f} PPG')
+
+        # STEP 3: Blend recent form (moderate adjustment ~30%)
+        RECENT_FORM_BLEND_WEIGHT = 0.30
+        home_form_adjustment = 0.0
+        away_form_adjustment = 0.0
+
+        # Calculate recent average PPG for home team
+        if home_data.get('recent_games'):
+            recent_games = home_data['recent_games']
+            if len(recent_games) > 0:
+                home_recent_ppg = sum(g.get('PTS', 0) for g in recent_games) / len(recent_games)
+                home_before_blend = home_projected
+
+                # Blend: 70% base + 30% recent
+                home_projected = home_projected * (1 - RECENT_FORM_BLEND_WEIGHT) + home_recent_ppg * RECENT_FORM_BLEND_WEIGHT
+
+                # Cap total adjustment at ±5 pts to prevent wild swings
+                raw_adjustment = home_projected - home_before_blend
+                home_form_adjustment = max(-5.0, min(5.0, raw_adjustment))
+                home_projected = home_before_blend + home_form_adjustment
+
+                print(f'[prediction_engine] Home recent form blend: {home_recent_ppg:.1f} recent -> {home_form_adjustment:+.1f} pts adjustment')
+
+        # Calculate recent average PPG for away team
+        if away_data.get('recent_games'):
+            recent_games = away_data['recent_games']
+            if len(recent_games) > 0:
+                away_recent_ppg = sum(g.get('PTS', 0) for g in recent_games) / len(recent_games)
+                away_before_blend = away_projected
+
+                # Blend: 70% base + 30% recent
+                away_projected = away_projected * (1 - RECENT_FORM_BLEND_WEIGHT) + away_recent_ppg * RECENT_FORM_BLEND_WEIGHT
+
+                # Cap total adjustment
+                raw_adjustment = away_projected - away_before_blend
+                away_form_adjustment = max(-5.0, min(5.0, raw_adjustment))
+                away_projected = away_before_blend + away_form_adjustment
+
+                print(f'[prediction_engine] Away recent form blend: {away_recent_ppg:.1f} recent -> {away_form_adjustment:+.1f} pts adjustment')
 
         # Apply trend-based adjustments (new deterministic layer)
         home_last5_trends = None
@@ -443,99 +575,15 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
                 print(f'[prediction_engine] Error computing trend adjustment: {e}')
                 # Continue without trend adjustment on error
 
-        # Apply defense-adjusted scoring (context-aware prediction layer)
+        # REMOVED: Old defense adjustment code (now handled in Step 1 as foundation)
+        # Defense-adjusted scoring is now the BASE, not a late 30% adjustment
         defense_adjustment_home = None
         defense_adjustment_away = None
 
-        if home_team_id and away_team_id:
-            try:
-                from api.utils.defense_adjusted_scoring import calculate_defense_adjusted_score
-                from api.utils.db_queries import get_team_stats_with_ranks
-
-                # Get opponent defensive ranks
-                home_stats_with_ranks = get_team_stats_with_ranks(home_team_id, season)
-                away_stats_with_ranks = get_team_stats_with_ranks(away_team_id, season)
-
-                if home_stats_with_ranks and away_stats_with_ranks:
-                    home_def_rank = home_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
-                    away_def_rank = away_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
-
-                    # Get profile def_weights (modulate defense adjustment by matchup sensitivity)
-                    try:
-                        from api.utils.db_queries import get_team_profile
-                        home_profile = get_team_profile(home_team_id, season)
-                        away_profile = get_team_profile(away_team_id, season)
-
-                        home_def_weight = home_profile['def_weight'] if home_profile else 1.0
-                        away_def_weight = away_profile['def_weight'] if away_profile else 1.0
-                    except Exception as e:
-                        print(f'[prediction_engine] Error loading profiles for defense adjustment: {e}')
-                        home_def_weight = 1.0
-                        away_def_weight = 1.0
-
-                    # Adjust home team scoring based on away team's defense
-                    defense_adjustment_home = calculate_defense_adjusted_score(
-                        team_id=home_team_id,
-                        opponent_def_rank=away_def_rank,
-                        is_home=True,
-                        baseline_ppg=home_projected,
-                        season=season,
-                        adjustment_weight=0.3 * home_def_weight  # Modulated by profile
-                    )
-
-                    # Adjust away team scoring based on home team's defense
-                    defense_adjustment_away = calculate_defense_adjusted_score(
-                        team_id=away_team_id,
-                        opponent_def_rank=home_def_rank,
-                        is_home=False,
-                        baseline_ppg=away_projected,
-                        season=season,
-                        adjustment_weight=0.3 * away_def_weight  # Modulated by profile
-                    )
-
-                    # Apply defense adjustments
-                    home_projected = defense_adjustment_home['adjusted_ppg']
-                    away_projected = defense_adjustment_away['adjusted_ppg']
-
-                    print(f'[prediction_engine] Defense adjustment - Home: {defense_adjustment_home["adjustment"]:+.1f} pts, Away: {defense_adjustment_away["adjustment"]:+.1f} pts')
-
-            except Exception as e:
-                print(f'[prediction_engine] Error computing defense adjustment: {e}')
-                # Continue without defense adjustment on error
-
-        # Apply pace effect adjustments (scoring vs pace bucket analysis)
+        # REMOVED: Pace effect adjustments (to avoid double-counting with Step 2 pace multiplier)
+        # Pace is now handled as a small multiplier (~3%) applied to defense-adjusted base
         pace_effect_home = None
         pace_effect_away = None
-
-        if home_team_id and away_team_id:
-            try:
-                # Calculate pace effects for both teams
-                home_season_ppg = home_stats.get('overall', {}).get('PTS', 110.0)
-                away_season_ppg = away_stats.get('overall', {}).get('PTS', 110.0)
-
-                pace_effect_home = calculate_pace_effect(
-                    team_id=home_team_id,
-                    projected_pace=game_pace,
-                    season_ppg=home_season_ppg,
-                    season=season
-                )
-
-                pace_effect_away = calculate_pace_effect(
-                    team_id=away_team_id,
-                    projected_pace=game_pace,
-                    season_ppg=away_season_ppg,
-                    season=season
-                )
-
-                # Apply adjustments
-                home_projected += pace_effect_home['adjustment']
-                away_projected += pace_effect_away['adjustment']
-
-                print(f'[prediction_engine] Pace effect - Home: {pace_effect_home["adjustment"]:+.1f} pts ({pace_effect_home["bucket"]} pace), Away: {pace_effect_away["adjustment"]:+.1f} pts ({pace_effect_away["bucket"]} pace)')
-
-            except Exception as e:
-                print(f'[prediction_engine] Error computing pace effect: {e}')
-                # Continue without pace effect on error
 
         # Total prediction
         predicted_total = round(home_projected + away_projected, 1)
@@ -595,8 +643,15 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
                 'away_projected': round(away_projected, 1),
                 'game_pace': round(game_pace, 1),
                 'difference': round(diff, 1),
-                'home_form_adjustment': round(home_form, 1),
-                'away_form_adjustment': round(away_form, 1),
+                'home_form_adjustment': round(home_form_adjustment, 1),
+                'away_form_adjustment': round(away_form_adjustment, 1),
+                # NEW FIELDS: Defense-first architecture transparency
+                'home_base_ppg': round(home_base_ppg, 1) if home_base_ppg else None,
+                'away_base_ppg': round(away_base_ppg, 1) if away_base_ppg else None,
+                'home_data_quality': home_data_quality,
+                'away_data_quality': away_data_quality,
+                'home_pace_multiplier': round(home_pace_multiplier, 4) if home_pace_multiplier != 1.0 else None,
+                'away_pace_multiplier': round(away_pace_multiplier, 4) if away_pace_multiplier != 1.0 else None,
             },
             'factors': {
                 'home_ppg': round(home_ppg, 1),
