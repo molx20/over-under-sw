@@ -31,7 +31,12 @@
       "WebFetch(domain:docs.railway.com)",
       "Bash(find:*)",
       "Bash(timeout 10 python3 server.py)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(railway status:*)",
+      "Bash(railway domain:*)",
+      "Bash(railway variables:*)",
+      "Bash(timeout 20 python3:*)",
+      "Bash(timeout 5 python3 server.py)"
     ],
     "deny": [],
     "ask": []

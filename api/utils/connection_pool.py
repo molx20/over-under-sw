@@ -82,6 +82,7 @@ class ConnectionPool:
 
         # Performance optimizations
         conn.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for better concurrency
+        conn.execute("PRAGMA busy_timeout=60000")  # 60s busy timeout in milliseconds
         conn.execute("PRAGMA synchronous=NORMAL")  # Balance safety and speed
         conn.execute("PRAGMA cache_size=10000")  # 10MB cache per connection
         conn.execute("PRAGMA temp_store=MEMORY")  # Use memory for temp tables

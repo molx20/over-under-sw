@@ -251,6 +251,62 @@ def init_nba_data_db():
         ''')
 
         # ====================================================================
+        # TEAM PROFILES (Team-specific prediction weights)
+        # ====================================================================
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS team_profiles (
+                team_id INTEGER NOT NULL,
+                season TEXT NOT NULL,
+
+                -- Tier Classifications
+                pace_label TEXT,              -- 'slow', 'medium', 'fast'
+                variance_label TEXT,          -- 'low', 'medium', 'high'
+                home_away_label TEXT,         -- 'neutral', 'home_strong', 'road_strong'
+                matchup_label TEXT,           -- 'low', 'medium', 'high'
+
+                -- Derived Weights
+                season_weight REAL NOT NULL,
+                recent_weight REAL NOT NULL,
+                pace_weight REAL NOT NULL,
+                def_weight REAL NOT NULL,
+                home_away_weight REAL NOT NULL,
+
+                -- Metadata
+                updated_at TEXT NOT NULL,
+
+                PRIMARY KEY (team_id, season),
+                FOREIGN KEY (team_id) REFERENCES nba_teams(team_id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_team_profiles_season
+            ON team_profiles(season)
+        ''')
+
+        # ====================================================================
+        # TEAM SCORING VS PACE (Scoring splits by pace bucket)
+        # ====================================================================
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS team_scoring_vs_pace (
+                team_id INTEGER NOT NULL,
+                season TEXT NOT NULL,
+                pace_bucket TEXT NOT NULL,  -- 'slow', 'normal', 'fast'
+                avg_points_for REAL NOT NULL,
+                games_played INTEGER NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                PRIMARY KEY (team_id, season, pace_bucket),
+                FOREIGN KEY (team_id) REFERENCES nba_teams(team_id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_scoring_vs_pace_team
+            ON team_scoring_vs_pace(team_id, season)
+        ''')
+
+        # ====================================================================
         # LEAGUE AVERAGES (Fallback values)
         # ====================================================================
         cursor.execute('''
@@ -293,6 +349,8 @@ def init_nba_data_db():
         print("  - team_game_logs")
         print("  - todays_games")
         print("  - data_sync_log")
+        print("  - team_profiles")
+        print("  - team_scoring_vs_pace")
         print("  - league_averages")
 
 

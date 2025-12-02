@@ -259,3 +259,125 @@ export const useTeamStatsWithRanks = (teamId, season = '2025-26') => {
     refetchOnWindowFocus: false,
   })
 }
+
+// ============================================
+// Team Stats Comparison (Season + Last-N)
+// ============================================
+
+/**
+ * Fetch team stats comparison (season stats with ranks + last-N stats with deltas)
+ */
+export const fetchTeamStatsComparison = async (teamId, season = '2025-26', n = 5) => {
+  try {
+    const response = await api.get('/team-stats-comparison', {
+      params: { team_id: teamId, season, n },
+      timeout: 10000
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data
+  } catch (error) {
+    console.error('[fetchTeamStatsComparison] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch team stats comparison')
+  }
+}
+
+/**
+ * Hook to fetch team stats comparison (season + last-N)
+ * Cache key: ['team-stats-comparison', teamId, season, n]
+ * Stale time: 1 hour (last-N changes with new games)
+ */
+export const useTeamStatsComparison = (teamId, season = '2025-26', n = 5) => {
+  return useQuery({
+    queryKey: ['team-stats-comparison', teamId, season, n],
+    queryFn: () => fetchTeamStatsComparison(teamId, season, n),
+    enabled: !!teamId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+// ============================================
+// Defense-Adjusted Scoring Splits
+// ============================================
+
+/**
+ * Fetch defense-adjusted scoring splits for a single team
+ */
+export const fetchTeamScoringSplits = async (teamId, season = '2025-26') => {
+  try {
+    const response = await api.get('/team-scoring-splits', {
+      params: { team_id: teamId, season },
+      timeout: 10000
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data.data
+  } catch (error) {
+    console.error('[fetchTeamScoringSplits] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch team scoring splits')
+  }
+}
+
+/**
+ * Fetch defense-adjusted scoring splits for both teams in a game
+ */
+export const fetchGameScoringSplits = async (gameId, season = '2025-26') => {
+  try {
+    const response = await api.get('/game-scoring-splits', {
+      params: { game_id: gameId, season },
+      timeout: 10000
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data.data
+  } catch (error) {
+    console.error('[fetchGameScoringSplits] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch game scoring splits')
+  }
+}
+
+/**
+ * Hook to fetch team scoring splits
+ * Cache key: ['team-scoring-splits', teamId, season]
+ * Stale time: 1 hour (splits change with new game logs)
+ */
+export const useTeamScoringSplits = (teamId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['team-scoring-splits', teamId, season],
+    queryFn: () => fetchTeamScoringSplits(teamId, season),
+    enabled: !!teamId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Hook to fetch game scoring splits for both teams
+ * Cache key: ['game-scoring-splits', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameScoringSplits = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-scoring-splits', gameId, season],
+    queryFn: () => fetchGameScoringSplits(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}

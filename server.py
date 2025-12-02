@@ -16,6 +16,7 @@ from api.utils.prediction_engine import predict_game_total
 from api.utils import db
 from api.utils import team_ratings_model
 from api.utils import team_rankings
+from api.utils import db_queries
 from api.utils.performance import create_timing_middleware
 import json
 import os
@@ -158,6 +159,18 @@ def health():
         'status': 'healthy',
         'timestamp': datetime.now(timezone.utc).isoformat()
     })
+
+@app.route('/api/admin/sync-status', methods=['GET'])
+def admin_sync_status():
+    """Check if a sync operation is currently running"""
+    from api.utils.sync_lock import is_sync_in_progress, get_current_sync, get_sync_history
+
+    return jsonify({
+        'sync_in_progress': is_sync_in_progress(),
+        'current_sync': get_current_sync(),
+        'recent_syncs': get_sync_history(limit=5)
+    })
+
 
 @app.route('/api/admin/sync', methods=['POST'])
 def admin_sync():
@@ -479,6 +492,314 @@ def team_stats_with_ranks():
         return jsonify({
             'success': True,
             **team_data
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/team-stats-comparison')
+def team_stats_comparison():
+    """
+    Get team statistics with both season totals and last-N comparison
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - season: Season string, defaults to '2025-26'
+        - n: Number of recent games to compare (default 5)
+
+    Returns:
+        {
+            'success': True,
+            'team_id': 1610612747,
+            'team_abbreviation': 'LAL',
+            'season': '2025-26',
+            'season_stats': {
+                'ppg': {'value': 111.7, 'rank': 18},
+                'opp_ppg': {'value': 116.3, 'rank': 25},
+                ...
+            },
+            'last_n_stats': {
+                'games_count': 5,
+                'data_quality': 'excellent',
+                'stats': {
+                    'ppg': {'value': 114.9, 'delta': 3.2},
+                    'opp_ppg': {'value': 114.6, 'delta': -1.7},
+                    ...
+                }
+            }
+        }
+    """
+    try:
+        team_id = request.args.get('team_id')
+        season = request.args.get('season', '2025-26')
+        n = int(request.args.get('n', 5))
+
+        if not team_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing team_id parameter'
+            }), 400
+
+        team_id = int(team_id)
+
+        print(f'[team_stats_comparison] Fetching comparison for team {team_id}, last {n} games')
+
+        # Get season stats with rankings
+        season_data = team_rankings.get_team_stats_with_ranks(team_id, season)
+
+        if not season_data:
+            return jsonify({
+                'success': False,
+                'error': f'Season stats not found for team {team_id}'
+            }), 404
+
+        # Get last-N stats comparison
+        last_n_data = db_queries.get_team_last_n_stats_comparison(team_id, n, season)
+
+        if not last_n_data:
+            # Team exists but has no game logs yet (e.g., season start)
+            last_n_data = {
+                'last_n_games_count': 0,
+                'data_quality': 'none',
+                'stats': {}
+            }
+
+        # Build response
+        response = {
+            'success': True,
+            'team_id': team_id,
+            'team_abbreviation': season_data['team_abbreviation'],
+            'season': season,
+            'season_stats': season_data['stats'],
+            'last_n_stats': {
+                'games_count': last_n_data['last_n_games_count'],
+                'data_quality': last_n_data['data_quality'],
+                'stats': {
+                    stat_key: {
+                        'value': stat_data['last_n_value'],
+                        'delta': stat_data['delta']
+                    }
+                    for stat_key, stat_data in last_n_data.get('stats', {}).items()
+                }
+            }
+        }
+
+        return jsonify(response)
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Invalid parameter: {str(e)}'
+        }), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/team-scoring-splits', methods=['GET'])
+def team_scoring_splits():
+    """
+    Get defense-adjusted home/away scoring splits for a team.
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'data': {
+                'team_id': 1610612738,
+                'team_abbreviation': 'BOS',
+                'full_name': 'Boston Celtics',
+                'season': '2025-26',
+                'season_avg_ppg': 117.5,
+                'splits': {
+                    'elite': {
+                        'home_ppg': 115.2,
+                        'home_games': 8,
+                        'away_ppg': 112.3,
+                        'away_games': 7
+                    },
+                    'average': { ... },
+                    'bad': { ... }
+                },
+                'identity_tags': [
+                    'Home Flat-Track Bullies',
+                    'Road Shrinkers vs Good Defense'
+                ]
+            }
+        }
+    """
+    try:
+        team_id = request.args.get('team_id', type=int)
+        season = request.args.get('season', '2025-26')
+
+        if not team_id:
+            return jsonify({
+                'success': False,
+                'error': 'team_id parameter is required'
+            }), 400
+
+        print(f'[team_scoring_splits] Fetching scoring splits for team {team_id}, season {season}')
+
+        from api.utils.scoring_splits import get_team_scoring_splits
+        from api.utils.identity_tags import generate_identity_tags
+
+        # Get splits data
+        splits_data = get_team_scoring_splits(team_id, season)
+
+        if splits_data is None:
+            return jsonify({
+                'success': False,
+                'error': f'Team {team_id} not found or no data available'
+            }), 404
+
+        # Generate identity tags
+        tags = generate_identity_tags(splits_data)
+        splits_data['identity_tags'] = tags
+
+        print(f'[team_scoring_splits] Generated {len(tags)} tags for {splits_data.get("team_abbreviation")}')
+
+        return jsonify({
+            'success': True,
+            'data': splits_data
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/game-scoring-splits', methods=['GET'])
+def game_scoring_splits():
+    """
+    Get defense-adjusted scoring splits for both teams in a game.
+
+    Query params:
+        - game_id: NBA game ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'data': {
+                'game_id': '0022500234',
+                'game_date': '2025-11-30',
+                'home_team': {
+                    'team_id': 1610612738,
+                    'team_abbreviation': 'BOS',
+                    'full_name': 'Boston Celtics',
+                    'season_avg_ppg': 117.5,
+                    'splits': { ... },
+                    'identity_tags': [...]
+                },
+                'away_team': {
+                    'team_id': 1610612747,
+                    'team_abbreviation': 'LAL',
+                    'full_name': 'Los Angeles Lakers',
+                    'season_avg_ppg': 114.2,
+                    'splits': { ... },
+                    'identity_tags': [...]
+                }
+            }
+        }
+    """
+    try:
+        game_id = request.args.get('game_id')
+        season = request.args.get('season', '2025-26')
+
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'game_id parameter is required'
+            }), 400
+
+        print(f'[game_scoring_splits] Fetching scoring splits for game {game_id}')
+
+        from api.utils.scoring_splits import get_team_scoring_splits
+        from api.utils.pace_splits import get_team_pace_splits
+        from api.utils.pace_projection import calculate_projected_pace
+        from api.utils.identity_tags import generate_identity_tags
+        from api.utils.db_queries import get_team_stats_with_ranks
+
+        # Find the game to get team IDs
+        games = get_todays_games(season)
+        game = next((g for g in games if g['game_id'] == game_id), None)
+
+        if not game:
+            return jsonify({
+                'success': False,
+                'error': f'Game {game_id} not found'
+            }), 404
+
+        print(f'[game_scoring_splits] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
+
+        # Get defense splits for both teams
+        home_splits = get_team_scoring_splits(game['home_team_id'], season)
+        away_splits = get_team_scoring_splits(game['away_team_id'], season)
+
+        if not home_splits or not away_splits:
+            return jsonify({
+                'success': False,
+                'error': 'Team data not found for one or both teams'
+            }), 404
+
+        # Get pace splits for both teams
+        home_pace_splits = get_team_pace_splits(game['home_team_id'], season)
+        away_pace_splits = get_team_pace_splits(game['away_team_id'], season)
+
+        # Add pace splits to the main data structures
+        if home_pace_splits:
+            home_splits['pace_splits'] = home_pace_splits['pace_splits']
+        if away_pace_splits:
+            away_splits['pace_splits'] = away_pace_splits['pace_splits']
+
+        # Calculate projected game pace (factors in last 5 games + season average)
+        projected_pace = calculate_projected_pace(game['home_team_id'], game['away_team_id'], season)
+        home_splits['projected_pace'] = projected_pace
+        away_splits['projected_pace'] = projected_pace
+
+        print(f'[game_scoring_splits] Projected pace: {projected_pace:.1f}')
+
+        # Get defensive ranks for both teams
+        home_stats = get_team_stats_with_ranks(game['home_team_id'], season)
+        away_stats = get_team_stats_with_ranks(game['away_team_id'], season)
+
+        # Add opponent's defensive rank to each team's data
+        if home_stats:
+            home_splits['opponent_def_rank'] = away_stats['stats'].get('def_rtg', {}).get('rank') if away_stats else None
+
+        if away_stats:
+            away_splits['opponent_def_rank'] = home_stats['stats'].get('def_rtg', {}).get('rank') if home_stats else None
+
+        # Generate identity tags for both teams
+        home_splits['identity_tags'] = generate_identity_tags(home_splits)
+        away_splits['identity_tags'] = generate_identity_tags(away_splits)
+
+        print(f'[game_scoring_splits] Home: {len(home_splits["identity_tags"])} tags, Away: {len(away_splits["identity_tags"])} tags')
+        print(f'[game_scoring_splits] Home opponent def rank: {home_splits.get("opponent_def_rank")}, Away opponent def rank: {away_splits.get("opponent_def_rank")}')
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'game_id': game_id,
+                'game_date': game.get('game_date'),
+                'home_team': home_splits,
+                'away_team': away_splits
+            }
         })
 
     except Exception as e:

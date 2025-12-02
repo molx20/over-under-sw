@@ -1,3 +1,7 @@
+import GlassTooltip from './GlassTooltip'
+import './GlassTooltip.css'
+import { formatDelta, shouldInvertColors } from '../utils/formatHelpers.jsx'
+
 function Last5TrendsCard({ teamAbbr, trends, side }) {
   // Handle missing or empty trends data
   if (!trends || !trends.games || trends.games.length === 0) {
@@ -19,25 +23,6 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
   }
 
   const { games, averages, season_comparison, opponent_breakdown, trend_tags, data_quality } = trends
-
-  // Helper function to format delta with color
-  const formatDelta = (delta, invertColors = false) => {
-    if (!delta || delta === 0) {
-      return <span className="text-gray-500 dark:text-gray-400">(+0.0)</span>
-    }
-
-    // For defensive stats, negative is good (invertColors = true)
-    const isPositive = invertColors ? delta < 0 : delta > 0
-    const colorClass = isPositive
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400'
-
-    return (
-      <span className={colorClass}>
-        ({delta > 0 ? '+' : ''}{delta.toFixed(1)})
-      </span>
-    )
-  }
 
   // Quality badge styling
   const qualityBadgeClass = data_quality === 'excellent'
@@ -75,7 +60,7 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
         <div className="flex justify-between items-center text-sm sm:text-base">
           <span className="text-gray-600 dark:text-gray-400">DEF RTG:</span>
           <div className="font-semibold text-gray-900 dark:text-white">
-            {averages.def_rtg.toFixed(1)} {formatDelta(season_comparison.def_rtg_delta, true)}
+            {averages.def_rtg.toFixed(1)} {formatDelta(season_comparison.def_rtg_delta, shouldInvertColors('def_rtg'))}
           </div>
         </div>
         <div className="flex justify-between items-center text-sm sm:text-base">
@@ -95,6 +80,9 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
           {games.map((game, idx) => {
             const opponentTricode = game.opponent?.tricode || 'UNK'
             const strength = game.opponent?.strength || 'unknown'
+            const oppPts = game.opp_pts || 0
+            const teamPts = game.team_pts || 0
+            const result = game.matchup || ''
 
             // Color badge by opponent strength
             const strengthColor = strength === 'top'
@@ -106,13 +94,14 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'
 
             return (
-              <span
+              <GlassTooltip
                 key={idx}
-                className={`px-2 py-0.5 rounded text-xs font-medium ${strengthColor}`}
-                title={`Rank: OFF #${game.opponent?.off_rtg_rank || 'N/A'}, DEF #${game.opponent?.def_rtg_rank || 'N/A'}`}
+                content={`${result}\n${opponentTricode} scored ${oppPts} pts (${teamAbbr}: ${teamPts})\nRank: OFF #${game.opponent?.off_rtg_rank || 'N/A'}, DEF #${game.opponent?.def_rtg_rank || 'N/A'}`}
               >
-                {opponentTricode}
-              </span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium cursor-help ${strengthColor}`}>
+                  {opponentTricode}
+                </span>
+              </GlassTooltip>
             )
           })}
         </div>

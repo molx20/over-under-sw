@@ -2,13 +2,18 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import StatsTable from '../components/StatsTable'
 import Last5TrendsCard from '../components/Last5TrendsCard'
-import { useGameDetail } from '../utils/api'
+import IdentityTags from '../components/IdentityTags'
+import ScoringSpitsChart from '../components/ScoringSpitsChart'
+import ScoringVsPaceChart from '../components/ScoringVsPaceChart'
+import IdentityGlossary from '../components/IdentityGlossary'
+import { useGameDetail, useGameScoringSplits } from '../utils/api'
 
 function GamePage() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const [bettingLine, setBettingLine] = useState('')
   const [customBettingLine, setCustomBettingLine] = useState(null)
+  const [showGlossary, setShowGlossary] = useState(false)
 
   // Use React Query for automatic caching and loading states
   const {
@@ -19,6 +24,12 @@ function GamePage() {
     error,
     refetch
   } = useGameDetail(gameId, customBettingLine)
+
+  // Fetch scoring splits for both teams
+  const {
+    data: scoringSplitsData,
+    isLoading: splitsLoading,
+  } = useGameScoringSplits(gameId, '2025-26')
 
   const handleCalculatePrediction = () => {
     const line = parseFloat(bettingLine)
@@ -197,11 +208,11 @@ function GamePage() {
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Prediction Breakdown</h3>
             <div className="space-y-2 sm:space-y-3">
               <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Home Projected</span>
+                <span className="text-gray-600 dark:text-gray-400">Home Projected ({home_team?.abbreviation || 'Home'})</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.home_projected || 'N/A'}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Away Projected</span>
+                <span className="text-gray-600 dark:text-gray-400">Away Projected ({away_team?.abbreviation || 'Away'})</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.away_projected || 'N/A'}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
@@ -223,11 +234,11 @@ function GamePage() {
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Key Factors</h3>
             <div className="space-y-2 sm:space-y-3">
               <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Home Team Pace</span>
+                <span className="text-gray-600 dark:text-gray-400">Home Team Pace ({home_team?.abbreviation || 'Home'})</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.home_pace ? prediction.factors.home_pace.toFixed(1) : 'N/A'}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Away Team Pace</span>
+                <span className="text-gray-600 dark:text-gray-400">Away Team Pace ({away_team?.abbreviation || 'Away'})</span>
                 <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.away_pace ? prediction.factors.away_pace.toFixed(1) : 'N/A'}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base">
@@ -282,6 +293,110 @@ function GamePage() {
         </div>
       )}
 
+      {/* Defense-Adjusted Scoring Splits */}
+      {scoringSplitsData && (
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                Defense-Adjusted Scoring Splits
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                How each team scores against elite, average, and bad defenses at home and on the road
+              </p>
+            </div>
+            <button
+              onClick={() => setShowGlossary(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">Glossary</span>
+            </button>
+          </div>
+
+          {/* Identity Tags */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Away Team Tags */}
+            {scoringSplitsData.away_team && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  {scoringSplitsData.away_team.team_abbreviation} Identity
+                </h3>
+                {scoringSplitsData.away_team.identity_tags && scoringSplitsData.away_team.identity_tags.length > 0 ? (
+                  <IdentityTags
+                    tags={scoringSplitsData.away_team.identity_tags}
+                    teamAbbr={scoringSplitsData.away_team.team_abbreviation}
+                    showTooltip={true}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No distinctive scoring patterns detected (consistent across contexts)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Home Team Tags */}
+            {scoringSplitsData.home_team && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  {scoringSplitsData.home_team.team_abbreviation} Identity
+                </h3>
+                {scoringSplitsData.home_team.identity_tags && scoringSplitsData.home_team.identity_tags.length > 0 ? (
+                  <IdentityTags
+                    tags={scoringSplitsData.home_team.identity_tags}
+                    teamAbbr={scoringSplitsData.home_team.team_abbreviation}
+                    showTooltip={true}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No distinctive scoring patterns detected (consistent across contexts)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Defense Tier Scoring Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {scoringSplitsData.away_team && (
+              <ScoringSpitsChart
+                teamData={scoringSplitsData.away_team}
+              />
+            )}
+            {scoringSplitsData.home_team && (
+              <ScoringSpitsChart
+                teamData={scoringSplitsData.home_team}
+              />
+            )}
+          </div>
+
+          {/* Pace Bucket Scoring Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
+            {scoringSplitsData.away_team && scoringSplitsData.away_team.pace_splits && (
+              <ScoringVsPaceChart
+                teamData={scoringSplitsData.away_team}
+              />
+            )}
+            {scoringSplitsData.home_team && scoringSplitsData.home_team.pace_splits && (
+              <ScoringVsPaceChart
+                teamData={scoringSplitsData.home_team}
+              />
+            )}
+          </div>
+
+          {/* Loading state */}
+          {splitsLoading && (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
+              <p>Loading scoring splits...</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Recent Games */}
       {(home_recent_games?.length > 0 || away_recent_games?.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -314,6 +429,12 @@ function GamePage() {
           )}
         </div>
       )}
+
+      {/* Identity Glossary Modal */}
+      <IdentityGlossary
+        isOpen={showGlossary}
+        onClose={() => setShowGlossary(false)}
+      />
     </div>
   )
 }
