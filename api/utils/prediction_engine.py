@@ -494,6 +494,43 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
         home_projected = home_base_ppg
         away_projected = away_base_ppg
 
+        # BETTING ADJUSTMENT: Detect shootout potential (both teams vs bad defense)
+        # When both defenses are bad (#21-30), games tend to go OVER historical averages
+        shootout_bonus = 0.0
+        if home_team_id and away_team_id:
+            try:
+                from api.utils.db_queries import get_team_stats_with_ranks
+                from api.utils.defense_tiers import get_defense_tier
+
+                home_stats_with_ranks = get_team_stats_with_ranks(home_team_id, season)
+                away_stats_with_ranks = get_team_stats_with_ranks(away_team_id, season)
+
+                if home_stats_with_ranks and away_stats_with_ranks:
+                    home_def_rank = home_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
+                    away_def_rank = away_stats_with_ranks['stats'].get('def_rtg', {}).get('rank')
+
+                    home_def_tier = get_defense_tier(home_def_rank) if home_def_rank else None
+                    away_def_tier = get_defense_tier(away_def_rank) if away_def_rank else None
+
+                    # BETTING-OPTIMIZED: Shootout detection with tiered bonuses
+                    # Historical data is too conservative - games with bad defenses go OVER
+                    if home_def_tier == 'bad' and away_def_tier == 'bad':
+                        # Both defenses bad (#21-30): Major shootout potential
+                        # Based on betting analysis: MIL@WAS, CLE@IND, DAL@DEN all went 20-30 pts OVER
+                        shootout_bonus = 12.0  # Each team gets +12 pts (total +24)
+                        home_projected += shootout_bonus
+                        away_projected += shootout_bonus
+                        print(f'[prediction_engine] MAJOR SHOOTOUT: Both defenses bad (#{home_def_rank}, #{away_def_rank}), +{shootout_bonus} pts each')
+                    elif (home_def_tier == 'bad' and away_def_tier == 'average') or \
+                         (home_def_tier == 'average' and away_def_tier == 'bad'):
+                        # One bad defense: Moderate shootout potential
+                        shootout_bonus = 6.0  # Each team gets +6 pts (total +12)
+                        home_projected += shootout_bonus
+                        away_projected += shootout_bonus
+                        print(f'[prediction_engine] MODERATE SHOOTOUT: One bad defense (#{home_def_rank}, #{away_def_rank}), +{shootout_bonus} pts each')
+            except Exception as e:
+                print(f'[prediction_engine] Error detecting shootout: {e}')
+
         # STEP 2: Apply pace multiplier (small adjustment ~3%)
         league_avg_pace = 100.0
         home_pace_multiplier = 1.0
@@ -530,8 +567,9 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
             print(f'  Home: {home_pace_multiplier:.4f} -> {home_projected:.1f} PPG')
             print(f'  Away: {away_pace_multiplier:.4f} -> {away_projected:.1f} PPG')
 
-        # STEP 3: Blend recent form (moderate adjustment ~30%)
-        RECENT_FORM_BLEND_WEIGHT = 0.30
+        # STEP 3: Blend recent form (betting-optimized 50% for hot streaks)
+        # Increased from 30% to 50% to better capture momentum
+        RECENT_FORM_BLEND_WEIGHT = 0.50
         home_form_adjustment = 0.0
         away_form_adjustment = 0.0
 
@@ -592,9 +630,28 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
                     base_total=home_projected + away_projected
                 )
 
-                # Apply adjustments
-                home_projected = trend_adjustment['adjusted_home']
-                away_projected = trend_adjustment['adjusted_away']
+                # BETTING-OPTIMIZED: In shootout games, ignore negative trend adjustments
+                # Shootouts happen regardless of recent poor performance
+                if shootout_bonus > 0:
+                    # Only apply positive adjustments in shootouts
+                    home_trend_adj = trend_adjustment['adjusted_home'] - home_projected
+                    away_trend_adj = trend_adjustment['adjusted_away'] - away_projected
+
+                    if home_trend_adj > 0:
+                        home_projected = trend_adjustment['adjusted_home']
+                        print(f'[prediction_engine] Shootout: Applying positive home trend {home_trend_adj:+.1f}')
+                    else:
+                        print(f'[prediction_engine] Shootout: Ignoring negative home trend {home_trend_adj:+.1f}')
+
+                    if away_trend_adj > 0:
+                        away_projected = trend_adjustment['adjusted_away']
+                        print(f'[prediction_engine] Shootout: Applying positive away trend {away_trend_adj:+.1f}')
+                    else:
+                        print(f'[prediction_engine] Shootout: Ignoring negative away trend {away_trend_adj:+.1f}')
+                else:
+                    # Normal games: apply all trend adjustments
+                    home_projected = trend_adjustment['adjusted_home']
+                    away_projected = trend_adjustment['adjusted_away']
 
             except Exception as e:
                 print(f'[prediction_engine] Error computing trend adjustment: {e}')
