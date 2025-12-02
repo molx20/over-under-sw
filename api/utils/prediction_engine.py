@@ -441,6 +441,31 @@ def predict_game_total(home_data, away_data, betting_line=None, home_team_id=Non
                         fallback_ppg=away_season_ppg
                     )
 
+                    # SAFETY CHECK: Blend with season average for limited data or significantly low values
+                    # This prevents over-relying on small sample sizes or outlier historical data
+
+                    if home_data_quality == 'limited':
+                        # Always blend limited data (<3 games) with season average
+                        original_home = home_base_ppg
+                        home_base_ppg = home_season_ppg * 0.6 + home_base_ppg * 0.4
+                        print(f'[prediction_engine] Home has limited data, blending: {original_home:.1f} → {home_base_ppg:.1f}')
+                    elif home_data_quality == 'excellent' and home_base_ppg < home_season_ppg - 10:
+                        # Excellent data but significantly low: blend 50/50 to avoid over-penalizing
+                        original_home = home_base_ppg
+                        home_base_ppg = home_season_ppg * 0.5 + home_base_ppg * 0.5
+                        print(f'[prediction_engine] Home defense-adjusted significantly low, blending: {original_home:.1f} → {home_base_ppg:.1f}')
+
+                    if away_data_quality == 'limited':
+                        # Always blend limited data (<3 games) with season average
+                        original_away = away_base_ppg
+                        away_base_ppg = away_season_ppg * 0.6 + away_base_ppg * 0.4
+                        print(f'[prediction_engine] Away has limited data, blending: {original_away:.1f} → {away_base_ppg:.1f}')
+                    elif away_data_quality == 'excellent' and away_base_ppg < away_season_ppg - 10:
+                        # Excellent data but significantly low: blend 50/50 to avoid over-penalizing
+                        original_away = away_base_ppg
+                        away_base_ppg = away_season_ppg * 0.5 + away_base_ppg * 0.5
+                        print(f'[prediction_engine] Away defense-adjusted significantly low, blending: {original_away:.1f} → {away_base_ppg:.1f}')
+
                     print(f'[prediction_engine] Defense-adjusted base PPG:')
                     print(f'  Home: {home_base_ppg:.1f} ({home_data_quality} quality)')
                     print(f'  Away: {away_base_ppg:.1f} ({away_data_quality} quality)')

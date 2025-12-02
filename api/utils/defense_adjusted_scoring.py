@@ -137,7 +137,8 @@ def calculate_defense_adjusted_score(
     is_home: bool,
     baseline_ppg: float,
     season: str = '2025-26',
-    adjustment_weight: float = 0.4
+    adjustment_weight: float = 0.4,
+    season_ppg: Optional[float] = None
 ) -> Dict:
     """
     Calculate defense-adjusted score with blending of baseline and context-specific scoring.
@@ -150,6 +151,7 @@ def calculate_defense_adjusted_score(
         season: Season string
         adjustment_weight: Weight for defense-adjusted value (0-1)
                           0 = ignore defense adjustment, 1 = full defense adjustment
+        season_ppg: Team's season average PPG (for safety check)
 
     Returns:
         Dict with:
@@ -173,9 +175,20 @@ def calculate_defense_adjusted_score(
     if data_quality == 'excellent':
         # Use full adjustment weight for high-quality data
         blend_weight = adjustment_weight
+
+        # SAFETY CHECK: If context_ppg is significantly lower than season average,
+        # reduce blend weight to avoid over-penalizing (cap at -10 PPG difference)
+        if season_ppg and context_ppg and context_ppg < season_ppg - 10:
+            logger.warning(
+                f"Team {team_id} context PPG ({context_ppg:.1f}) is {season_ppg - context_ppg:.1f} pts "
+                f"below season avg ({season_ppg:.1f}). Reducing blend weight to 0.6"
+            )
+            blend_weight = adjustment_weight * 0.6
+
     elif data_quality == 'limited':
-        # Reduce weight for limited data
-        blend_weight = adjustment_weight * 0.5
+        # Reduce weight significantly for limited data (< 3 games)
+        blend_weight = adjustment_weight * 0.3  # Reduced from 0.5 to 0.3
+        logger.info(f"Team {team_id} has limited data quality, using {blend_weight:.2f} blend weight")
     else:  # fallback
         # No adjustment if no data
         blend_weight = 0.0
