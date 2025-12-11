@@ -13,7 +13,8 @@ to ensure predictions can always be generated.
 
 import sqlite3
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import logging
 
 logger = logging.getLogger(__name__)
@@ -297,6 +298,12 @@ def get_team_stats_with_ranks(team_id: int, season: str = '2025-26') -> Optional
             'def_rtg': {'value': row['def_rtg'], 'rank': row['def_rtg_rank']},
             'net_rtg': {'value': row['net_rtg'], 'rank': row['net_rtg_rank']},
             'pace': {'value': row['pace'], 'rank': row['pace_rank']},
+            'opp_fg3_pct_rank': {'value': row['opp_fg3_pct'] if 'opp_fg3_pct' in row.keys() else None, 'rank': row['opp_fg3_pct_rank'] if 'opp_fg3_pct_rank' in row.keys() else None},
+            'opp_tov': {'value': row['opp_tov'] if 'opp_tov' in row.keys() else None, 'rank': row['opp_tov_rank'] if 'opp_tov_rank' in row.keys() else None},
+            # Add stats needed for expected vs actual comparison
+            'fta': {'value': row['fta'] if 'fta' in row.keys() else None, 'rank': None},
+            'turnovers': {'value': row['turnovers'] if 'turnovers' in row.keys() else None, 'rank': None},
+            'fg3a': {'value': row['fg3a'] if 'fg3a' in row.keys() else None, 'rank': None},
         }
     }
 
@@ -522,18 +529,21 @@ def get_todays_games(season: str = '2025-26') -> List[Dict]:
 
     logger = logging.getLogger(__name__)
 
-    # Define Eastern Time (UTC-5, matching sync logic)
-    et_tz = timezone(timedelta(hours=-5))
+    # Define timezones with proper DST handling (matching sync logic)
+    # America/Denver: auto-switches between MST (UTC-7) and MDT (UTC-6)
+    # America/New_York: auto-switches between EST (UTC-5) and EDT (UTC-4)
+    mt_tz = ZoneInfo("America/Denver")
+    et_tz = ZoneInfo("America/New_York")
 
     # Calculate current times
     utc_now = datetime.now(timezone.utc)
-    mt_now = datetime.now(timezone(timedelta(hours=-7)))
+    mt_now = datetime.now(mt_tz)
     et_now = datetime.now(et_tz)
 
     # Log timezone context
     logger.info(f"[BOARD] UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"[BOARD] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"[BOARD] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"[BOARD] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    logger.info(f"[BOARD] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
     # Get yesterday, today, AND tomorrow in Eastern Time
     # Yesterday is included because games can run late into the night (past midnight ET)
@@ -951,3 +961,147 @@ def get_data_freshness() -> Dict:
     freshness['is_stale'] = is_stale
 
     return freshness
+
+
+# ============================================================================
+# GAME ACTUAL TOTALS (for Model Evaluation)
+# ============================================================================
+
+def get_game_actual_total(game_id: str) -> Optional[int]:
+    """
+    Get the actual total points for a completed game.
+
+    This is used for model evaluation to compare predicted totals vs actual results.
+    The actual_total_points is simply home_score + away_score for completed games.
+
+    Args:
+        game_id: NBA game ID (e.g., "0022500338")
+
+    Returns:
+        Integer total points if game is completed, None if game not found or incomplete
+
+    Example:
+        >>> actual_total = get_game_actual_total("0022500338")
+        >>> predicted_total = 225.5
+        >>> error = abs(predicted_total - actual_total)
+    """
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT actual_total_points
+        FROM games
+        WHERE id = ? AND status = 'final' AND actual_total_points IS NOT NULL
+    """, (game_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return row['actual_total_points'] if row else None
+
+
+def get_game_box_score(game_id: str, team_id: int) -> Optional[Dict]:
+    """
+    Get box score statistics for a specific team in a specific game.
+
+    Args:
+        game_id: NBA game ID (e.g., "0022500338")
+        team_id: Team ID
+
+    Returns:
+        Dictionary with box score stats:
+        {
+            'pace': float,
+            'fga': int,
+            'fta': int,
+            'turnovers': int,
+            'offensive_rebounds': int,
+            'fg3a': int,
+            'fg3m': int,
+            'fg3_pct': float
+        }
+        None if not found
+    """
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            pace,
+            fga,
+            fta,
+            turnovers,
+            offensive_rebounds,
+            fg3a,
+            fg3m,
+            fg3_pct
+        FROM team_game_logs
+        WHERE game_id = ? AND team_id = ?
+    """, (game_id, team_id))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return {
+            'pace': row['pace'],
+            'fga': row['fga'],
+            'fta': row['fta'],
+            'turnovers': row['turnovers'],
+            'offensive_rebounds': row['offensive_rebounds'],
+            'fg3a': row['fg3a'],
+            'fg3m': row['fg3m'],
+            'fg3_pct': row['fg3_pct']
+        }
+    return None
+
+
+def get_completed_games_with_actuals(season: str = '2025-26', limit: Optional[int] = None) -> List[Dict]:
+    """
+    Get all completed games with actual total points for evaluation.
+
+    This is used to evaluate model performance across multiple games.
+
+    Args:
+        season: NBA season (e.g., '2025-26')
+        limit: Optional limit on number of games returned
+
+    Returns:
+        List of dicts with game_id, game_date, home_team_id, away_team_id,
+        home_score, away_score, actual_total_points
+
+    Example:
+        >>> games = get_completed_games_with_actuals('2025-26', limit=100)
+        >>> for game in games:
+        >>>     predicted = predict_game_total(game['game_id'])
+        >>>     actual = game['actual_total_points']
+        >>>     error = abs(predicted - actual)
+    """
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT
+            id as game_id,
+            game_date,
+            home_team_id,
+            away_team_id,
+            home_score,
+            away_score,
+            actual_total_points
+        FROM games
+        WHERE season = ?
+          AND status = 'final'
+          AND actual_total_points IS NOT NULL
+        ORDER BY game_date DESC
+    """
+
+    if limit:
+        query += f" LIMIT {limit}"
+
+    cursor.execute(query, (season,))
+
+    games = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return games

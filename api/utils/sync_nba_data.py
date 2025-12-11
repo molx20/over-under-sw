@@ -13,7 +13,8 @@ It should be called by:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional, Tuple
 import sqlite3
 import time
@@ -22,6 +23,8 @@ import time
 from nba_api.stats.endpoints import (
     teamdashboardbygeneralsplits,
     teamgamelogs,
+    boxscoretraditionalv3,
+    boxscorescoringv3,
 )
 from nba_api.stats.static import teams
 import requests
@@ -34,9 +37,13 @@ logger = logging.getLogger(__name__)
 try:
     from api.utils.db_config import get_db_path
     from api.utils.sync_lock import sync_lock, SyncLockError
+    from api.utils.opponent_stats_calculator import compute_opponent_stats_for_game
+    from api.utils.season_opponent_stats_aggregator import update_team_season_opponent_stats
 except ImportError:
     from db_config import get_db_path
     from sync_lock import sync_lock, SyncLockError
+    from opponent_stats_calculator import compute_opponent_stats_for_game
+    from season_opponent_stats_aggregator import update_team_season_opponent_stats
 
 # Database path
 NBA_DATA_DB_PATH = get_db_path('nba_data.db')
@@ -271,7 +278,7 @@ def sync_season_stats(season: str = '2025-26',
     Sync team season statistics with home/away splits and rankings
 
     Args:
-        season: Season string (e.g., '2024-25')
+        season: Season string (e.g., '2025-26')
         team_ids: Optional list of specific team IDs to sync (None = all teams)
 
     Returns:
@@ -380,6 +387,7 @@ def _sync_season_stats_impl(season: str = '2025-26',
                 # Get corresponding opponent row
                 opp_row = None
                 opp_ppg = 0
+                opp_tov = 0
                 if opp_df is not None:
                     opp_split = opp_df[opp_df['GROUP_VALUE'] == group_value]
                     if len(opp_split) > 0:
@@ -388,6 +396,33 @@ def _sync_season_stats_impl(season: str = '2025-26',
                         opp_pts_total = opp_row.get('OPP_PTS', 0)
                         games_played = opp_row.get('GP', 1)  # Avoid division by zero
                         opp_ppg = opp_pts_total / games_played if games_played > 0 else 0
+                        # Opponent turnovers: OPP_TOV is total, need to divide by GP for per-game
+                        opp_tov_total = opp_row.get('OPP_TOV', 0)
+                        opp_tov = opp_tov_total / games_played if games_played > 0 else 0
+
+                # Calculate scoring breakdown from API data
+                fgm = float(split_row.get('FGM', 0))
+                fg3m = float(split_row.get('FG3M', 0))
+                fg2m = fgm - fg3m  # Derive 2PT makes
+
+                fga = float(split_row.get('FGA', 0))
+                fg3a = float(split_row.get('FG3A', 0))
+                fg2a = fga - fg3a  # Derive 2PT attempts
+
+                fg2_pct = (fg2m / fg2a * 100) if fg2a > 0 else 0
+                ftm = float(split_row.get('FTM', 0))
+                fta = float(split_row.get('FTA', 0))
+
+                # Calculate PPG by type
+                two_pt_ppg = fg2m * 2
+                three_pt_ppg = fg3m * 3
+                ft_ppg = ftm
+
+                # Extract opponent 3PT stats (will compute from team_game_logs later)
+                # For now, set to None - will be calculated in post-processing
+                opp_fg3m = None
+                opp_fg3a = None
+                opp_fg3_pct = None
 
                 # Insert into database
                 # Convert pandas/numpy types to Python native types to avoid BLOB storage
@@ -399,8 +434,11 @@ def _sync_season_stats_impl(season: str = '2025-26',
                         rebounds, assists, steals, blocks, turnovers,
                         off_rtg, def_rtg, net_rtg, pace,
                         true_shooting_pct, efg_pct,
-                        synced_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        synced_at,
+                        fg2m, fg2a, fg2_pct, fg3m, fg3a, ftm, fta,
+                        two_pt_ppg, three_pt_ppg, ft_ppg,
+                        opp_fg3m, opp_fg3a, opp_fg3_pct, opp_tov
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     int(team_id), season, db_split_type,
                     int(split_row.get('GP', 0)),
@@ -422,7 +460,22 @@ def _sync_season_stats_impl(season: str = '2025-26',
                     float(adv_row.get('PACE', 0) if adv_row is not None else 0),
                     float(adv_row.get('TS_PCT', 0) if adv_row is not None else 0),
                     float(adv_row.get('EFG_PCT', 0) if adv_row is not None else 0),
-                    synced_at
+                    synced_at,
+                    # NEW: Scoring breakdown
+                    float(fg2m),
+                    float(fg2a),
+                    float(fg2_pct),
+                    float(fg3m),
+                    float(fg3a),
+                    float(ftm),
+                    float(fta),
+                    float(two_pt_ppg),
+                    float(three_pt_ppg),
+                    float(ft_ppg),
+                    float(opp_fg3m) if opp_fg3m is not None else None,
+                    float(opp_fg3a) if opp_fg3a is not None else None,
+                    float(opp_fg3_pct) if opp_fg3_pct is not None else None,
+                    float(opp_tov)
                 ))
 
                 records_synced += 1
@@ -440,13 +493,35 @@ def _sync_season_stats_impl(season: str = '2025-26',
                         'def_rtg': adv_row.get('DEF_RATING', 0) if adv_row is not None else 0,
                         'net_rtg': adv_row.get('NET_RATING', 0) if adv_row is not None else 0,
                         'pace': adv_row.get('PACE', 0) if adv_row is not None else 0,
+                        'opp_tov': opp_tov,
                     })
 
         # Compute rankings for overall stats
         _compute_and_save_rankings(cursor, stats_data, season)
 
+        # Compute opponent 3PT stats from game logs
+        _compute_opponent_3pt_stats_from_game_logs(cursor, season)
+
+        # Compute 3PT defense rankings
+        _compute_3pt_defense_rankings(cursor, season)
+
         # Update league averages
         _update_league_averages(cursor, stats_data, season)
+
+        # Aggregate opponent stats for all teams
+        logger.info(f"Aggregating season opponent stats for {len(team_ids)} teams...")
+        for idx, team_id in enumerate(team_ids, 1):
+            try:
+                # Update for all three split types: overall, home, away
+                update_team_season_opponent_stats(team_id, season, 'overall')
+                update_team_season_opponent_stats(team_id, season, 'home')
+                update_team_season_opponent_stats(team_id, season, 'away')
+                if idx % 10 == 0:
+                    logger.info(f"  Aggregated opponent stats for {idx}/{len(team_ids)} teams")
+            except Exception as e:
+                logger.error(f"Error aggregating opponent stats for team {team_id}: {e}")
+
+        logger.info(f"✓ Season opponent stats aggregated for all {len(team_ids)} teams")
 
         conn.commit()
         conn.close()
@@ -568,11 +643,12 @@ def _calculate_nba_possessions(team1_data: dict, team2_data: dict) -> tuple:
 
 def _calculate_game_pace(teams_data: list) -> float:
     """
-    Calculate game pace from both teams' data using NBA's official formula.
+    Calculate game pace from both teams' data using CUSTOM simplified formula.
 
-    Game pace represents the number of possessions per 48 minutes,
-    calculated as the average of both teams' possessions using the
-    NBA's official possession formula.
+    Formula: possessions = FGA + 0.44*FTA - ORB + TO
+    Game pace = (team_possessions + opponent_possessions) / (2 * (team_minutes_played / 48))
+
+    Assumes 240 minutes played per team (48 * 5 players) for regulation games.
 
     Args:
         teams_data: List of game data dictionaries (ideally 2 teams)
@@ -581,24 +657,175 @@ def _calculate_game_pace(teams_data: list) -> float:
         Game pace (possessions per 48 minutes)
     """
     if len(teams_data) < 2:
-        # Only one team's data available - fall back to simplified formula
+        # Only one team's data available - use simplified formula
         logger.warning(f"Only {len(teams_data)} team(s) available for pace calculation, using simplified formula")
         return _calculate_team_possessions_simple(teams_data[0])
 
-    # Use NBA's official possession formula
-    poss1, poss2 = _calculate_nba_possessions(teams_data[0], teams_data[1])
+    # Use CUSTOM simplified possession formula for both teams
+    # possessions = FGA + 0.44*FTA - ORB + TO
+    team1_poss = _calculate_team_possessions_simple(teams_data[0])
+    team2_poss = _calculate_team_possessions_simple(teams_data[1])
 
-    # Game pace = average of both teams' possessions
-    # Both teams should have similar possessions; averaging accounts for small differences
-    game_pace = (poss1 + poss2) / 2
+    # NBA pace = average possessions per team per 48 minutes
+    # Since possessions are already calculated for a 48-minute game,
+    # we just need to average the two teams' possessions
+    game_pace = (team1_poss + team2_poss) / 2
 
     return game_pace
 
 
+def _compute_rest_days_for_team(cursor, team_id: int):
+    """
+    Compute rest_days and is_back_to_back for all games of a specific team.
+    Called after syncing game logs for a team.
+    """
+    # Get all games for this team, sorted by date
+    cursor.execute("""
+        SELECT game_id, game_date
+        FROM team_game_logs
+        WHERE team_id = ?
+        ORDER BY game_date ASC
+    """, (team_id,))
+
+    games = cursor.fetchall()
+
+    if not games:
+        return
+
+    # First game - no previous game
+    game_id, _ = games[0]
+    cursor.execute("""
+        UPDATE team_game_logs
+        SET rest_days = NULL, is_back_to_back = 0
+        WHERE game_id = ? AND team_id = ?
+    """, (game_id, team_id))
+
+    # Process remaining games
+    for i in range(1, len(games)):
+        current_game_id, current_date = games[i]
+        previous_date = games[i-1][1]
+
+        # Calculate rest days
+        curr = datetime.fromisoformat(current_date.replace('Z', '+00:00'))
+        prev = datetime.fromisoformat(previous_date.replace('Z', '+00:00'))
+        rest_days = (curr.date() - prev.date()).days
+
+        is_b2b = 1 if rest_days == 1 else 0
+
+        cursor.execute("""
+            UPDATE team_game_logs
+            SET rest_days = ?, is_back_to_back = ?
+            WHERE game_id = ? AND team_id = ?
+        """, (rest_days, is_b2b, current_game_id, team_id))
+
+
+def _fetch_box_score_stats(game_id: str, team_id: int) -> Dict:
+    """
+    Fetch advanced box score statistics for a specific team in a game.
+
+    Fetches data from multiple NBA API box score endpoints:
+    - BoxScoreTraditionalV3: Basic stats (FGM, FGA, OREB, DREB, STL, BLK)
+    - BoxScoreScoringV3: Scoring breakdown percentages
+
+    Args:
+        game_id: NBA game ID
+        team_id: NBA team ID
+
+    Returns:
+        Dict with box score stats, or empty dict if unavailable
+    """
+    try:
+        logger.debug(f"Fetching box score stats for game {game_id}, team {team_id}")
+
+        # Fetch traditional box score (FGM, FGA, rebounds, steals, blocks)
+        trad_box = _safe_api_call(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
+
+        # Fetch scoring box score (fast break %, paint %, off turnovers %)
+        scoring_box = _safe_api_call(boxscorescoringv3.BoxScoreScoringV3, game_id=game_id)
+
+        if not trad_box or not scoring_box:
+            logger.warning(f"Failed to fetch box score data for game {game_id}")
+            return {}
+
+        # Extract team-level data from traditional box score
+        trad_dfs = trad_box.get_data_frames()
+        if len(trad_dfs) < 2:
+            logger.warning(f"BoxScoreTraditionalV3 missing team data for game {game_id}")
+            return {}
+
+        trad_team_df = trad_dfs[1]  # Team-level data is in second dataframe
+        team_trad_row = trad_team_df[trad_team_df['teamId'] == team_id]
+
+        if team_trad_row.empty:
+            logger.warning(f"Team {team_id} not found in traditional box score for game {game_id}")
+            return {}
+
+        team_trad = team_trad_row.iloc[0]
+
+        # Extract team-level data from scoring box score
+        scoring_dfs = scoring_box.get_data_frames()
+        if len(scoring_dfs) < 2:
+            logger.warning(f"BoxScoreScoringV3 missing team data for game {game_id}")
+            return {}
+
+        scoring_team_df = scoring_dfs[1]  # Team-level data
+        team_scoring_row = scoring_team_df[scoring_team_df['teamId'] == team_id]
+
+        if team_scoring_row.empty:
+            logger.warning(f"Team {team_id} not found in scoring box score for game {game_id}")
+            return {}
+
+        team_scoring = team_scoring_row.iloc[0]
+
+        # Get team points from traditional box score
+        team_pts = int(team_trad.get('points', 0))
+
+        # Calculate actual point values from percentages
+        pct_fast_break = float(team_scoring.get('percentagePointsFastBreak', 0))
+        pct_paint = float(team_scoring.get('percentagePointsPaint', 0))
+        pct_off_turnovers = float(team_scoring.get('percentagePointsOffTurnovers', 0))
+
+        fast_break_points = round(team_pts * pct_fast_break)
+        points_in_paint = round(team_pts * pct_paint)
+        points_off_turnovers = round(team_pts * pct_off_turnovers)
+
+        # Estimate second chance points from offensive rebounds
+        # Rough heuristic: ~1.1 points per offensive rebound for average teams
+        oreb = int(team_trad.get('reboundsOffensive', 0))
+        second_chance_points = round(oreb * 1.1)
+
+        return {
+            'fgm': int(team_trad.get('fieldGoalsMade', 0)),
+            'fga': int(team_trad.get('fieldGoalsAttempted', 0)),
+            'offensive_rebounds': oreb,
+            'defensive_rebounds': int(team_trad.get('reboundsDefensive', 0)),
+            'steals': int(team_trad.get('steals', 0)),
+            'blocks': int(team_trad.get('blocks', 0)),
+            'points_off_turnovers': points_off_turnovers,
+            'fast_break_points': fast_break_points,
+            'points_in_paint': points_in_paint,
+            'second_chance_points': second_chance_points,
+        }
+
+    except Exception as e:
+        logger.warning(f"Error fetching box score stats for game {game_id}, team {team_id}: {e}")
+        return {}
+
+
 def _sync_game_logs_impl(season: str = '2025-26',
                          team_ids: Optional[List[int]] = None,
-                         last_n_games: int = 10) -> Tuple[int, Optional[str]]:
-    """Internal implementation of sync_game_logs (wrapped by sync_lock)"""
+                         last_n_games: Optional[int] = 10) -> Tuple[int, Optional[str]]:
+    """
+    Internal implementation of sync_game_logs (wrapped by sync_lock)
+
+    Args:
+        season: NBA season (e.g., '2025-26')
+        team_ids: List of team IDs to sync. If None, syncs all teams.
+        last_n_games: Number of recent games to fetch per team. If None, fetches ALL games for the season.
+
+    Returns:
+        Tuple of (records_synced, error_message)
+    """
     sync_id = _log_sync_start('game_logs', season)
 
     try:
@@ -611,6 +838,14 @@ def _sync_game_logs_impl(season: str = '2025-26',
         synced_at = datetime.now(timezone.utc).isoformat()
 
         records_synced = 0
+        new_games = 0
+        updated_games = 0
+
+        # Log sync mode
+        if last_n_games is None:
+            logger.info(f"Starting FULL SEASON sync for {season} (all completed games)")
+        else:
+            logger.info(f"Starting sync for {season} (last {last_n_games} games per team)")
 
         # PHASE 1: Collect all game data for all teams first
         # This allows us to calculate game pace using both teams' data
@@ -620,13 +855,22 @@ def _sync_game_logs_impl(season: str = '2025-26',
             logger.info(f"Fetching game logs for team {team_id}")
 
             # Use teamgamelogs endpoint with last_n_games parameter
-            gamelogs = _safe_api_call(
-                teamgamelogs.TeamGameLogs,
-                team_id_nullable=team_id,
-                season_nullable=season,
-                season_type_nullable='Regular Season',
-                last_n_games_nullable=last_n_games
-            )
+            # When last_n_games is None, omit the parameter to fetch all games
+            if last_n_games is None:
+                gamelogs = _safe_api_call(
+                    teamgamelogs.TeamGameLogs,
+                    team_id_nullable=team_id,
+                    season_nullable=season,
+                    season_type_nullable='Regular Season'
+                )
+            else:
+                gamelogs = _safe_api_call(
+                    teamgamelogs.TeamGameLogs,
+                    team_id_nullable=team_id,
+                    season_nullable=season,
+                    season_type_nullable='Regular Season',
+                    last_n_games_nullable=last_n_games
+                )
 
             if not gamelogs:
                 logger.warning(f"Skipping team {team_id}: failed to fetch game logs")
@@ -669,6 +913,18 @@ def _sync_game_logs_impl(season: str = '2025-26',
                 oreb = float(game.get('OREB', 0))
                 dreb = total_reb - oreb
 
+                # Extract scoring breakdown from NBA API
+                fgm = float(game.get('FGM', 0))
+                fg3m = float(game.get('FG3M', 0))
+                fg2m = fgm - fg3m  # Derive 2PT makes
+
+                fga = float(game.get('FGA', 0))
+                fg3a = float(game.get('FG3A', 0))
+                fg2a = fga - fg3a  # Derive 2PT attempts
+
+                ftm = float(game.get('FTM', 0))
+                fta_val = float(game.get('FTA', 0))
+
                 game_info = {
                     'team_id': int(team_id),
                     'game_date': str(game.get('GAME_DATE')),
@@ -679,9 +935,9 @@ def _sync_game_logs_impl(season: str = '2025-26',
                     'team_pts': team_pts,
                     'opp_pts': opp_pts,
                     'win_loss': str(game.get('WL', '')),
-                    'fga': float(game.get('FGA', 0)),
-                    'fgm': float(game.get('FGM', 0)),  # Field goals made
-                    'fta': float(game.get('FTA', 0)),
+                    'fga': fga,
+                    'fgm': fgm,  # Field goals made
+                    'fta': fta_val,
                     'oreb': oreb,
                     'dreb': dreb,  # Defensive rebounds
                     'tov': float(game.get('TOV', 0)),
@@ -691,6 +947,12 @@ def _sync_game_logs_impl(season: str = '2025-26',
                     'rebounds': total_reb,
                     'assists': int(game.get('AST', 0)),
                     'turnovers': int(game.get('TOV', 0)),
+                    # NEW: Scoring breakdown
+                    'fg2m': fg2m,
+                    'fg2a': fg2a,
+                    'fg3m': fg3m,
+                    'fg3a': fg3a,
+                    'ftm': ftm,
                 }
 
                 if game_id not in game_data_by_id:
@@ -700,6 +962,9 @@ def _sync_game_logs_impl(season: str = '2025-26',
         # PHASE 2: Calculate game pace and insert records
         logger.info(f"Processing {len(game_data_by_id)} unique games with game pace calculation")
 
+        # Cache box score data to avoid duplicate API calls for same game
+        box_score_cache = {}
+
         for game_id, teams_data in game_data_by_id.items():
             # Calculate game pace once per game using both teams' data
             game_pace = _calculate_game_pace(teams_data)
@@ -708,6 +973,56 @@ def _sync_game_logs_impl(season: str = '2025-26',
             team_ids_in_game = [td['team_id'] for td in teams_data]
             if len(team_ids_in_game) != len(set(team_ids_in_game)):
                 logger.warning(f"Game {game_id}: Duplicate team IDs detected! {team_ids_in_game}")
+
+            # Fetch box score data for both teams (once per game)
+            if game_id not in box_score_cache:
+                box_score_cache[game_id] = {}
+                for team_data in teams_data:
+                    tid = team_data['team_id']
+                    logger.info(f"Fetching box score for game {game_id}, team {tid}")
+                    box_score_cache[game_id][tid] = _fetch_box_score_stats(game_id, tid)
+
+            # Upsert into games table (one record per game)
+            if len(teams_data) >= 2:
+                # Find home and away teams
+                home_team = next((t for t in teams_data if t['is_home']), None)
+                away_team = next((t for t in teams_data if not t['is_home']), None)
+
+                if home_team and away_team:
+                    total_points = int(home_team['team_pts'] + away_team['team_pts'])
+
+                    # Check if game already exists to track new vs updated
+                    cursor.execute('SELECT id FROM games WHERE id = ?', (game_id,))
+                    game_exists = cursor.fetchone() is not None
+
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO games (
+                            id, season, game_date,
+                            home_team_id, away_team_id,
+                            home_score, away_score, actual_total_points,
+                            game_pace, status,
+                            created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        game_id,
+                        season,
+                        home_team['game_date'],
+                        int(home_team['team_id']),
+                        int(away_team['team_id']),
+                        int(home_team['team_pts']),
+                        int(away_team['team_pts']),
+                        total_points,  # Stored as actual_total_points for evaluation
+                        float(game_pace),
+                        'final',  # These are completed games
+                        synced_at,
+                        synced_at
+                    ))
+
+                    # Track new vs updated
+                    if game_exists:
+                        updated_games += 1
+                    else:
+                        new_games += 1
 
             # Insert game logs for each team with the same game pace
             for game_data in teams_data:
@@ -722,7 +1037,10 @@ def _sync_game_logs_impl(season: str = '2025-26',
                 off_rating = (team_pts / team_poss * 100) if team_poss > 0 else 0
                 def_rating = (opp_pts / team_poss * 100) if team_poss > 0 else 0
 
-                # Insert game log with game pace (not team possessions)
+                # Get box score stats from cache
+                box_stats = box_score_cache.get(game_id, {}).get(team_id, {})
+
+                # Insert game log with game pace, scoring breakdown, and box score stats
                 cursor.execute('''
                     INSERT OR REPLACE INTO team_game_logs (
                         game_id, team_id, game_date, season,
@@ -731,8 +1049,13 @@ def _sync_game_logs_impl(season: str = '2025-26',
                         off_rating, def_rating, pace,
                         fg_pct, fg3_pct, ft_pct,
                         rebounds, assists, turnovers,
+                        fg2m, fg2a, fg3m, fg3a, ftm, fta,
+                        fgm, fga,
+                        offensive_rebounds, defensive_rebounds,
+                        steals, blocks,
+                        points_off_turnovers, fast_break_points, points_in_paint, second_chance_points,
                         synced_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     game_id,
                     int(team_id),
@@ -754,16 +1077,52 @@ def _sync_game_logs_impl(season: str = '2025-26',
                     game_data['rebounds'],
                     game_data['assists'],
                     game_data['turnovers'],
+                    # Scoring breakdown
+                    float(game_data['fg2m']),
+                    float(game_data['fg2a']),
+                    float(game_data['fg3m']),
+                    float(game_data['fg3a']),
+                    float(game_data['ftm']),
+                    float(game_data['fta']),
+                    # Box score stats (from BoxScoreTraditionalV3 and BoxScoreScoringV3)
+                    box_stats.get('fgm', int(game_data['fgm'])),  # Fallback to TeamGameLogs FGM
+                    box_stats.get('fga', int(game_data['fga'])),  # Fallback to TeamGameLogs FGA
+                    box_stats.get('offensive_rebounds', int(game_data['oreb'])),  # Fallback to OREB
+                    box_stats.get('defensive_rebounds', int(game_data['dreb'])),  # Fallback to DREB
+                    box_stats.get('steals', None),
+                    box_stats.get('blocks', None),
+                    box_stats.get('points_off_turnovers', None),
+                    box_stats.get('fast_break_points', None),
+                    box_stats.get('points_in_paint', None),
+                    box_stats.get('second_chance_points', None),
                     synced_at
                 ))
 
                 records_synced += 1
 
         conn.commit()
+
+        # After syncing game logs, compute rest_days and is_back_to_back
+        _compute_rest_days_for_team(cursor, team_id)
+        conn.commit()
+
+        # Compute opponent stats for all games that were synced
+        logger.info(f"Computing opponent stats for {len(game_data_by_id)} games...")
+        for idx, game_id in enumerate(game_data_by_id.keys(), 1):
+            try:
+                compute_opponent_stats_for_game(game_id, conn)
+                if idx % 50 == 0:
+                    logger.info(f"  Computed opponent stats for {idx}/{len(game_data_by_id)} games")
+            except Exception as e:
+                logger.error(f"Error computing opponent stats for game {game_id}: {e}")
+
+        conn.commit()
+        logger.info(f"✓ Opponent stats computed for all {len(game_data_by_id)} games")
+
         conn.close()
 
         _log_sync_complete(sync_id, records_synced)
-        logger.info(f"Synced {records_synced} game logs")
+        logger.info(f"Synced {records_synced} game log records ({new_games} new games, {updated_games} updated games)")
         return records_synced, None
 
     except Exception as e:
@@ -800,20 +1159,21 @@ def _sync_todays_games_impl(season: str = '2025-26') -> Tuple[int, Optional[str]
     sync_id = _log_sync_start('todays_games', season)
 
     try:
-        from datetime import timedelta
-
-        # Define Eastern Time (UTC-5, fixed offset for determinism)
-        et_tz = timezone(timedelta(hours=-5))
+        # Define timezones with proper DST handling
+        # America/Denver: auto-switches between MST (UTC-7) and MDT (UTC-6)
+        # America/New_York: auto-switches between EST (UTC-5) and EDT (UTC-4)
+        mt_tz = ZoneInfo("America/Denver")
+        et_tz = ZoneInfo("America/New_York")
 
         # Calculate current times for logging
         utc_now = datetime.now(timezone.utc)
-        mt_now = datetime.now(timezone(timedelta(hours=-7)))
+        mt_now = datetime.now(mt_tz)
         et_now = datetime.now(et_tz)
 
         # Log all timezone contexts for debugging
         logger.info(f"[SYNC] UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info(f"[SYNC] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info(f"[SYNC] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"[SYNC] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        logger.info(f"[SYNC] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
         # Fetch today's AND tomorrow's games (handles timezone edge cases)
         today_et = et_now.strftime('%Y-%m-%d')
@@ -1178,8 +1538,8 @@ def _sync_all_impl(season: str = '2025-26', triggered_by: str = 'manual') -> Dic
         results['errors'].append(stats_error)
         results['success'] = False
 
-    # Sync game logs
-    logs_count, logs_error = _sync_game_logs_impl(season, last_n_games=10)
+    # Sync game logs - fetch ALL completed games for the season
+    logs_count, logs_error = _sync_game_logs_impl(season, last_n_games=None)
     results['game_logs'] = logs_count
     if logs_error:
         results['errors'].append(logs_error)
@@ -1240,7 +1600,7 @@ def _compute_and_save_rankings(cursor, stats_data: List[Dict], season: str):
         return
 
     # Stats where higher is better
-    stats_high = ['ppg', 'fg_pct', 'fg3_pct', 'ft_pct', 'off_rtg', 'net_rtg', 'pace']
+    stats_high = ['ppg', 'fg_pct', 'fg3_pct', 'ft_pct', 'off_rtg', 'net_rtg', 'pace', 'opp_tov']
     # Stats where lower is better
     stats_low = ['opp_ppg', 'def_rtg']
 
@@ -1263,6 +1623,69 @@ def _compute_and_save_rankings(cursor, stats_data: List[Dict], season: str):
                 SET {stat}_rank = ?
                 WHERE team_id = ? AND season = ? AND split_type = 'overall'
             ''', (rank, team['team_id'], season))
+
+
+def _compute_opponent_3pt_stats_from_game_logs(cursor, season: str):
+    """
+    Compute opponent 3PT stats from game logs.
+    This calculates how many 3PT the opponent made against this team.
+    """
+    # For each team, calculate opponent 3PT stats from game logs
+    cursor.execute('SELECT DISTINCT team_id FROM team_season_stats WHERE season = ? AND split_type = ?', (season, 'overall'))
+    teams = [row['team_id'] for row in cursor.fetchall()]
+
+    for team_id in teams:
+        # Get all game logs where this team played
+        cursor.execute('''
+            SELECT
+                AVG(opp_fg3m) as avg_opp_fg3m,
+                AVG(opp_fg3a) as avg_opp_fg3a
+            FROM (
+                SELECT tgl_opp.fg3m as opp_fg3m, tgl_opp.fg3a as opp_fg3a
+                FROM team_game_logs tgl
+                JOIN team_game_logs tgl_opp
+                    ON tgl.game_id = tgl_opp.game_id
+                    AND tgl.team_id != tgl_opp.team_id
+                WHERE tgl.team_id = ?
+                    AND tgl.season = ?
+                    AND tgl_opp.fg3m IS NOT NULL
+            )
+        ''', (team_id, season))
+
+        result = cursor.fetchone()
+        if result and result['avg_opp_fg3m'] is not None:
+            opp_fg3m = float(result['avg_opp_fg3m'])
+            opp_fg3a = float(result['avg_opp_fg3a'])
+            opp_fg3_pct = (opp_fg3m / opp_fg3a * 100) if opp_fg3a > 0 else 0
+
+            # Update team_season_stats
+            cursor.execute('''
+                UPDATE team_season_stats
+                SET opp_fg3m = ?, opp_fg3a = ?, opp_fg3_pct = ?
+                WHERE team_id = ? AND season = ? AND split_type = 'overall'
+            ''', (opp_fg3m, opp_fg3a, opp_fg3_pct, team_id, season))
+
+    logger.info(f"Computed opponent 3PT stats from game logs for {len(teams)} teams")
+
+
+def _compute_3pt_defense_rankings(cursor, season: str):
+    """Compute 3PT defense rankings (lower opp_fg3_pct is better)"""
+    cursor.execute('''
+        SELECT team_id, opp_fg3_pct
+        FROM team_season_stats
+        WHERE season = ? AND split_type = 'overall' AND opp_fg3_pct IS NOT NULL
+        ORDER BY opp_fg3_pct ASC
+    ''', (season,))
+
+    teams = cursor.fetchall()
+    for rank, team in enumerate(teams, start=1):
+        cursor.execute('''
+            UPDATE team_season_stats
+            SET opp_fg3_pct_rank = ?
+            WHERE team_id = ? AND season = ? AND split_type = 'overall'
+        ''', (rank, team['team_id'], season))
+
+    logger.info(f"Computed 3PT defense rankings for {len(teams)} teams")
 
 
 def _update_league_averages(cursor, stats_data: List[Dict], season: str):
