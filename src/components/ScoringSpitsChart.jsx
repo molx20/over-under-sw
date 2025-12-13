@@ -7,7 +7,14 @@
  * Bars: Home (one color) and Away (another color) for each tier
  */
 
+import { useState } from 'react'
+import BarDrilldownPopover from './BarDrilldownPopover'
+
 function ScoringSpitsChart({ teamData, compact = false }) {
+  // Drilldown state
+  const [drilldownOpen, setDrilldownOpen] = useState(false)
+  const [drilldownParams, setDrilldownParams] = useState(null)
+  const [drilldownAnchor, setDrilldownAnchor] = useState(null)
   if (!teamData || !teamData.splits) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 py-8">
@@ -163,6 +170,34 @@ function ScoringSpitsChart({ teamData, compact = false }) {
                               {!hasHomeData && (
                                 <div className="text-yellow-400 text-xs mt-1">⚠ Need 3+ games</div>
                               )}
+                              {homeGames >= 1 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const rect = e.currentTarget.closest('[class*="group"]').getBoundingClientRect()
+                                    setDrilldownParams({
+                                      teamId: teamData.team_id,
+                                      metric: 'scoring',
+                                      dimension: 'defense_tier',
+                                      context: 'home',
+                                      tier: tier,
+                                      paceType: 'actual',
+                                      season: teamData.season || '2025-26',
+                                      barValue: homeValue
+                                    })
+                                    setDrilldownAnchor({ x: rect.left + rect.width / 2, y: rect.bottom })
+                                    setDrilldownOpen(true)
+                                  }}
+                                  className={`mt-2 w-full px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    homeGames >= 3
+                                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                      : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
+                                  }`}
+                                  disabled={homeGames < 1}
+                                >
+                                  View games ({homeGames})
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -195,6 +230,34 @@ function ScoringSpitsChart({ teamData, compact = false }) {
                               <div className="text-gray-300 dark:text-gray-400 text-xs">{awayGames} game{awayGames !== 1 ? 's' : ''}</div>
                               {!hasAwayData && (
                                 <div className="text-yellow-400 text-xs mt-1">⚠ Need 3+ games</div>
+                              )}
+                              {awayGames >= 1 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const rect = e.currentTarget.closest('[class*="group"]').getBoundingClientRect()
+                                    setDrilldownParams({
+                                      teamId: teamData.team_id,
+                                      metric: 'scoring',
+                                      dimension: 'defense_tier',
+                                      context: 'away',
+                                      tier: tier,
+                                      paceType: 'actual',
+                                      season: teamData.season || '2025-26',
+                                      barValue: awayValue
+                                    })
+                                    setDrilldownAnchor({ x: rect.left + rect.width / 2, y: rect.bottom })
+                                    setDrilldownOpen(true)
+                                  }}
+                                  className={`mt-2 w-full px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    awayGames >= 3
+                                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                      : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
+                                  }`}
+                                  disabled={awayGames < 1}
+                                >
+                                  View games ({awayGames})
+                                </button>
                               )}
                             </div>
                           </div>
@@ -248,6 +311,23 @@ function ScoringSpitsChart({ teamData, compact = false }) {
         <span className="sm:hidden"> • </span>
         Minimum 3 games per category for tag generation
       </div>
+
+      {/* Drilldown Popover */}
+      {drilldownParams && (
+        <BarDrilldownPopover
+          isOpen={drilldownOpen}
+          onClose={() => setDrilldownOpen(false)}
+          teamId={drilldownParams.teamId}
+          metric={drilldownParams.metric}
+          dimension={drilldownParams.dimension}
+          context={drilldownParams.context}
+          tier={drilldownParams.tier}
+          paceType={drilldownParams.paceType}
+          season={drilldownParams.season}
+          barValue={drilldownParams.barValue}
+          anchorEl={drilldownAnchor}
+        />
+      )}
     </div>
   )
 }

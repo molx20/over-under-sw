@@ -1,59 +1,60 @@
 /**
- * ScoringVsPaceChart Component
+ * ThreePointScoringVsDefenseChart Component
  *
- * Bar chart showing team scoring by game pace bucket and location.
- * X-axis: Pace buckets (Slow, Normal, Fast)
- * Y-axis: Points per game
- * Bars: Home (one color) and Away (another color) for each bucket
+ * Bar chart showing team 3PT scoring by opponent 3PT defense tier and location.
+ * X-axis: 3PT Defense tiers (Elite, Average, Bad)
+ * Y-axis: Three-point points per game
+ * Bars: Home (blue) and Away (orange) for each tier
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import BarDrilldownPopover from './BarDrilldownPopover'
 
-function ScoringVsPaceChart({ teamData, compact = false }) {
+function ThreePointScoringVsDefenseChart({ teamData, compact = false }) {
   // Drilldown state
   const [drilldownOpen, setDrilldownOpen] = useState(false)
   const [drilldownParams, setDrilldownParams] = useState(null)
   const [drilldownAnchor, setDrilldownAnchor] = useState(null)
-  if (!teamData || !teamData.pace_splits) {
+  if (!teamData || !teamData.splits) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-        No pace splits data available
+        No 3PT scoring splits data available
       </div>
     )
   }
 
-  const { pace_splits, season_avg_ppg, team_abbreviation, projected_pace } = teamData
+  const { splits, season_avg_three_pt_ppg, team_abbreviation, opponent_3pt_def_rank } = teamData
 
-  // Determine which bucket the projected pace falls into
-  const getPaceBucket = (pace) => {
-    if (!pace) return null
-    if (pace < 96.0) return 'slow'
-    if (pace > 101.0) return 'fast'
-    return 'normal'
+  // Determine which tier the opponent falls into
+  const getOpponent3PTTier = (defRank) => {
+    if (!defRank) return null
+    if (defRank >= 1 && defRank <= 10) return 'elite'
+    if (defRank >= 11 && defRank <= 20) return 'average'
+    if (defRank >= 21 && defRank <= 30) return 'bad'
+    return null
   }
 
-  const projectedBucket = getPaceBucket(projected_pace)
+  const opponent3PTTier = getOpponent3PTTier(opponent_3pt_def_rank)
 
   // Extract data for chart
-  const buckets = ['slow', 'normal', 'fast']
-  const bucketLabels = {
-    slow: 'Slow Pace',
-    normal: 'Normal Pace',
-    fast: 'Fast Pace'
+  const tiers = ['elite', 'average', 'bad']
+  const tierLabels = {
+    elite: 'Elite 3PT Def',
+    average: 'Avg 3PT Def',
+    bad: 'Bad 3PT Def'
   }
 
-  // Find all PPG values for Y-axis scaling
+  // Find all 3PT PPG values for Y-axis scaling
   const allValues = []
-  buckets.forEach(bucket => {
-    if (pace_splits[bucket]?.home_ppg) allValues.push(pace_splits[bucket].home_ppg)
-    if (pace_splits[bucket]?.away_ppg) allValues.push(pace_splits[bucket].away_ppg)
+  tiers.forEach(tier => {
+    if (splits[tier]?.home_three_pt_ppg) allValues.push(splits[tier].home_three_pt_ppg)
+    if (splits[tier]?.away_three_pt_ppg) allValues.push(splits[tier].away_three_pt_ppg)
   })
-  if (season_avg_ppg) allValues.push(season_avg_ppg)
+  if (season_avg_three_pt_ppg) allValues.push(season_avg_three_pt_ppg)
 
   // Y-axis domain: always start at 0, max = highest value + 5 padding
   const minValue = 0
-  const maxValue = Math.max(...allValues) + 5
+  const maxValue = allValues.length > 0 ? Math.max(...allValues) + 5 : 50
   const chartRange = maxValue - minValue
 
   // Calculate bar heights as percentages from the bottom (0 to value)
@@ -69,10 +70,10 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
     return (value / chartRange) * 100
   }
 
-  // Check if bucket has sufficient data (at least 3 games)
-  const hasSufficientData = (bucket, location) => {
+  // Check if tier has sufficient data (at least 3 games)
+  const hasSufficientData = (tier, location) => {
     const gamesKey = `${location}_games`
-    return pace_splits[bucket]?.[gamesKey] >= 3
+    return splits[tier]?.[gamesKey] >= 3
   }
 
   return (
@@ -80,10 +81,10 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
       {/* Header */}
       <div className="mb-3 sm:mb-4">
         <h3 className={`${compact ? 'text-sm' : 'text-sm sm:text-base'} font-semibold text-gray-900 dark:text-white`}>
-          Scoring vs Pace
+          3-Point Scoring vs Defense Tiers
         </h3>
         <p className={`${compact ? 'text-xs' : 'text-xs sm:text-sm'} text-gray-500 dark:text-gray-400 mt-1`}>
-          {team_abbreviation} - Season Avg: {season_avg_ppg ? season_avg_ppg.toFixed(1) : 'N/A'} PPG
+          {team_abbreviation} - Season Avg: {season_avg_three_pt_ppg ? season_avg_three_pt_ppg.toFixed(1) : 'N/A'} 3PT PPG
         </p>
       </div>
 
@@ -108,36 +109,36 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
           </div>
 
           {/* Season Average Reference Line */}
-          {season_avg_ppg && (
+          {season_avg_three_pt_ppg && (
             <div
               className="absolute left-0 right-0 border-t-2 border-dashed border-blue-500 dark:border-blue-400 z-10 pointer-events-none"
-              style={{ bottom: `${getLinePosition(season_avg_ppg)}%` }}
+              style={{ bottom: `${getLinePosition(season_avg_three_pt_ppg)}%` }}
             >
               <span className="absolute -top-2 -right-1 text-[10px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 px-1 whitespace-nowrap">
-                Avg: {season_avg_ppg.toFixed(1)}
+                Avg: {season_avg_three_pt_ppg.toFixed(1)}
               </span>
             </div>
           )}
 
           {/* Bar Groups */}
           <div className="relative flex justify-around w-full h-full px-2 sm:px-3 md:px-4">
-            {buckets.map((bucket) => {
-              const homeValue = pace_splits[bucket]?.home_ppg
-              const awayValue = pace_splits[bucket]?.away_ppg
-              const homeGames = pace_splits[bucket]?.home_games || 0
-              const awayGames = pace_splits[bucket]?.away_games || 0
+            {tiers.map((tier) => {
+              const homeValue = splits[tier]?.home_three_pt_ppg
+              const awayValue = splits[tier]?.away_three_pt_ppg
+              const homeGames = splits[tier]?.home_games || 0
+              const awayGames = splits[tier]?.away_games || 0
               const homeHeight = getBarHeight(homeValue)
               const awayHeight = getBarHeight(awayValue)
-              const hasHomeData = hasSufficientData(bucket, 'home')
-              const hasAwayData = hasSufficientData(bucket, 'away')
+              const hasHomeData = hasSufficientData(tier, 'home')
+              const hasAwayData = hasSufficientData(tier, 'away')
 
-              const isProjectedBucket = projectedBucket === bucket
+              const isOpponentTier = opponent3PTTier === tier
 
               return (
                 <div
-                  key={bucket}
+                  key={tier}
                   className={`flex flex-col items-center flex-1 max-w-[120px] transition-all duration-200 ${
-                    isProjectedBucket ? 'ring-2 ring-yellow-400 dark:ring-yellow-500 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 -mx-1 px-1' : ''
+                    isOpponentTier ? 'ring-2 ring-yellow-400 dark:ring-yellow-500 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 -mx-1 px-1' : ''
                   }`}
                 >
                   {/* Bars Container */}
@@ -164,7 +165,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
                             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 whitespace-nowrap shadow-xl">
                               <div className="font-semibold text-blue-300">Home</div>
-                              <div className="text-lg font-bold">{homeValue.toFixed(1)} PPG</div>
+                              <div className="text-lg font-bold">{homeValue.toFixed(1)} 3PT PPG</div>
                               <div className="text-gray-300 dark:text-gray-400 text-xs">{homeGames} game{homeGames !== 1 ? 's' : ''}</div>
                               {!hasHomeData && (
                                 <div className="text-yellow-400 text-xs mt-1">⚠ Need 3+ games</div>
@@ -176,10 +177,10 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                                     const rect = e.currentTarget.closest('[class*="group"]').getBoundingClientRect()
                                     setDrilldownParams({
                                       teamId: teamData.team_id,
-                                      metric: 'scoring',
-                                      dimension: 'pace_bucket',
+                                      metric: 'threept',
+                                      dimension: 'threept_def_tier',
                                       context: 'home',
-                                      bucket: bucket,
+                                      tier: tier,
                                       paceType: 'actual',
                                       season: teamData.season || '2025-26',
                                       barValue: homeValue
@@ -225,7 +226,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
                             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 whitespace-nowrap shadow-xl">
                               <div className="font-semibold text-orange-300">Away</div>
-                              <div className="text-lg font-bold">{awayValue.toFixed(1)} PPG</div>
+                              <div className="text-lg font-bold">{awayValue.toFixed(1)} 3PT PPG</div>
                               <div className="text-gray-300 dark:text-gray-400 text-xs">{awayGames} game{awayGames !== 1 ? 's' : ''}</div>
                               {!hasAwayData && (
                                 <div className="text-yellow-400 text-xs mt-1">⚠ Need 3+ games</div>
@@ -237,10 +238,10 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                                     const rect = e.currentTarget.closest('[class*="group"]').getBoundingClientRect()
                                     setDrilldownParams({
                                       teamId: teamData.team_id,
-                                      metric: 'scoring',
-                                      dimension: 'pace_bucket',
+                                      metric: 'threept',
+                                      dimension: 'threept_def_tier',
                                       context: 'away',
-                                      bucket: bucket,
+                                      tier: tier,
                                       paceType: 'actual',
                                       season: teamData.season || '2025-26',
                                       barValue: awayValue
@@ -267,13 +268,13 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
 
                   {/* X-axis label */}
                   <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-center text-gray-700 dark:text-gray-300 font-medium px-0.5 sm:px-1">
-                    <div className="font-semibold leading-tight">{bucketLabels[bucket]}</div>
+                    <div className="font-semibold leading-tight">{tierLabels[tier]}</div>
                     <div className="text-gray-500 dark:text-gray-400 text-[9px] sm:text-xs mt-0.5 leading-tight">
-                      ({bucket === 'slow' ? '<96' : bucket === 'fast' ? '>101' : '96-101'} poss/48)
+                      (Ranks {tier === 'elite' ? '1-10' : tier === 'average' ? '11-20' : '21-30'})
                     </div>
-                    {isProjectedBucket && projected_pace && (
+                    {isOpponentTier && opponent_3pt_def_rank && (
                       <div className="mt-1 px-1 sm:px-2 py-0.5 bg-yellow-400 dark:bg-yellow-500 text-yellow-900 dark:text-yellow-950 text-[9px] sm:text-xs font-semibold rounded">
-                        Proj ({projected_pace.toFixed(1)})
+                        Opp (#{opponent_3pt_def_rank})
                       </div>
                     )}
                   </div>
@@ -305,7 +306,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
 
       {/* Info note */}
       <div className="mt-3 sm:mt-4 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 text-center leading-relaxed">
-        Pace buckets based on game pace (possessions per 48 minutes)
+        3PT Defense tiers based on opponent 3PT% allowed rank (1-30)
         <br className="hidden sm:block" />
         <span className="sm:hidden"> • </span>
         Minimum 3 games per category for reliable data
@@ -320,7 +321,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
           metric={drilldownParams.metric}
           dimension={drilldownParams.dimension}
           context={drilldownParams.context}
-          bucket={drilldownParams.bucket}
+          tier={drilldownParams.tier}
           paceType={drilldownParams.paceType}
           season={drilldownParams.season}
           barValue={drilldownParams.barValue}
@@ -331,4 +332,4 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
   )
 }
 
-export default ScoringVsPaceChart
+export default ThreePointScoringVsDefenseChart

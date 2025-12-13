@@ -1,8 +1,9 @@
 import GlassTooltip from './GlassTooltip'
 import './GlassTooltip.css'
 import { formatDelta, shouldInvertColors } from '../utils/formatHelpers.jsx'
+import { getOffenseHeat, getRestStatus } from '../utils/predictionHelpers'
 
-function Last5TrendsCard({ teamAbbr, trends, side }) {
+function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
   // Handle missing or empty trends data
   if (!trends || !trends.games || trends.games.length === 0) {
     return (
@@ -31,6 +32,17 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
     ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
     : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
 
+  // Calculate heat check
+  const heatStatus = getOffenseHeat(
+    averages?.ppg || 0,
+    seasonPPG || 0
+  )
+
+  // Get rest status from prediction
+  const restStatus = getRestStatus(
+    side === 'home' ? prediction?.back_to_back_debug?.home : prediction?.back_to_back_debug?.away
+  )
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
       {/* Header */}
@@ -41,6 +53,49 @@ function Last5TrendsCard({ teamAbbr, trends, side }) {
         <span className={`px-2 py-1 text-xs font-medium rounded ${qualityBadgeClass}`}>
           {games.length} {games.length === 1 ? 'game' : 'games'}
         </span>
+      </div>
+
+      {/* NEW: Heat Check & Rest Status Row */}
+      <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+        {/* Offense Heat Check */}
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1 font-semibold">
+            OFFENSE HEAT
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">{heatStatus.icon}</span>
+            <span className={`text-sm font-bold ${
+              heatStatus.color === 'red' ? 'text-red-600 dark:text-red-400' :
+              heatStatus.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+              'text-gray-600 dark:text-gray-400'
+            }`}>
+              {heatStatus.label}
+            </span>
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            {heatStatus.description}
+          </div>
+        </div>
+
+        {/* Rest Status */}
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1 font-semibold">
+            REST STATUS
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+              restStatus.color === 'red' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+              restStatus.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
+              'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+            }`}>
+              {restStatus.label}
+            </span>
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            {restStatus.days} days rest
+            {restStatus.warning && ' ⚠️'}
+          </div>
+        </div>
       </div>
 
       {/* Averages vs Season */}
