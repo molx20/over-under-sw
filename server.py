@@ -2657,7 +2657,8 @@ def get_similar_opponent_boxscores(game_id):
                 'cluster_label': home_data['cluster_name'],
                 'cluster_description': home_data['cluster_description'],
                 'similar_teams': home_data['similar_teams'],
-                'sample': home_data['sample']
+                'sample': home_data['sample'],
+                'season_avg': home_data.get('season_avg', {})
             },
             'away_team': {
                 'team_id': away_data['subject_team_id'],
@@ -2667,7 +2668,8 @@ def get_similar_opponent_boxscores(game_id):
                 'cluster_label': away_data['cluster_name'],
                 'cluster_description': away_data['cluster_description'],
                 'similar_teams': away_data['similar_teams'],
-                'sample': away_data['sample']
+                'sample': away_data['sample'],
+                'season_avg': away_data.get('season_avg', {})
             }
         }
 

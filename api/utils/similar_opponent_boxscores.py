@@ -449,7 +449,13 @@ def get_similar_opponent_boxscores(
             response['sample']['summary']['avg_second_chance'] = round(total_second_chance / games_played, 1)
 
         # Step 6: Add season averages for comparison
-        response['season_avg'] = get_team_season_averages(nba_cursor, subject_team_id, season)
+        try:
+            season_avg_data = get_team_season_averages(nba_cursor, subject_team_id, season)
+            response['season_avg'] = season_avg_data
+            print(f"[SimilarOpponentBoxScores] Season avg for team {subject_team_id}: {len(season_avg_data)} stats")
+        except Exception as e:
+            print(f"[SimilarOpponentBoxScores] Error getting season avg: {e}")
+            response['season_avg'] = {}
 
         return response
 
