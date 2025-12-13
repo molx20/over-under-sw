@@ -23,6 +23,7 @@ from api.utils import team_ratings_model
 from api.utils import team_rankings
 from api.utils import db_queries
 from api.utils.performance import create_timing_middleware
+from api.utils.matchup_summary_cache import get_or_generate_summary
 import json
 import os
 
@@ -441,6 +442,12 @@ def get_games():
             # Convert to format expected by frontend
             games = []
             for row in rows:
+                # Extract game_type safely (column may not exist in old data)
+                try:
+                    game_type = row['game_type'] if row['game_type'] else 'Unknown'
+                except (KeyError, IndexError):
+                    game_type = 'Unknown'
+
                 games.append({
                     'game_id': row['game_id'],
                     'game_date': row['game_date'],
@@ -451,9 +458,38 @@ def get_games():
                     'away_team_id': row['away_team_id'],
                     'away_team_name': row['away_team_name'],
                     'away_team_score': row['away_team_score'] or 0,
+                    'game_type': game_type,
                 })
 
             print(f'[games] Loaded {len(games)} games from database for {selected_date}')
+
+            # Apply game filtering if enabled (Regular Season + NBA Cup only)
+            filter_mode = os.environ.get('GAME_FILTER_MODE', 'DISABLED')
+            if filter_mode == 'REGULAR_PLUS_ALL_CUP':
+                from api.utils.game_classifier import filter_eligible_games
+
+                unfiltered_count = len(games)
+                filter_result = filter_eligible_games(games)
+                games = filter_result['filtered_games']
+                stats = filter_result['stats']
+
+                # Comprehensive logging
+                print(f'[games] FILTER ENABLED: {filter_mode}')
+                print(f'[games]   Unfiltered: {stats["unfiltered_count"]}')
+                print(f'[games]   Filtered: {stats["filtered_count"]}')
+                print(f'[games]   Regular Season: {stats["regular_season_count"]}')
+                print(f'[games]   NBA Cup: {stats["nba_cup_count"]}')
+                print(f'[games]   Excluded: {stats["excluded_count"]}')
+                if stats['excluded_types']:
+                    for game_type, count in stats['excluded_types'].items():
+                        print(f'[games]     - {game_type}: {count}')
+
+                # Log date range of filtered games
+                if games:
+                    dates = [g['game_date'] for g in games]
+                    print(f'[games]   Date range: {min(dates)} to {max(dates)}')
+            else:
+                print(f'[games] FILTER DISABLED (mode: {filter_mode})')
 
         games_with_predictions = []
         for game in games:
@@ -564,6 +600,65 @@ def game_detail():
         home_opp = matchup_data['home'].get('opponent') or {}
         away_opp = matchup_data['away'].get('opponent') or {}
 
+        # Generate or retrieve cached matchup summary (cache-first logic)
+        print(f'[game_detail] Generating matchup summary for game {game_id}')
+        matchup_summary = get_or_generate_summary(
+            game_id=game_id,
+            prediction=prediction,
+            matchup_data=matchup_data,
+            home_team=home_team_info,
+            away_team=away_team_info
+        )
+
+        # Get recent games with ALL fields needed for War Room
+        home_recent_games_full = matchup_data['home'].get('recent_games', [])[:10]
+        away_recent_games_full = matchup_data['away'].get('recent_games', [])[:10]
+
+        # Calculate advanced stats from game logs for War Room indicators
+        def calculate_advanced_stats_from_games(all_games):
+            """Calculate paint pts, assist%, and turnover% from game logs"""
+            if not all_games or len(all_games) == 0:
+                return {
+                    'paint_pts_per_game': 0,
+                    'ast_pct': 0,
+                    'tov_pct': 0
+                }
+
+            # Use all available games for season averages
+            paint_pts = [g.get('PTS_PAINT', 0) or 0 for g in all_games if g.get('PTS_PAINT')]
+            assists = [g.get('AST', 0) or 0 for g in all_games if g.get('AST')]
+            turnovers = [g.get('TOV', 0) or 0 for g in all_games if g.get('TOV')]
+            fg_made = [g.get('FGM', 0) or 0 for g in all_games if g.get('FGM')]
+
+            avg_paint = sum(paint_pts) / len(paint_pts) if paint_pts else 0
+            avg_ast = sum(assists) / len(assists) if assists else 0
+            avg_tov = sum(turnovers) / len(turnovers) if turnovers else 0
+            avg_fgm = sum(fg_made) / len(fg_made) if fg_made else 0
+
+            # Simplified percentage calculations (actual formula is more complex)
+            ast_pct = (avg_ast / (avg_fgm + 0.0001)) * 100  # Avoid division by zero
+            tov_pct = (avg_tov / (avg_fgm + avg_tov + 0.0001)) * 100
+
+            return {
+                'paint_pts_per_game': round(avg_paint, 1),
+                'ast_pct': round(ast_pct, 1),
+                'tov_pct': round(tov_pct, 1)
+            }
+
+        home_advanced = calculate_advanced_stats_from_games(matchup_data['home'].get('recent_games', []))
+        away_advanced = calculate_advanced_stats_from_games(matchup_data['away'].get('recent_games', []))
+
+        # Calculate scoring environment (deterministic classification)
+        from api.utils.scoring_environment import calculate_scoring_environment
+        scoring_environment = calculate_scoring_environment(
+            home_pace=home_adv.get('PACE', 100),
+            away_pace=away_adv.get('PACE', 100),
+            home_ortg=home_adv.get('OFF_RATING', 105),
+            away_ortg=away_adv.get('OFF_RATING', 105),
+            home_3p_pct=home_overall.get('FG3_PCT', 0) * 100 if home_overall.get('FG3_PCT') else None,
+            away_3p_pct=away_overall.get('FG3_PCT', 0) * 100 if away_overall.get('FG3_PCT') else None
+        )
+
         response = {
             'success': True,
             'home_team': {
@@ -577,51 +672,89 @@ def game_detail():
                 'abbreviation': away_team_info.get('abbreviation', 'AWY'),
             },
             'prediction': prediction,
+            'matchup_summary': matchup_summary,
+            'scoring_environment': scoring_environment,
             'home_stats': {
-                'overall': {
-                    'ppg': round(home_overall.get('PTS', 0), 1),
-                    'fg_pct': round(home_overall.get('FG_PCT', 0) * 100, 1),
-                    'fg3_pct': round(home_overall.get('FG3_PCT', 0) * 100, 1),
-                    'ft_pct': round(home_overall.get('FT_PCT', 0) * 100, 1),
-                    'opp_ppg': round(home_opp.get('OPP_PTS', 0), 1),
-                    'wins': home_overall.get('W', 0),
-                    'losses': home_overall.get('L', 0),
-                    'ortg': round(home_adv.get('OFF_RATING', 0), 1),
-                    'drtg': round(home_adv.get('DEF_RATING', 0), 1),
-                    'pace': round(home_adv.get('PACE', 0), 1),
-                    'net_rtg': round(home_adv.get('NET_RATING', 0), 1),
-                }
+                # Use field names that match frontend expectations
+                'ppg': round(home_overall.get('PTS', 0), 1),
+                'fg_pct': round(home_overall.get('FG_PCT', 0) * 100, 1),
+                'fg3_pct': round(home_overall.get('FG3_PCT', 0) * 100, 1),
+                'ft_pct': round(home_overall.get('FT_PCT', 0) * 100, 1),
+                'opp_ppg': round(home_opp.get('OPP_PTS', 0), 1),
+                'opp_fg3_pct': round(home_opp.get('OPP_FG3_PCT', 0) * 100, 1) if home_opp.get('OPP_FG3_PCT') else 0,
+                'opp_paint_pts_per_game': home_advanced.get('paint_pts_per_game', 0),  # From game logs
+                'wins': home_overall.get('W', 0),
+                'losses': home_overall.get('L', 0),
+                'off_rating': round(home_adv.get('OFF_RATING', 0), 1),  # Changed from 'ortg'
+                'def_rating': round(home_adv.get('DEF_RATING', 0), 1),  # Changed from 'drtg'
+                'pace': round(home_adv.get('PACE', 0), 1),
+                'net_rtg': round(home_adv.get('NET_RATING', 0), 1),
+                'ast': round(home_overall.get('AST', 0), 1),
+                'tov': round(home_overall.get('TOV', 0), 1),
+                'fga': round(home_overall.get('FGA', 0), 1),
+                'fta': round(home_overall.get('FTA', 0), 1),
+                'fg3a': round(home_overall.get('FG3A', 0), 1),
+                # Additional fields for MatchupIndicators
+                'fg3a_per_game': round(home_overall.get('FG3A', 0), 1),
+                'fta_per_game': round(home_overall.get('FTA', 0), 1),
+                'paint_pts_per_game': home_advanced.get('paint_pts_per_game', 0),
+                'ast_pct': home_advanced.get('ast_pct', 0),
+                'tov_pct': home_advanced.get('tov_pct', 0),
             },
             'away_stats': {
-                'overall': {
-                    'ppg': round(away_overall.get('PTS', 0), 1),
-                    'fg_pct': round(away_overall.get('FG_PCT', 0) * 100, 1),
-                    'fg3_pct': round(away_overall.get('FG3_PCT', 0) * 100, 1),
-                    'ft_pct': round(away_overall.get('FT_PCT', 0) * 100, 1),
-                    'opp_ppg': round(away_opp.get('OPP_PTS', 0), 1),
-                    'wins': away_overall.get('W', 0),
-                    'losses': away_overall.get('L', 0),
-                    'ortg': round(away_adv.get('OFF_RATING', 0), 1),
-                    'drtg': round(away_adv.get('DEF_RATING', 0), 1),
-                    'pace': round(away_adv.get('PACE', 0), 1),
-                    'net_rtg': round(away_adv.get('NET_RATING', 0), 1),
-                }
+                # Use field names that match frontend expectations
+                'ppg': round(away_overall.get('PTS', 0), 1),
+                'fg_pct': round(away_overall.get('FG_PCT', 0) * 100, 1),
+                'fg3_pct': round(away_overall.get('FG3_PCT', 0) * 100, 1),
+                'ft_pct': round(away_overall.get('FT_PCT', 0) * 100, 1),
+                'opp_ppg': round(away_opp.get('OPP_PTS', 0), 1),
+                'opp_fg3_pct': round(away_opp.get('OPP_FG3_PCT', 0) * 100, 1) if away_opp.get('OPP_FG3_PCT') else 0,
+                'opp_paint_pts_per_game': away_advanced.get('paint_pts_per_game', 0),  # From game logs
+                'wins': away_overall.get('W', 0),
+                'losses': away_overall.get('L', 0),
+                'off_rating': round(away_adv.get('OFF_RATING', 0), 1),  # Changed from 'ortg'
+                'def_rating': round(away_adv.get('DEF_RATING', 0), 1),  # Changed from 'drtg'
+                'pace': round(away_adv.get('PACE', 0), 1),
+                'net_rtg': round(away_adv.get('NET_RATING', 0), 1),
+                'ast': round(away_overall.get('AST', 0), 1),
+                'tov': round(away_overall.get('TOV', 0), 1),
+                'fga': round(away_overall.get('FGA', 0), 1),
+                'fta': round(away_overall.get('FTA', 0), 1),
+                'fg3a': round(away_overall.get('FG3A', 0), 1),
+                # Additional fields for MatchupIndicators
+                'fg3a_per_game': round(away_overall.get('FG3A', 0), 1),
+                'fta_per_game': round(away_overall.get('FTA', 0), 1),
+                'paint_pts_per_game': away_advanced.get('paint_pts_per_game', 0),
+                'ast_pct': away_advanced.get('ast_pct', 0),
+                'tov_pct': away_advanced.get('tov_pct', 0),
             },
             'home_recent_games': [
                 {
                     'matchup': game.get('MATCHUP', ''),
-                    'total': game.get('PTS', 0),
+                    'team_pts': game.get('PTS', 0),
+                    'opp_pts': game.get('OPP_PTS', 0),
                     'result': game.get('WL', ''),
+                    'off_rating': game.get('OFF_RATING', 0),
+                    'def_rating': game.get('DEF_RATING', 0),
+                    'pace': game.get('PACE', 0),
+                    'fg3_pct': game.get('FG3_PCT', 0) * 100 if game.get('FG3_PCT') else 0,
+                    'game_date': game.get('GAME_DATE', ''),
                 }
-                for game in matchup_data['home'].get('recent_games', [])[:5]
+                for game in home_recent_games_full
             ],
             'away_recent_games': [
                 {
                     'matchup': game.get('MATCHUP', ''),
-                    'total': game.get('PTS', 0),
+                    'team_pts': game.get('PTS', 0),
+                    'opp_pts': game.get('OPP_PTS', 0),
                     'result': game.get('WL', ''),
+                    'off_rating': game.get('OFF_RATING', 0),
+                    'def_rating': game.get('DEF_RATING', 0),
+                    'pace': game.get('PACE', 0),
+                    'fg3_pct': game.get('FG3_PCT', 0) * 100 if game.get('FG3_PCT') else 0,
+                    'game_date': game.get('GAME_DATE', ''),
                 }
-                for game in matchup_data['away'].get('recent_games', [])[:5]
+                for game in away_recent_games_full
             ],
         }
 

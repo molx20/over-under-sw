@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import StatsTable from '../components/StatsTable'
-import Last5TrendsCard from '../components/Last5TrendsCard'
-import IdentityTags from '../components/IdentityTags'
-import ScoringSpitsChart from '../components/ScoringSpitsChart'
-import ScoringVsPaceChart from '../components/ScoringVsPaceChart'
+import MatchupDNA from '../components/MatchupDNA'
+import PredictionPanel from '../components/PredictionPanel'
+import Last5GamesPanel from '../components/Last5GamesPanel'
+import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
+import MatchupSimilarityCard from '../components/MatchupSimilarityCard'
+import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
 import IdentityGlossary from '../components/IdentityGlossary'
-import { useGameDetail, useGameScoringSplits } from '../utils/api'
+import PostGameReviewModal from '../components/PostGameReviewModal'
+import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace } from '../utils/api'
 
 function GamePage() {
   const { gameId } = useParams()
@@ -14,6 +17,13 @@ function GamePage() {
   const [bettingLine, setBettingLine] = useState('')
   const [customBettingLine, setCustomBettingLine] = useState(null)
   const [showGlossary, setShowGlossary] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+
+  // Tab state for main content sections
+  const [activeTab, setActiveTab] = useState('prediction') // 'prediction' | 'dna' | 'last5' | 'splits'
+
+  // Stats table collapse state (mobile only)
+  const [statsCollapsed, setStatsCollapsed] = useState(false)
 
   // Use React Query for automatic caching and loading states
   const {
@@ -30,6 +40,30 @@ function GamePage() {
     data: scoringSplitsData,
     isLoading: splitsLoading,
   } = useGameScoringSplits(gameId, '2025-26')
+
+  // Fetch 3PT scoring splits for both teams
+  const {
+    data: threePtSplitsData,
+    isLoading: threePtSplitsLoading,
+  } = useGameThreePointScoringSplits(gameId, '2025-26')
+
+  // Fetch 3PT scoring vs pace for both teams
+  const {
+    data: threePtVsPaceData,
+    isLoading: threePtVsPaceLoading,
+  } = useGameThreePointScoringVsPace(gameId, '2025-26')
+
+  // Fetch turnover vs defense pressure for both teams
+  const {
+    data: turnoverVsDefenseData,
+    isLoading: turnoverVsDefenseLoading,
+  } = useGameTurnoverVsDefensePressure(gameId, '2025-26')
+
+  // Fetch turnover vs pace for both teams
+  const {
+    data: turnoverVsPaceData,
+    isLoading: turnoverVsPaceLoading,
+  } = useGameTurnoverVsPace(gameId, '2025-26')
 
   const handleCalculatePrediction = () => {
     const line = parseFloat(bettingLine)
@@ -48,9 +82,12 @@ function GamePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Generating prediction...</p>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">Fetching NBA stats and generating prediction</p>
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-600">This usually takes 15-60 seconds. If it times out, try clicking again - it may work from cache.</p>
+          <div className="mt-6 space-y-2">
+            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">Analyzing matchup…</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Reading team stats, trends, and playstyle profiles.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">This usually takes 10–20 seconds.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">If it takes longer, reload — cached data may load instantly.</p>
+          </div>
         </div>
       </div>
     )
@@ -83,7 +120,7 @@ function GamePage() {
     )
   }
 
-  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team } = gameData
+  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -137,34 +174,126 @@ function GamePage() {
         </div>
       </div>
 
-      {/* Prediction Summary */}
-      {prediction && prediction.betting_line && (
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white">
-          <div className="text-center">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
-            <p className="text-sm sm:text-base md:text-lg opacity-90 mb-4 sm:mb-0">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
-            <div className="flex flex-col sm:flex-row justify-center items-center sm:space-x-8 space-y-4 sm:space-y-0 mt-4 sm:mt-6">
-              <div>
-                <div className="text-xs sm:text-sm opacity-80 mb-1">Betting Line</div>
-                <div className="text-3xl sm:text-4xl font-bold">{prediction.betting_line}</div>
+      {/* Game Matchup Header with Scoring Environment */}
+      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-4 sm:p-6 mb-6 text-white">
+        <div className="text-center">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{away_team?.abbreviation || 'Away'} @ {home_team?.abbreviation || 'Home'}</h1>
+          <p className="text-sm sm:text-base opacity-90 mb-4">{away_team?.name || 'Away Team'} at {home_team?.name || 'Home Team'}</p>
+
+          {/* Scoring Environment Label */}
+          {scoring_environment && (
+            <div className="inline-block bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-white/80 mb-1">
+                Scoring Environment
               </div>
-              <div className="text-3xl sm:text-4xl opacity-50 rotate-90 sm:rotate-0">→</div>
-              <div>
-                <div className="text-xs sm:text-sm opacity-80 mb-1">Predicted Total</div>
-                <div className="text-3xl sm:text-4xl font-bold">{prediction.predicted_total}</div>
+              <div className={`text-2xl font-bold ${
+                scoring_environment === 'HIGH' ? 'text-green-300' :
+                scoring_environment === 'LOW' ? 'text-red-300' :
+                'text-gray-300'
+              }`}>
+                {scoring_environment}
               </div>
             </div>
-            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-6">
-              <div className={`px-6 sm:px-8 py-2 sm:py-3 rounded-full text-xl sm:text-2xl font-bold ${
-                prediction.recommendation === 'OVER' ? 'bg-green-500' :
-                prediction.recommendation === 'UNDER' ? 'bg-red-500' : 'bg-yellow-500'
-              }`}>
-                {prediction.recommendation}
+          )}
+        </div>
+      </div>
+
+      {/* Matchup Summary Section (shows after betting line entered) */}
+      {prediction && prediction.betting_line && matchup_summary && (
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white">
+          <div className="text-center">
+
+            {/* Matchup Summary Section */}
+            <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
+              <div className="flex items-center justify-center mb-3">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="text-base sm:text-lg font-semibold">Matchup Summary</h3>
               </div>
-              <div>
-                <div className="text-xs sm:text-sm opacity-80">Confidence</div>
-                <div className="text-2xl sm:text-3xl font-bold">{prediction.confidence}%</div>
-              </div>
+
+              {matchup_summary && matchup_summary.matchup_dna_summary ? (
+                <p className="text-sm sm:text-base leading-relaxed text-white/90 text-left max-w-4xl mx-auto">
+                  {matchup_summary.matchup_dna_summary.text}
+                </p>
+              ) : isFetching ? (
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  <p className="text-sm text-white/80">Building matchup summary…</p>
+                </div>
+              ) : (
+                <p className="text-sm text-white/70 italic">
+                  Matchup summary not available for this game yet.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="mt-6 sm:mt-8 pt-6 border-t border-white/20">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setActiveTab('prediction')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'prediction'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Prediction
+              </button>
+              <button
+                onClick={() => setActiveTab('dna')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'dna'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Matchup DNA
+              </button>
+              <button
+                onClick={() => setActiveTab('last5')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'last5'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Last 5 Games
+              </button>
+              <button
+                onClick={() => setActiveTab('splits')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'splits'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Advanced Splits
+              </button>
+              {prediction.similarity && (
+                <button
+                  onClick={() => setActiveTab('similarity')}
+                  className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                    activeTab === 'similarity'
+                      ? 'bg-white text-primary-700 shadow-lg'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Similarity
+                </button>
+              )}
+              <button
+                onClick={() => setActiveTab('similar-opponents')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'similar-opponents'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Similar Opponents
+              </button>
             </div>
           </div>
         </div>
@@ -182,258 +311,209 @@ function GamePage() {
                 <div className="text-4xl sm:text-5xl font-bold">{prediction.predicted_total}</div>
               </div>
             </div>
-            <div className="mt-4 sm:mt-6">
+            <div className="mt-4 sm:mt-6 space-y-2">
               <p className="text-xs sm:text-sm opacity-80">Enter a betting line above to get a recommendation</p>
+              <button
+                onClick={() => setShowReviewModal(true)}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 mx-auto"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Upload Final Score
+              </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Stats Comparison */}
-      <div className="mb-8">
-        <StatsTable
-          homeStats={home_stats}
-          awayStats={away_stats}
-          homeTeam={home_team?.abbreviation || 'Home'}
-          awayTeam={away_team?.abbreviation || 'Away'}
-          homeTeamId={home_team?.id}
-          awayTeamId={away_team?.id}
-        />
-      </div>
-
-      {/* Prediction Breakdown */}
-      {prediction && prediction.breakdown && prediction.factors && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Prediction Breakdown</h3>
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Home Projected ({home_team?.abbreviation || 'Home'})</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.home_projected || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Away Projected ({away_team?.abbreviation || 'Away'})</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.away_projected || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Game Pace</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.breakdown?.game_pace || 'N/A'}</span>
-              </div>
-              {prediction.betting_line && prediction.breakdown?.difference !== undefined && (
-                <div className="flex justify-between pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 text-sm sm:text-base">
-                  <span className="text-gray-600 dark:text-gray-400">Total Difference</span>
-                  <span className={`font-bold ${prediction.breakdown.difference > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {prediction.breakdown.difference > 0 ? '+' : ''}{prediction.breakdown.difference}
-                  </span>
-                </div>
+          {/* Tab Navigation */}
+          <div className="mt-6 sm:mt-8 pt-6 border-t border-white/20">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setActiveTab('prediction')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'prediction'
+                    ? 'bg-white text-gray-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Prediction
+              </button>
+              <button
+                onClick={() => setActiveTab('dna')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'dna'
+                    ? 'bg-white text-gray-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Matchup DNA
+              </button>
+              <button
+                onClick={() => setActiveTab('last5')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'last5'
+                    ? 'bg-white text-gray-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Last 5 Games
+              </button>
+              <button
+                onClick={() => setActiveTab('splits')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'splits'
+                    ? 'bg-white text-gray-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Advanced Splits
+              </button>
+              {prediction.similarity && (
+                <button
+                  onClick={() => setActiveTab('similarity')}
+                  className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                    activeTab === 'similarity'
+                      ? 'bg-white text-gray-700 shadow-lg'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Similarity
+                </button>
               )}
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Key Factors</h3>
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Home Team Pace ({home_team?.abbreviation || 'Home'})</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.home_pace ? prediction.factors.home_pace.toFixed(1) : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Away Team Pace ({away_team?.abbreviation || 'Away'})</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.away_pace ? prediction.factors.away_pace.toFixed(1) : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Projected Game Pace</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{prediction.factors?.game_pace || 'N/A'}</span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Last 5 Game Trends */}
-      {(prediction?.home_last5_trends || prediction?.away_last5_trends) && (
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Last 5 Game Trends
-          </h2>
+      {/* Stats Comparison - Collapsible on mobile */}
+      <div className="mb-8">
+        {/* Mobile toggle button */}
+        <button
+          onClick={() => setStatsCollapsed(!statsCollapsed)}
+          className="md:hidden w-full flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-3 text-gray-900 dark:text-white font-semibold"
+        >
+          <span>Team Statistics Comparison</span>
+          <svg
+            className={`w-5 h-5 transition-transform ${statsCollapsed ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-          {/* Trend Adjustment Summary */}
-          {prediction?.trend_adjustment && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">Trend Adjustment:</span>{' '}
-                  {prediction.trend_adjustment.explanation}
-                </p>
-                <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                  {prediction.trend_adjustment.total_adjustment > 0 ? '+' : ''}
-                  {prediction.trend_adjustment.total_adjustment} pts
-                </span>
-              </div>
+        {/* Stats table - hidden on mobile when collapsed, always visible on desktop */}
+        <div className={`${statsCollapsed ? 'hidden md:block' : 'block'}`}>
+          <StatsTable
+            homeStats={home_stats}
+            awayStats={away_stats}
+            homeTeam={home_team?.abbreviation || 'Home'}
+            awayTeam={away_team?.abbreviation || 'Away'}
+            homeTeamId={home_team?.id}
+            awayTeamId={away_team?.id}
+          />
+        </div>
+      </div>
+
+      {/* Tab Content Panels */}
+      {prediction && (
+        <>
+          {/* Prediction Tab */}
+          {activeTab === 'prediction' && (
+            <div className="mb-6 sm:mb-8">
+              <PredictionPanel
+                prediction={prediction}
+                homeTeam={home_team}
+                awayTeam={away_team}
+                homeStats={home_stats}
+                awayStats={away_stats}
+              />
             </div>
           )}
 
-          {/* Side-by-side cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {prediction?.away_last5_trends && (
-              <Last5TrendsCard
-                teamAbbr={away_team?.abbreviation}
-                trends={prediction.away_last5_trends}
-                side="away"
+          {/* Matchup DNA Tab */}
+          {activeTab === 'dna' && (
+            <div className="mb-6 sm:mb-8">
+              <MatchupDNA
+                matchupSummary={matchup_summary}
+                homeTeam={home_team}
+                awayTeam={away_team}
               />
-            )}
-            {prediction?.home_last5_trends && (
-              <Last5TrendsCard
-                teamAbbr={home_team?.abbreviation}
-                trends={prediction.home_last5_trends}
-                side="home"
+            </div>
+          )}
+
+          {/* Last 5 Games Tab */}
+          {activeTab === 'last5' && (
+            <div className="mb-6 sm:mb-8">
+              <Last5GamesPanel
+                prediction={prediction}
+                homeTeam={home_team}
+                awayTeam={away_team}
               />
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+
+          {/* Advanced Splits Tab */}
+          {activeTab === 'splits' && (
+            <div className="mb-6 sm:mb-8">
+              <AdvancedSplitsPanel
+                scoringSplitsData={scoringSplitsData}
+                threePtSplitsData={threePtSplitsData}
+                threePtVsPaceData={threePtVsPaceData}
+                turnoverVsDefenseData={turnoverVsDefenseData}
+                turnoverVsPaceData={turnoverVsPaceData}
+                splitsLoading={splitsLoading}
+                threePtSplitsLoading={threePtSplitsLoading}
+                threePtVsPaceLoading={threePtVsPaceLoading}
+                turnoverVsDefenseLoading={turnoverVsDefenseLoading}
+                turnoverVsPaceLoading={turnoverVsPaceLoading}
+                onShowGlossary={() => setShowGlossary(true)}
+              />
+            </div>
+          )}
+
+          {/* Similarity Tab */}
+          {activeTab === 'similarity' && prediction.similarity && (
+            <div className="mb-6 sm:mb-8">
+              <MatchupSimilarityCard
+                prediction={prediction}
+                homeTeam={home_team?.abbreviation || 'Home'}
+                awayTeam={away_team?.abbreviation || 'Away'}
+              />
+            </div>
+          )}
+
+          {/* Similar Opponents Tab */}
+          {activeTab === 'similar-opponents' && (
+            <div className="mb-6 sm:mb-8">
+              <SimilarOpponentBoxScores gameId={gameId} />
+            </div>
+          )}
+        </>
       )}
 
-      {/* Defense-Adjusted Scoring Splits */}
-      {scoringSplitsData && (
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                Defense-Adjusted Scoring Splits
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                How each team scores against elite, average, and bad defenses at home and on the road
-              </p>
-            </div>
-            <button
-              onClick={() => setShowGlossary(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="hidden sm:inline">Glossary</span>
-            </button>
-          </div>
-
-          {/* Identity Tags */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Away Team Tags */}
-            {scoringSplitsData.away_team && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                  {scoringSplitsData.away_team.team_abbreviation} Identity
-                </h3>
-                {scoringSplitsData.away_team.identity_tags && scoringSplitsData.away_team.identity_tags.length > 0 ? (
-                  <IdentityTags
-                    tags={scoringSplitsData.away_team.identity_tags}
-                    teamAbbr={scoringSplitsData.away_team.team_abbreviation}
-                    showTooltip={true}
-                  />
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No distinctive scoring patterns detected (consistent across contexts)
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Home Team Tags */}
-            {scoringSplitsData.home_team && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                  {scoringSplitsData.home_team.team_abbreviation} Identity
-                </h3>
-                {scoringSplitsData.home_team.identity_tags && scoringSplitsData.home_team.identity_tags.length > 0 ? (
-                  <IdentityTags
-                    tags={scoringSplitsData.home_team.identity_tags}
-                    teamAbbr={scoringSplitsData.home_team.team_abbreviation}
-                    showTooltip={true}
-                  />
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No distinctive scoring patterns detected (consistent across contexts)
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Defense Tier Scoring Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {scoringSplitsData.away_team && (
-              <ScoringSpitsChart
-                teamData={scoringSplitsData.away_team}
-              />
-            )}
-            {scoringSplitsData.home_team && (
-              <ScoringSpitsChart
-                teamData={scoringSplitsData.home_team}
-              />
-            )}
-          </div>
-
-          {/* Pace Bucket Scoring Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
-            {scoringSplitsData.away_team && scoringSplitsData.away_team.pace_splits && (
-              <ScoringVsPaceChart
-                teamData={scoringSplitsData.away_team}
-              />
-            )}
-            {scoringSplitsData.home_team && scoringSplitsData.home_team.pace_splits && (
-              <ScoringVsPaceChart
-                teamData={scoringSplitsData.home_team}
-              />
-            )}
-          </div>
-
-          {/* Loading state */}
-          {splitsLoading && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
-              <p>Loading scoring splits...</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Recent Games */}
-      {(home_recent_games?.length > 0 || away_recent_games?.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {away_recent_games?.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Away Team Recent Games</h3>
-              <div className="space-y-2">
-                {away_recent_games.map((game, index) => (
-                  <div key={index} className="flex flex-col xs:flex-row xs:justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 gap-1 xs:gap-0">
-                    <span className="text-gray-600 dark:text-gray-400">{game.matchup}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">Total: {game.total}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {home_recent_games?.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Home Team Recent Games</h3>
-              <div className="space-y-2">
-                {home_recent_games.map((game, index) => (
-                  <div key={index} className="flex flex-col xs:flex-row xs:justify-between text-sm py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 gap-1 xs:gap-0">
-                    <span className="text-gray-600 dark:text-gray-400">{game.matchup}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">Total: {game.total}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Identity Glossary Modal */}
       <IdentityGlossary
         isOpen={showGlossary}
         onClose={() => setShowGlossary(false)}
+      />
+
+      <PostGameReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        gameData={gameData ? {
+          game_id: gameId,
+          home_team: home_team?.name || 'Home Team',
+          away_team: away_team?.name || 'Away Team',
+          game_date: new Date().toISOString().split('T')[0], // Use today's date as fallback
+          prediction: {
+            ...prediction,
+            // Override with custom betting line if user entered one
+            betting_line: customBettingLine || prediction?.betting_line
+          }
+        } : null}
       />
     </div>
   )
