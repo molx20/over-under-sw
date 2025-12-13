@@ -108,6 +108,7 @@ def get_team_season_averages(cursor, team_id: int, season: str) -> Dict:
             AVG(second_chance_points) as avg_second_chance
         FROM team_game_logs
         WHERE team_id = ? AND season = ? AND team_pts IS NOT NULL
+            AND game_date >= '2025-10-21'
     """, (team_id, season))
 
     row = cursor.fetchone()
@@ -319,6 +320,7 @@ def get_similar_opponent_boxscores(
                 AND tgl.team_id = ?
                 AND tgl.opponent_team_id IN ({placeholders})
                 AND tgl.team_pts IS NOT NULL
+                AND tgl.game_date >= '2025-10-21'
             ORDER BY tgl.game_date DESC
         """
 
