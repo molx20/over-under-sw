@@ -1566,6 +1566,118 @@ def game_turnover_vs_pace():
             'error': str(e)
         }), 500
 
+
+@app.route('/api/team/<int:team_id>/drilldown', methods=['GET'])
+def team_drilldown(team_id):
+    """
+    Get drilldown list of games for a specific bar in any chart.
+
+    Used for all chart drilldowns:
+    - Scoring vs Defense Tiers / Pace Buckets
+    - 3PT Scoring vs 3PT Defense Tiers / Pace Buckets
+    - Turnovers vs Pressure Tiers / Pace Buckets
+
+    Query params:
+        - metric: scoring | threept | turnovers
+        - dimension: defense_tier | pace_bucket | threept_def_tier | pressure_tier
+        - context: home | away
+        - bucket: slow | normal | fast (for pace_bucket)
+        - tier: elite | avg | bad | low (for tier dimensions)
+        - pace_type: actual | projected (default: actual)
+        - season: season string (default: 2025-26)
+
+    Returns:
+        {
+            'success': True,
+            'count': 5,
+            'bar_value': 115.2,
+            'avg_pace': 98.3,  # if pace dimension
+            'games': [...]
+        }
+    """
+    try:
+        from api.utils.bar_drilldown import get_drilldown_games
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Parse query params
+        metric = request.args.get('metric', '')  # scoring, threept, turnovers
+        dimension = request.args.get('dimension', '')  # pace_bucket, defense_tier, etc.
+        context = request.args.get('context', '')  # home, away
+        bucket = request.args.get('bucket', None)  # slow, normal, fast
+        tier = request.args.get('tier', None)  # elite, avg, bad, low
+        pace_type = request.args.get('pace_type', 'actual')  # actual, projected
+        season = request.args.get('season', '2025-26')
+
+        # Validate required params
+        if not metric or metric not in ['scoring', 'threept', 'turnovers']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid or missing metric parameter'
+            }), 400
+
+        if not dimension or dimension not in ['pace_bucket', 'defense_tier', 'threept_def_tier', 'pressure_tier']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid or missing dimension parameter'
+            }), 400
+
+        if not context or context not in ['home', 'away']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid or missing context parameter'
+            }), 400
+
+        # Validate bucket/tier param based on dimension
+        if dimension == 'pace_bucket':
+            if not bucket or bucket not in ['slow', 'normal', 'fast']:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid or missing bucket parameter for pace_bucket dimension'
+                }), 400
+        else:
+            # Tier dimensions
+            valid_tiers = ['elite', 'avg', 'bad', 'low']
+            if not tier or tier not in valid_tiers:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid or missing tier parameter'
+                }), 400
+
+        # Get drilldown data
+        result = get_drilldown_games(
+            team_id=team_id,
+            metric=metric,
+            dimension=dimension,
+            context=context,
+            bucket=bucket,
+            tier=tier,
+            pace_type=pace_type,
+            season=season
+        )
+
+        # Calculate avg_pace if dimension is pace_bucket
+        avg_pace = None
+        if dimension == 'pace_bucket' and result['games']:
+            avg_pace = sum(g.get('pace_value', 0) for g in result['games']) / len(result['games'])
+            avg_pace = round(avg_pace, 1)
+
+        return jsonify({
+            'success': True,
+            'count': result['count'],
+            'bar_value': result['bar_value'],
+            'avg_pace': avg_pace,
+            'games': result['games']
+        })
+
+    except Exception as e:
+        logger.error(f"Error in team drilldown: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/predict', methods=['POST'])
 def predict():
     """Make a prediction for a game"""
@@ -2716,6 +2828,86 @@ def get_game_review(game_id):
             return jsonify({'success': True, 'review': review})
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/games/<game_id>/full-matchup-analysis')
+def get_full_matchup_analysis(game_id):
+    """
+    Generate comprehensive full matchup analysis explaining all War Room signals.
+
+    This analysis provides a long-form, post-lock explanation of why the War Room
+    looks the way it does - connecting all visible metrics, classifications, and
+    indicators into a coherent narrative.
+
+    Returns:
+        {
+            success: true,
+            game_id: str,
+            analysis: str (markdown-formatted)
+        }
+    """
+    try:
+        from api.utils.matchup_analysis_generator import generate_full_matchup_analysis
+
+        # Get game detail data (reuse existing endpoint logic)
+        betting_line = request.args.get('betting_line', type=float)
+
+        # Fetch game data
+        game_data_response = game_detail()
+        game_data = game_data_response.get_json() if hasattr(game_data_response, 'get_json') else {}
+
+        if not game_data or not game_data.get('success'):
+            # Fetch game data directly
+            import sqlite3
+            import os
+
+            db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT * FROM todays_games WHERE game_id = ?
+            """, (game_id,))
+
+            game = cursor.fetchone()
+            conn.close()
+
+            if not game:
+                return jsonify({
+                    'success': False,
+                    'error': 'Game not found'
+                }), 404
+
+        # Get all necessary data for analysis
+        # This would ideally call the game_detail endpoint with all data
+        # For now, we'll pass what we have and let the generator handle missing data gracefully
+
+        scoring_environment = game_data.get('scoring_environment', 'GRAY ZONE')
+        matchup_summary = game_data.get('matchup_summary', {})
+
+        # Generate the analysis
+        analysis_text = generate_full_matchup_analysis(
+            game_data=game_data,
+            matchup_summary=matchup_summary,
+            scoring_environment=scoring_environment,
+            volatility_data=None,  # Would fetch from volatility endpoint
+            splits_data=None,  # Would fetch from splits endpoint
+            similarity_data=None,  # Would fetch from similarity endpoint
+            similar_opponents_data=None  # Would fetch from similar opponents endpoint
+        )
+
+        return jsonify({
+            'success': True,
+            'game_id': game_id,
+            'analysis': analysis_text
+        })
+
+    except Exception as e:
+        print(f"[FullMatchupAnalysis] Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
