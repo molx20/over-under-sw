@@ -158,15 +158,22 @@ export default function BarDrilldownPopover({
         onClick={onClose}
       />
 
-      {/* Popover */}
+      {/* Popover - Desktop: positioned near bar, Mobile: bottom sheet */}
       <div
-        className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 w-96 max-h-96 overflow-hidden flex flex-col"
+        className="fixed z-50 bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col
+                   sm:rounded-lg sm:w-96 sm:max-h-96
+                   max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full max-sm:max-h-[85vh] max-sm:rounded-t-2xl max-sm:pb-safe"
         style={{
-          top: `${position.top}px`,
-          left: `${position.left}px`,
-          transform: 'translateX(-50%)'  // Center horizontally on anchor
+          top: window.innerWidth >= 640 ? `${position.top}px` : 'auto',
+          left: window.innerWidth >= 640 ? `${position.left}px` : '0',
+          transform: window.innerWidth >= 640 ? 'translateX(-50%)' : 'none'
         }}
       >
+        {/* Mobile drag handle */}
+        <div className="sm:hidden flex justify-center pt-2 pb-1">
+          <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+        </div>
+
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
           <div>

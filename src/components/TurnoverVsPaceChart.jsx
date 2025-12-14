@@ -82,7 +82,7 @@ function TurnoverVsPaceChart({ teamData, compact = false }) {
   }
 
   return (
-    <div className={`${compact ? 'p-3' : 'p-3 sm:p-4 md:p-6'} bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 w-full`}>
+    <div className={`${compact ? 'p-3' : 'p-3 sm:p-4 md:p-6'} bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 w-full max-sm:overflow-x-hidden`}>
       {/* Header */}
       <div className="mb-3 sm:mb-4">
         <h3 className={`${compact ? 'text-sm' : 'text-sm sm:text-base'} font-semibold text-gray-900 dark:text-white`}>
@@ -168,8 +168,10 @@ function TurnoverVsPaceChart({ teamData, compact = false }) {
                       >
                         {/* Tooltip */}
                         {homeValue && (
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
-                            <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 whitespace-nowrap shadow-xl">
+                          <div className="absolute bottom-full mb-2 hidden group-hover:block z-20
+                max-sm:left-0 sm:left-1/2 sm:transform sm:-translate-x-1/2">
+                            <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 shadow-xl
+                  max-sm:max-w-[85vw] max-sm:whitespace-normal sm:whitespace-nowrap">
                               <div className="font-semibold text-blue-300">Home</div>
                               <div className="text-lg font-bold">{homeValue.toFixed(1)} TOV</div>
                               <div className="text-gray-300 dark:text-gray-400 text-xs">{homeGames} game{homeGames !== 1 ? 's' : ''}</div>
@@ -229,8 +231,10 @@ function TurnoverVsPaceChart({ teamData, compact = false }) {
                       >
                         {/* Tooltip */}
                         {awayValue && (
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
-                            <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 whitespace-nowrap shadow-xl">
+                          <div className="absolute bottom-full mb-2 hidden group-hover:block z-20
+                max-sm:right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2">
+                            <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 shadow-xl
+                  max-sm:max-w-[85vw] max-sm:whitespace-normal sm:whitespace-nowrap">
                               <div className="font-semibold text-orange-300">Away</div>
                               <div className="text-lg font-bold">{awayValue.toFixed(1)} TOV</div>
                               <div className="text-gray-300 dark:text-gray-400 text-xs">{awayGames} game{awayGames !== 1 ? 's' : ''}</div>
