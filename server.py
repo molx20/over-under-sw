@@ -552,18 +552,58 @@ def game_detail():
         print(f'[game_detail] Fetching detail for game {game_id}')
 
         games = get_todays_games()
+        game = None
 
-        if not games:
-            print('[game_detail] ERROR: No games available from NBA API')
-            return jsonify({
-                'success': False,
-                'error': 'No games available today'
-            }), 404
+        # First try today's games
+        if games:
+            game = next((g for g in games if str(g.get('game_id')) == str(game_id)), None)
 
-        game = next((g for g in games if str(g.get('game_id')) == str(game_id)), None)
+        # If not found in today's games, query database for historical game
+        if not game:
+            print(f'[game_detail] Game {game_id} not in today\'s games, checking database for historical game')
+            import sqlite3
+            import os
+            db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT
+                    g.id as game_id,
+                    g.game_date,
+                    g.home_team_id,
+                    g.away_team_id,
+                    g.status as game_status_text,
+                    ht.full_name as home_team_name,
+                    ht.team_abbreviation as home_team_abbr,
+                    at.full_name as away_team_name,
+                    at.team_abbreviation as away_team_abbr
+                FROM games g
+                JOIN nba_teams ht ON g.home_team_id = ht.team_id
+                JOIN nba_teams at ON g.away_team_id = at.team_id
+                WHERE g.id = ?
+            ''', (game_id,))
+
+            row = cursor.fetchone()
+            conn.close()
+
+            if row:
+                game = {
+                    'game_id': row['game_id'],
+                    'game_date': row['game_date'],
+                    'home_team_id': row['home_team_id'],
+                    'away_team_id': row['away_team_id'],
+                    'game_status': row['game_status_text'],
+                    'home_team_name': row['home_team_name'],
+                    'away_team_name': row['away_team_name'],
+                    'home_team': {'abbreviation': row['home_team_abbr']},
+                    'away_team': {'abbreviation': row['away_team_abbr']}
+                }
+                print(f'[game_detail] Found historical game in database: {game["away_team_name"]} @ {game["home_team_name"]}')
 
         if not game:
-            print(f'[game_detail] ERROR: Game {game_id} not found in today\'s games')
+            print(f'[game_detail] ERROR: Game {game_id} not found')
             return jsonify({
                 'success': False,
                 'error': f'Game {game_id} not found'
@@ -1637,12 +1677,16 @@ def team_drilldown(team_id):
                 }), 400
         else:
             # Tier dimensions
-            valid_tiers = ['elite', 'avg', 'bad', 'low']
+            valid_tiers = ['elite', 'avg', 'average', 'bad', 'low']
             if not tier or tier not in valid_tiers:
                 return jsonify({
                     'success': False,
                     'error': 'Invalid or missing tier parameter'
                 }), 400
+
+            # Normalize 'average' to 'avg' for backend consistency
+            if tier == 'average':
+                tier = 'avg'
 
         # Get drilldown data
         result = get_drilldown_games(
@@ -2850,55 +2894,163 @@ def get_full_matchup_analysis(game_id):
         }
     """
     try:
+        import sqlite3
+        import os
+        import hashlib
+        import json
         from api.utils.matchup_analysis_generator import generate_full_matchup_analysis
 
-        # Get game detail data (reuse existing endpoint logic)
-        betting_line = request.args.get('betting_line', type=float)
+        # FIX A: Enforce required params
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'game_id is required'
+            }), 400
 
-        # Fetch game data
-        game_data_response = game_detail()
-        game_data = game_data_response.get_json() if hasattr(game_data_response, 'get_json') else {}
+        # DIAGNOSTIC: Log request identity
+        print(f"[FullAnalysis] REQUEST - game_id: {game_id}")
 
-        if not game_data or not game_data.get('success'):
-            # Fetch game data directly
-            import sqlite3
-            import os
+        # Fetch game data directly with proper game_id
+        db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
 
-            db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM todays_games WHERE game_id = ?
+        """, (game_id,))
+        game = cursor.fetchone()
 
-            cursor.execute("""
-                SELECT * FROM todays_games WHERE game_id = ?
-            """, (game_id,))
-
-            game = cursor.fetchone()
+        if not game:
             conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Game not found'
+            }), 404
 
-            if not game:
-                return jsonify({
-                    'success': False,
-                    'error': 'Game not found'
-                }), 404
+        # Convert to dict for easier access
+        game_dict = dict(game)
+        home_team_abbr = game_dict['home_team_name']
+        away_team_abbr = game_dict['away_team_name']
+        season = game_dict.get('season', '2025')
 
-        # Get all necessary data for analysis
-        # This would ideally call the game_detail endpoint with all data
-        # For now, we'll pass what we have and let the generator handle missing data gracefully
+        print(f"[FullAnalysis] Teams: {away_team_abbr} @ {home_team_abbr}, Season: {season}")
 
-        scoring_environment = game_data.get('scoring_environment', 'GRAY ZONE')
-        matchup_summary = game_data.get('matchup_summary', {})
+        # Get team IDs
+        cursor.execute("SELECT team_id FROM nba_teams WHERE team_abbreviation = ?", (home_team_abbr,))
+        home_team_id = cursor.fetchone()['team_id']
 
-        # Generate the analysis
+        cursor.execute("SELECT team_id FROM nba_teams WHERE team_abbreviation = ?", (away_team_abbr,))
+        away_team_id = cursor.fetchone()['team_id']
+
+        conn.close()
+
+        # Fetch real matchup data using prediction engine
+        print(f"[FullAnalysis] Fetching prediction and matchup data for {away_team_abbr} @ {home_team_abbr}")
+        prediction, matchup_data = get_cached_prediction(int(home_team_id), int(away_team_id), None, game_id=game_id)
+
+        if prediction is None or matchup_data is None:
+            return jsonify({
+                'success': False,
+                'error': 'Unable to fetch matchup data'
+            }), 500
+
+        # Get advanced stats directly from db_queries
+        from api.utils.db_queries import get_team_advanced_stats
+
+        # Also get PPG from team_season_stats table
+        db_path_nba = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+        conn_nba = sqlite3.connect(db_path_nba)
+        conn_nba.row_factory = sqlite3.Row
+        cursor_nba = conn_nba.cursor()
+
+        cursor_nba.execute("""
+            SELECT ppg FROM team_season_stats
+            WHERE team_id = ? AND season = ? AND split_type = 'overall'
+        """, (int(home_team_id), season))
+        home_ppg_row = cursor_nba.fetchone()
+        home_ppg = home_ppg_row['ppg'] if home_ppg_row else 110.0
+
+        cursor_nba.execute("""
+            SELECT ppg FROM team_season_stats
+            WHERE team_id = ? AND season = ? AND split_type = 'overall'
+        """, (int(away_team_id), season))
+        away_ppg_row = cursor_nba.fetchone()
+        away_ppg = away_ppg_row['ppg'] if away_ppg_row else 110.0
+
+        conn_nba.close()
+
+        home_advanced_raw = get_team_advanced_stats(int(home_team_id), season)
+        away_advanced_raw = get_team_advanced_stats(int(away_team_id), season)
+
+        # Transform keys to lowercase for generator compatibility
+        home_advanced = {
+            'pace': home_advanced_raw.get('PACE', 100),
+            'off_rating': home_advanced_raw.get('OFF_RATING', 110),
+            'def_rating': home_advanced_raw.get('DEF_RATING', 110),
+            'net_rating': home_advanced_raw.get('NET_RATING', 0),
+            'ts_pct': home_advanced_raw.get('TS_PCT', 0.56),
+            'efg_pct': home_advanced_raw.get('EFG_PCT', 0.53),
+            'ppg': home_ppg
+        }
+
+        away_advanced = {
+            'pace': away_advanced_raw.get('PACE', 100),
+            'off_rating': away_advanced_raw.get('OFF_RATING', 110),
+            'def_rating': away_advanced_raw.get('DEF_RATING', 110),
+            'net_rating': away_advanced_raw.get('NET_RATING', 0),
+            'ts_pct': away_advanced_raw.get('TS_PCT', 0.56),
+            'efg_pct': away_advanced_raw.get('EFG_PCT', 0.53),
+            'ppg': away_ppg
+        }
+
+        # Build game_data structure with real stats
+        game_data = {
+            'success': True,
+            'game_id': game_id,
+            'home_team': {
+                'abbreviation': home_team_abbr,
+                'id': home_team_id
+            },
+            'away_team': {
+                'abbreviation': away_team_abbr,
+                'id': away_team_id
+            },
+            'season': season,
+            'game_time': game_dict.get('game_time_utc', game_dict.get('game_status_text', '')),
+            'home_stats': home_advanced,  # Real advanced stats with pace, off_rating, def_rating
+            'away_stats': away_advanced,  # Real advanced stats
+            'home_recent_games': matchup_data['home'].get('recent_games', [])[:5],
+            'away_recent_games': matchup_data['away'].get('recent_games', [])[:5],
+            'prediction': prediction
+        }
+
+        # DIAGNOSTIC: Calculate payload fingerprint
+        payload_str = json.dumps(game_data, sort_keys=True, default=str)
+        payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()[:12]
+        payload_size = len(payload_str)
+        print(f"[FullAnalysis] Payload hash: {payload_hash}, size: {payload_size} bytes")
+
+        # Get scoring environment from prediction
+        scoring_environment = prediction.get('scoring_environment', 'GRAY ZONE')
+        matchup_summary = prediction.get('matchup_summary', {})
+
+        # Generate the analysis with real data
         analysis_text = generate_full_matchup_analysis(
             game_data=game_data,
             matchup_summary=matchup_summary,
             scoring_environment=scoring_environment,
-            volatility_data=None,  # Would fetch from volatility endpoint
-            splits_data=None,  # Would fetch from splits endpoint
-            similarity_data=None,  # Would fetch from similarity endpoint
-            similar_opponents_data=None  # Would fetch from similar opponents endpoint
+            volatility_data=None,  # Future enhancement
+            splits_data=None,  # Future enhancement
+            similarity_data=None,  # Future enhancement
+            similar_opponents_data=None  # Future enhancement
         )
+
+        # DIAGNOSTIC: Calculate response fingerprint
+        response_hash = hashlib.sha256(analysis_text.encode()).hexdigest()[:12]
+        response_length = len(analysis_text)
+        print(f"[FullAnalysis] Response hash: {response_hash}, length: {response_length} chars")
+        print(f"[FullAnalysis] SUCCESS - Unique analysis generated for {away_team_abbr} @ {home_team_abbr}")
 
         return jsonify({
             'success': True,
