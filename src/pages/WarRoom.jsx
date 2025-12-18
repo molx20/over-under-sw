@@ -15,35 +15,7 @@ function WarRoom() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('dna') // 'dna' | 'last5' | 'splits' | 'similarity' | 'similar-opponents'
-  const [showFullAnalysis, setShowFullAnalysis] = useState(false)
-  const [analysisData, setAnalysisData] = useState(null)
-  const [analysisLoading, setAnalysisLoading] = useState(false)
-
-  // Fetch full matchup analysis
-  const fetchFullAnalysis = async () => {
-    if (analysisData) {
-      // Already loaded, just show modal
-      setShowFullAnalysis(true)
-      return
-    }
-
-    setAnalysisLoading(true)
-    try {
-      const response = await fetch(`/api/games/${gameId}/full-matchup-analysis`)
-      const data = await response.json()
-
-      if (data.success) {
-        setAnalysisData(data.analysis)
-        setShowFullAnalysis(true)
-      } else {
-        console.error('Failed to load analysis:', data.error)
-      }
-    } catch (error) {
-      console.error('Error fetching analysis:', error)
-    } finally {
-      setAnalysisLoading(false)
-    }
-  }
+  const [showFullSummary, setShowFullSummary] = useState(false)
 
   // Fetch game data
   const {
@@ -222,26 +194,16 @@ function WarRoom() {
         />
 
 
-        {/* Full Matchup Analysis Button */}
+        {/* Full Matchup Summary Button */}
         <div className="flex justify-center">
           <button
-            onClick={fetchFullAnalysis}
-            disabled={analysisLoading}
-            className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setShowFullSummary(true)}
+            className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold rounded-lg shadow-lg transition-all transform hover:scale-105 flex items-center space-x-2"
           >
-            {analysisLoading ? (
-              <>
-                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Loading Analysis...</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>View Full Matchup Summary</span>
-              </>
-            )}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>View Full Matchup Summary</span>
           </button>
         </div>
 
@@ -350,46 +312,24 @@ function WarRoom() {
           </div>
         </div>
 
-        {/* View Full Matchup Summary Button */}
-        {matchup_summary && matchup_summary.matchup_dna_summary && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-                Full Matchup Analysis Available
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                View our comprehensive AI-generated matchup breakdown
-              </p>
-              <button
-                onClick={() => navigate(`/game/${gameId}/summary`)}
-                className="inline-flex items-center justify-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-lg font-semibold transition-colors shadow-md"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                View Full Matchup Summary
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Full Matchup Analysis Modal */}
-      {showFullAnalysis && (
+      {/* Full Matchup Summary Modal */}
+      {showFullSummary && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-start justify-center p-4"
-             onClick={() => setShowFullAnalysis(false)}>
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-5xl w-full my-8"
+             onClick={() => setShowFullSummary(false)}>
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full my-8"
                onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
+            {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-4 rounded-t-lg flex items-center justify-between">
               <h2 className="text-2xl font-bold text-white flex items-center">
                 <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Full Matchup Analysis
+                Full Matchup Summary
               </h2>
               <button
-                onClick={() => setShowFullAnalysis(false)}
+                onClick={() => setShowFullSummary(false)}
                 className="text-white hover:text-gray-200 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,38 +338,57 @@ function WarRoom() {
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="px-6 py-8 max-h-[80vh] overflow-y-auto">
-              {analysisData ? (
-                <div className="prose prose-lg dark:prose-invert max-w-none">
-                  <div className="whitespace-pre-wrap font-sans text-gray-900 dark:text-gray-100 leading-relaxed">
-                    {analysisData.split('\n').map((line, i) => {
-                      // Simple markdown-like rendering
-                      if (line.startsWith('## ')) {
-                        return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-primary-700 dark:text-primary-400">{line.replace('## ', '')}</h2>
-                      } else if (line.startsWith('**') && line.endsWith('**')) {
-                        return <p key={i} className="font-bold mt-4 mb-2">{line.replace(/\*\*/g, '')}</p>
-                      } else if (line.trim() === '') {
-                        return <div key={i} className="h-4"></div>
-                      } else if (line.startsWith('- ')) {
-                        return <li key={i} className="ml-6 mb-2">{line.substring(2)}</li>
-                      } else {
-                        return <p key={i} className="mb-3 text-gray-800 dark:text-gray-200">{line}</p>
-                      }
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-                </div>
-              )}
+            {/* Scrollable Content - 5 Sections Only */}
+            <div className="px-6 py-8 max-h-[80vh] overflow-y-auto space-y-8">
+
+              {/* 1. Last 5 Games */}
+              <Last5GamesPanel
+                prediction={prediction}
+                homeTeam={home_team}
+                awayTeam={away_team}
+              />
+
+              {/* 2. Advanced Splits */}
+              <AdvancedSplitsPanel
+                scoringSplitsData={scoringSplitsData}
+                threePtSplitsData={threePtSplitsData}
+                threePtVsPaceData={threePtVsPaceData}
+                turnoverVsDefenseData={turnoverVsDefenseData}
+                turnoverVsPaceData={turnoverVsPaceData}
+                splitsLoading={splitsLoading}
+                threePtSplitsLoading={threePtSplitsLoading}
+                threePtVsPaceLoading={threePtVsPaceLoading}
+                turnoverVsDefenseLoading={turnoverVsDefenseLoading}
+                turnoverVsPaceLoading={turnoverVsPaceLoading}
+                onShowGlossary={() => {}}
+              />
+
+              {/* 3. Similar Opponents */}
+              <SimilarOpponentBoxScores gameId={gameId} />
+
+              {/* 4. Team Form Index */}
+              <TeamFormIndex
+                homeTeam={home_team}
+                awayTeam={away_team}
+                homeStats={home_stats}
+                awayStats={away_stats}
+                homeRecentGames={home_recent_games}
+                awayRecentGames={away_recent_games}
+              />
+
+              {/* 5. Matchup Indicators */}
+              <MatchupIndicators
+                homeTeam={home_team}
+                awayTeam={away_team}
+                homeStats={home_stats}
+                awayStats={away_stats}
+              />
             </div>
 
-            {/* Modal Footer */}
+            {/* Sticky Footer */}
             <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 px-6 py-4 rounded-b-lg border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
-                onClick={() => setShowFullAnalysis(false)}
+                onClick={() => setShowFullSummary(false)}
                 className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
               >
                 Close
