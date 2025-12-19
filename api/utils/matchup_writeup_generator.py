@@ -71,15 +71,6 @@ def generate_full_matchup_writeup(
         home_advanced, away_advanced
     ))
 
-    # Section 6: Overall Read with strategic synthesis
-    sections.append(_generate_overall_read_narrative(
-        home_team, away_team,
-        last5_home, last5_away,
-        team_form_home, team_form_away,
-        matchup_indicators,
-        scoring_splits_home, scoring_splits_away
-    ))
-
     return "\n\n".join(sections)
 
 
