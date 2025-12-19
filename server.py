@@ -3302,18 +3302,100 @@ def get_full_matchup_summary_writeup(game_id):
             }
         }
 
-        # Scoring vs Pace (use projected pace to determine bucket)
-        # For now, use placeholder values - will need to implement proper pace bucket logic
-        scoring_vs_pace_home = {'highlighted_bucket': {'pace_bucket': 'Moderate Pace', 'ppg': 'N/A', 'gp': 0}}
-        scoring_vs_pace_away = {'highlighted_bucket': {'pace_bucket': 'Moderate Pace', 'ppg': 'N/A', 'gp': 0}}
+        # Scoring vs Pace - Get actual splits data
+        from api.utils.db_queries import get_team_scoring_vs_pace, get_pace_bucket
+        from api.utils.three_pt_scoring_splits import get_team_three_pt_scoring_splits
+        from api.utils.turnover_vs_defense_pressure import get_team_turnover_vs_defense_pressure
+        from api.utils.three_pt_defense_tiers import get_three_pt_defense_tier
+        from api.utils.turnover_pressure_tiers import get_turnover_pressure_tier
 
-        # 3PT Splits (use opponent 3PT defense tier)
-        three_pt_splits_home = {'highlighted_bucket': {'opp_3pt_tier': 'Average', 'three_pt_pct': 'N/A', 'gp': 0}}
-        three_pt_splits_away = {'highlighted_bucket': {'opp_3pt_tier': 'Average', 'three_pt_pct': 'N/A', 'gp': 0}}
+        # Get projected pace for this matchup
+        home_pace = home_stats.get('stats', {}).get('pace', {}).get('value', 100) if home_stats else 100
+        away_pace = away_stats.get('stats', {}).get('pace', {}).get('value', 100) if away_stats else 100
+        projected_pace = (home_pace + away_pace) / 2
 
-        # Turnover Splits (use opponent TO pressure tier)
-        turnover_splits_home = {'highlighted_bucket': {'pressure_tier': 'Average Pressure', 'to_avg': 'N/A', 'gp': 0}}
-        turnover_splits_away = {'highlighted_bucket': {'pressure_tier': 'Average Pressure', 'to_avg': 'N/A', 'gp': 0}}
+        # Determine pace bucket for this game
+        pace_bucket = get_pace_bucket(projected_pace)
+
+        # Get scoring vs pace splits and highlight the bucket matching projected pace
+        home_pace_splits_all = get_team_scoring_vs_pace(int(home_team_id), season) or {}
+        away_pace_splits_all = get_team_scoring_vs_pace(int(away_team_id), season) or {}
+
+        home_pace_split = home_pace_splits_all.get('splits', {}).get(pace_bucket, {})
+        scoring_vs_pace_home = {
+            'highlighted_bucket': {
+                'pace_bucket': pace_bucket,
+                'ppg': home_pace_split.get('home_ppg' if True else 'away_ppg', 'N/A'),
+                'gp': home_pace_split.get('home_games' if True else 'away_games', 0)
+            }
+        }
+
+        away_pace_split = away_pace_splits_all.get('splits', {}).get(pace_bucket, {})
+        scoring_vs_pace_away = {
+            'highlighted_bucket': {
+                'pace_bucket': pace_bucket,
+                'ppg': away_pace_split.get('away_ppg' if True else 'home_ppg', 'N/A'),
+                'gp': away_pace_split.get('away_games' if True else 'home_games', 0)
+            }
+        }
+
+        # 3PT Splits - Get actual data and highlight based on opponent 3PT defense
+        home_3pt_splits_all = get_team_three_pt_scoring_splits(int(home_team_id), season) or {}
+        away_3pt_splits_all = get_team_three_pt_scoring_splits(int(away_team_id), season) or {}
+
+        # Get opponent 3PT defense rank to determine tier
+        away_3pt_def_rank = away_stats.get('stats', {}).get('opp_fg3_pct', {}).get('rank') if away_stats else None
+        home_3pt_def_rank = home_stats.get('stats', {}).get('opp_fg3_pct', {}).get('rank') if home_stats else None
+
+        home_3pt_tier = get_three_pt_defense_tier(away_3pt_def_rank) if away_3pt_def_rank else 'average'
+        away_3pt_tier = get_three_pt_defense_tier(home_3pt_def_rank) if home_3pt_def_rank else 'average'
+
+        home_3pt_bucket = home_3pt_splits_all.get('splits', {}).get(home_3pt_tier, {})
+        three_pt_splits_home = {
+            'highlighted_bucket': {
+                'opp_3pt_tier': home_3pt_tier.capitalize(),
+                'three_pt_pct': home_3pt_bucket.get('home_three_pt_pct' if True else 'away_three_pt_pct', 'N/A'),
+                'gp': home_3pt_bucket.get('home_games' if True else 'away_games', 0)
+            }
+        }
+
+        away_3pt_bucket = away_3pt_splits_all.get('splits', {}).get(away_3pt_tier, {})
+        three_pt_splits_away = {
+            'highlighted_bucket': {
+                'opp_3pt_tier': away_3pt_tier.capitalize(),
+                'three_pt_pct': away_3pt_bucket.get('away_three_pt_pct' if True else 'home_three_pt_pct', 'N/A'),
+                'gp': away_3pt_bucket.get('away_games' if True else 'home_games', 0)
+            }
+        }
+
+        # Turnover Splits - Get actual data and highlight based on opponent TO pressure
+        home_to_splits_all = get_team_turnover_vs_defense_pressure(int(home_team_id), season) or {}
+        away_to_splits_all = get_team_turnover_vs_defense_pressure(int(away_team_id), season) or {}
+
+        # Get opponent TO forced rank to determine pressure tier
+        away_to_pressure_rank = away_stats.get('stats', {}).get('opp_tov', {}).get('rank') if away_stats else None
+        home_to_pressure_rank = home_stats.get('stats', {}).get('opp_tov', {}).get('rank') if home_stats else None
+
+        home_to_tier = get_turnover_pressure_tier(away_to_pressure_rank) if away_to_pressure_rank else 'average'
+        away_to_tier = get_turnover_pressure_tier(home_to_pressure_rank) if home_to_pressure_rank else 'average'
+
+        home_to_bucket = home_to_splits_all.get('splits', {}).get(home_to_tier, {})
+        turnover_splits_home = {
+            'highlighted_bucket': {
+                'pressure_tier': home_to_tier.capitalize() + ' Pressure',
+                'to_avg': home_to_bucket.get('home_to_avg' if True else 'away_to_avg', 'N/A'),
+                'gp': home_to_bucket.get('home_games' if True else 'away_games', 0)
+            }
+        }
+
+        away_to_bucket = away_to_splits_all.get('splits', {}).get(away_to_tier, {})
+        turnover_splits_away = {
+            'highlighted_bucket': {
+                'pressure_tier': away_to_tier.capitalize() + ' Pressure',
+                'to_avg': away_to_bucket.get('away_to_avg' if True else 'home_to_avg', 'N/A'),
+                'gp': away_to_bucket.get('away_games' if True else 'home_games', 0)
+            }
+        }
 
         # 3. Similar Opponents Data
         from api.utils.similar_opponent_boxscores import get_similar_opponent_boxscores as get_boxscores
