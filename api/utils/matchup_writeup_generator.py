@@ -306,44 +306,76 @@ def _generate_similar_opponents_narrative(home_team, away_team, similar_home, si
 
 
 def _generate_team_form_narrative(home_team, away_team, form_home, form_away):
-    """Generate Team Form Index with interpretation of deltas"""
+    """Generate Team Form Index as narrative paragraph"""
     lines = ["## Team Form Index", ""]
 
     home_abbr = home_team.get('abbreviation', 'Home')
     away_abbr = away_team.get('abbreviation', 'Away')
 
-    # Home team
+    # Home team deltas
     off_delta_home = form_home.get('offense_delta_vs_season', 0)
     def_delta_home = form_home.get('defense_delta_vs_season', 0)
     pace_delta_home = form_home.get('pace_delta_vs_season', 0)
 
-    lines.append(f"**{home_abbr}**")
-    lines.append(f"- Offensive Rating: {off_delta_home:+.1f} vs season")
-    lines.append(f"- Defensive Rating: {def_delta_home:+.1f} {'improvement' if def_delta_home > 0 else 'decline'}")
-    lines.append(f"- Pace: {pace_delta_home:+.1f}")
-    lines.append("")
-
-    interpretation_home = "strong recent form" if off_delta_home > 2 and def_delta_home > 2 else \
-                         "offensive struggles" if off_delta_home < -2 else \
-                         "defensive improvement compensating" if def_delta_home > 2 else "stable"
-    lines.append(f"{home_abbr}'s recent form shows {interpretation_home}.")
-    lines.append("")
-
-    # Away team
+    # Away team deltas
     off_delta_away = form_away.get('offense_delta_vs_season', 0)
     def_delta_away = form_away.get('defense_delta_vs_season', 0)
     pace_delta_away = form_away.get('pace_delta_vs_season', 0)
 
-    lines.append(f"**{away_abbr}**")
-    lines.append(f"- Offensive Rating: {off_delta_away:+.1f}")
-    lines.append(f"- Defensive Rating: {def_delta_away:+.1f} {'improvement' if def_delta_away > 0 else 'decline'}")
-    lines.append(f"- Pace: {pace_delta_away:+.1f}")
-    lines.append("")
+    # Build 8-sentence narrative paragraph
+    sentences = []
 
-    interpretation_away = "surging" if off_delta_away > 2 and def_delta_away > 2 else \
-                         "struggling offensively" if off_delta_away < -2 else \
-                         "relying on defense" if def_delta_away > 2 else "inconsistent"
-    lines.append(f"{away_abbr} is {interpretation_away}.")
+    # Sentence 1: Home offensive rating
+    off_home_desc = "surging" if off_delta_home > 3 else "trending up" if off_delta_home > 0 else "struggling" if off_delta_home < -3 else "declining slightly" if off_delta_home < 0 else "holding steady"
+    sentences.append(f"**{home_abbr}** enters this matchup with their offense {off_home_desc}, scoring **{off_delta_home:+.1f} points per game** {'above' if off_delta_home > 0 else 'below'} their season average over recent contests.")
+
+    # Sentence 2: Home defensive rating
+    def_home_desc = "significantly tighter" if def_delta_home > 3 else "improved" if def_delta_home > 0 else "considerably worse" if def_delta_home < -3 else "slightly worse" if def_delta_home < 0 else "consistent"
+    sentences.append(f"Defensively, they've been {def_home_desc}, allowing **{abs(def_delta_home):.1f} {'fewer' if def_delta_home > 0 else 'more' if def_delta_home < 0 else 'the same'} points** compared to season norms.")
+
+    # Sentence 3: Home pace
+    pace_home_desc = "significantly faster" if pace_delta_home > 2 else "slightly faster" if pace_delta_home > 0 else "considerably slower" if pace_delta_home < -2 else "slightly slower" if pace_delta_home < 0 else "unchanged"
+    sentences.append(f"Their pace has been {pace_home_desc}, running **{abs(pace_delta_home):.1f} possessions {'more' if pace_delta_home > 0 else 'fewer' if pace_delta_home < 0 else 'per game at the same rate'}** than their season average.")
+
+    # Sentence 4: Home overall interpretation
+    if off_delta_home > 2 and def_delta_home > 2:
+        home_summary = "peaking at the right time with both ends firing"
+    elif off_delta_home < -2 and def_delta_home < -2:
+        home_summary = "struggling on both sides of the ball"
+    elif off_delta_home > 2:
+        home_summary = "riding an offensive hot streak"
+    elif def_delta_home > 2:
+        home_summary = "compensating offensive inconsistencies with defensive intensity"
+    elif off_delta_home < -2:
+        home_summary = "searching for offensive rhythm"
+    else:
+        home_summary = "maintaining relatively steady form"
+    sentences.append(f"Overall, **{home_abbr}** is {home_summary}.")
+
+    # Sentence 5: Away offensive rating
+    off_away_desc = "explosive" if off_delta_away > 3 else "productive" if off_delta_away > 0 else "inconsistent" if off_delta_away < -3 else "below expectations" if off_delta_away < 0 else "steady"
+    sentences.append(f"**{away_abbr}** has been {off_away_desc} offensively, posting **{off_delta_away:+.1f} points** {'above' if off_delta_away > 0 else 'below'} their season baseline in their last five games.")
+
+    # Sentence 6: Away defensive rating
+    def_away_desc = "locking down opponents" if def_delta_away > 3 else "showing defensive improvement" if def_delta_away > 0 else "leaking points" if def_delta_away < -3 else "vulnerable defensively" if def_delta_away < 0 else "defensively consistent"
+    sentences.append(f"On defense, they've been {def_away_desc}, with opponents scoring **{abs(def_delta_away):.1f} {'fewer' if def_delta_away > 0 else 'more' if def_delta_away < 0 else 'the same'} points** than {away_abbr}'s season average allows.")
+
+    # Sentence 7: Away pace
+    pace_away_desc = "pushing tempo aggressively" if pace_delta_away > 2 else "playing faster" if pace_delta_away > 0 else "grinding to a slower pace" if pace_delta_away < -2 else "slowing things down" if pace_delta_away < 0 else "maintaining their typical pace"
+    sentences.append(f"They've been {pace_away_desc}, at **{abs(pace_delta_away):.1f} possessions {'above' if pace_delta_away > 0 else 'below' if pace_delta_away < 0 else 'matching'}** season norms.")
+
+    # Sentence 8: Comparative summary
+    home_net = off_delta_home + def_delta_home
+    away_net = off_delta_away + def_delta_away
+    if abs(home_net - away_net) < 2:
+        comparative = f"Both teams enter with similar recent trajectories, though **{home_abbr if abs(off_delta_home) > abs(off_delta_away) else away_abbr}** has shown slightly more offensive firepower in recent contests"
+    elif home_net > away_net:
+        comparative = f"**{home_abbr}** holds the momentum edge based on recent form, particularly {'their offensive surge' if off_delta_home > def_delta_home else 'their defensive improvements'}"
+    else:
+        comparative = f"**{away_abbr}** enters with superior recent form, driven primarily by {'offensive execution' if off_delta_away > def_delta_away else 'defensive intensity'}"
+    sentences.append(f"{comparative}.")
+
+    lines.append(" ".join(sentences))
 
     return "\n".join(lines)
 
