@@ -3387,8 +3387,8 @@ def get_full_matchup_summary_writeup(game_id):
         turnover_splits_home = {
             'highlighted_bucket': {
                 'pressure_tier': home_to_tier.capitalize() + ' Pressure',
-                'to_avg': home_to_bucket.get('home_to_avg' if True else 'away_to_avg', 'N/A'),
-                'gp': home_to_bucket.get('home_games' if True else 'away_games', 0),
+                'to_avg': home_to_bucket.get('home_turnovers', 'N/A'),
+                'gp': home_to_bucket.get('home_games', 0),
                 'opp_rank': away_to_pressure_rank
             }
         }
@@ -3397,8 +3397,8 @@ def get_full_matchup_summary_writeup(game_id):
         turnover_splits_away = {
             'highlighted_bucket': {
                 'pressure_tier': away_to_tier.capitalize() + ' Pressure',
-                'to_avg': away_to_bucket.get('away_to_avg' if True else 'home_to_avg', 'N/A'),
-                'gp': away_to_bucket.get('away_games' if True else 'home_games', 0),
+                'to_avg': away_to_bucket.get('away_turnovers', 'N/A'),
+                'gp': away_to_bucket.get('away_games', 0),
                 'opp_rank': home_to_pressure_rank
             }
         }

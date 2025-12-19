@@ -189,42 +189,6 @@ def _generate_advanced_splits_narrative(home_team, away_team,
     lines.append(f"**{away_abbr}** faces a **{away_tier_context}**, scoring **{away_ppg} PPG** in {away_gp} comparable matchups. This output {'suggests room for improvement' if isinstance(away_ppg, (int, float)) and away_ppg < 110 else 'shows strong offensive execution' if isinstance(away_ppg, (int, float)) and away_ppg > 115 else 'reflects steady production'} given opponent quality.")
     lines.append("")
 
-    # Scoring vs Pace
-    lines.append("### Scoring vs Pace Buckets")
-    lines.append("")
-
-    home_pace_bucket = pace_home.get('highlighted_bucket', {})
-    home_pace_label = home_pace_bucket.get('pace_bucket', 'Moderate Pace')
-    home_pace_ppg = home_pace_bucket.get('ppg', 'N/A')
-    home_pace_gp = home_pace_bucket.get('gp', 0)
-    projected_pace = home_pace_bucket.get('projected_pace', 'N/A')
-
-    # Map pace bucket to possessions range
-    pace_ranges = {
-        'Slow Pace': '<96 poss/48',
-        'Moderate Pace': '96-101 poss/48',
-        'Fast Pace': '>101 poss/48'
-    }
-    home_pace_range = pace_ranges.get(home_pace_label, home_pace_label)
-
-    if home_pace_ppg != 'N/A' and home_pace_gp > 0:
-        lines.append(f"**{home_abbr}** in **{home_pace_label} ({home_pace_range})** games, with a projected pace of **{projected_pace}**: {home_abbr} is scoring **{home_pace_ppg} PPG** across {home_pace_gp} games. This {'elevated' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'moderate'} output shows {'strong' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'reasonable'} scoring efficiency in this pace context.")
-    else:
-        lines.append(f"**{home_abbr}** benefits from added possessions in faster-paced games, though specific pace bucket data is limited.")
-    lines.append("")
-
-    away_pace_bucket = pace_away.get('highlighted_bucket', {})
-    away_pace_label = away_pace_bucket.get('pace_bucket', 'Moderate Pace')
-    away_pace_ppg = away_pace_bucket.get('ppg', 'N/A')
-    away_pace_gp = away_pace_bucket.get('gp', 0)
-    away_pace_range = pace_ranges.get(away_pace_label, away_pace_label)
-
-    if away_pace_ppg != 'N/A' and away_pace_gp > 0:
-        lines.append(f"**{away_abbr}** in **{away_pace_label} ({away_pace_range})** games, with a projected pace of **{projected_pace}**: {away_abbr} scores **{away_pace_ppg} PPG** in {away_pace_gp} games. Their output shows {'volatility' if isinstance(away_pace_ppg, (int, float)) and away_pace_ppg < 110 else 'consistency'} in pace-adjusted scoring.")
-    else:
-        lines.append(f"**{away_abbr}** shows more volatility depending on shooting efficiency in pace-adjusted contexts.")
-    lines.append("")
-
     # 3-Point Analysis
     lines.append("### 3-Point Scoring vs Defense")
     lines.append("")
