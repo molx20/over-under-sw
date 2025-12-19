@@ -3335,31 +3335,32 @@ def get_full_matchup_summary_writeup(game_id):
         )
 
         # Build similar opponents summary
-        def build_similar_summary(data):
+        def build_similar_summary(data, season_ppg):
             sample = data.get('sample', {})
-            season_avg = data.get('season_avg', {})
+            summary = sample.get('summary', {})
 
-            # Calculate record
-            wins = sample.get('wins', 0)
-            losses = sample.get('losses', 0)
-            record = f'{wins}-{losses}'
+            # Get record from sample
+            record = sample.get('record', '0-0')
 
-            # Calculate deltas
-            vs_similar_ppg = sample.get('ppg', season_avg.get('ppg', 0))
-            season_ppg = season_avg.get('ppg', 0)
-            ppg_delta = vs_similar_ppg - season_ppg if season_ppg else 0
+            # Get PPG from summary
+            vs_similar_ppg = summary.get('avg_pts_scored', 0)
+            ppg_delta = vs_similar_ppg - season_ppg if season_ppg and vs_similar_ppg else 0
 
             return {
                 'record': record,
                 'summary': {
-                    'vs_similar_ppg': vs_similar_ppg,
-                    'season_ppg': season_ppg,
-                    'ppg_delta': ppg_delta
+                    'vs_similar_ppg': round(vs_similar_ppg, 1) if vs_similar_ppg else 0,
+                    'season_ppg': round(season_ppg, 1) if season_ppg else 0,
+                    'ppg_delta': round(ppg_delta, 1)
                 }
             }
 
-        similar_home = build_similar_summary(home_similar_data)
-        similar_away = build_similar_summary(away_similar_data)
+        # Get season PPG for both teams
+        home_season_ppg = home_scoring_all.get('season_avg_ppg', 110)
+        away_season_ppg = away_scoring_all.get('season_avg_ppg', 110)
+
+        similar_home = build_similar_summary(home_similar_data, home_season_ppg)
+        similar_away = build_similar_summary(away_similar_data, away_season_ppg)
 
         # 4. Team Form Index Data
         # Calculate from recent games vs season averages
