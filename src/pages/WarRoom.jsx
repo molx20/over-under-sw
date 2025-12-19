@@ -345,8 +345,8 @@ function WarRoom() {
               </button>
             </div>
 
-            {/* Scrollable Content - AI Write-up + 5 Sections */}
-            <div className="px-6 py-8 max-h-[80vh] overflow-y-auto space-y-8">
+            {/* Scrollable Content - AI Write-up Only */}
+            <div className="px-6 py-8 max-h-[80vh] overflow-y-auto">
 
               {/* AI-Generated Matchup Summary Write-up */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 rounded-lg p-6 border border-blue-200 dark:border-gray-700">
@@ -366,48 +366,6 @@ function WarRoom() {
                 )}
               </div>
 
-              {/* 1. Last 5 Games */}
-              <Last5GamesPanel
-                prediction={prediction}
-                homeTeam={home_team}
-                awayTeam={away_team}
-              />
-
-              {/* 2. Advanced Splits */}
-              <AdvancedSplitsPanel
-                scoringSplitsData={scoringSplitsData}
-                threePtSplitsData={threePtSplitsData}
-                threePtVsPaceData={threePtVsPaceData}
-                turnoverVsDefenseData={turnoverVsDefenseData}
-                turnoverVsPaceData={turnoverVsPaceData}
-                splitsLoading={splitsLoading}
-                threePtSplitsLoading={threePtSplitsLoading}
-                threePtVsPaceLoading={threePtVsPaceLoading}
-                turnoverVsDefenseLoading={turnoverVsDefenseLoading}
-                turnoverVsPaceLoading={turnoverVsPaceLoading}
-                onShowGlossary={() => {}}
-              />
-
-              {/* 3. Similar Opponents */}
-              <SimilarOpponentBoxScores gameId={gameId} />
-
-              {/* 4. Team Form Index */}
-              <TeamFormIndex
-                homeTeam={home_team}
-                awayTeam={away_team}
-                homeStats={home_stats}
-                awayStats={away_stats}
-                homeRecentGames={home_recent_games}
-                awayRecentGames={away_recent_games}
-              />
-
-              {/* 5. Matchup Indicators */}
-              <MatchupIndicators
-                homeTeam={home_team}
-                awayTeam={away_team}
-                homeStats={home_stats}
-                awayStats={away_stats}
-              />
             </div>
 
             {/* Sticky Footer */}
