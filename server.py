@@ -3306,7 +3306,7 @@ def get_full_matchup_summary_writeup(game_id):
         from api.utils.db_queries import get_team_scoring_vs_pace, get_pace_bucket
         from api.utils.three_pt_scoring_splits import get_team_three_pt_scoring_splits
         from api.utils.turnover_vs_defense_pressure import get_team_turnover_vs_defense_pressure
-        from api.utils.three_pt_defense_tiers import get_three_pt_defense_tier
+        from api.utils.three_pt_defense_tiers import get_3pt_defense_tier
         from api.utils.turnover_pressure_tiers import get_turnover_pressure_tier
 
         # Get projected pace for this matchup
@@ -3347,8 +3347,8 @@ def get_full_matchup_summary_writeup(game_id):
         away_3pt_def_rank = away_stats.get('stats', {}).get('opp_fg3_pct', {}).get('rank') if away_stats else None
         home_3pt_def_rank = home_stats.get('stats', {}).get('opp_fg3_pct', {}).get('rank') if home_stats else None
 
-        home_3pt_tier = get_three_pt_defense_tier(away_3pt_def_rank) if away_3pt_def_rank else 'average'
-        away_3pt_tier = get_three_pt_defense_tier(home_3pt_def_rank) if home_3pt_def_rank else 'average'
+        home_3pt_tier = get_3pt_defense_tier(away_3pt_def_rank) if away_3pt_def_rank else 'average'
+        away_3pt_tier = get_3pt_defense_tier(home_3pt_def_rank) if home_3pt_def_rank else 'average'
 
         home_3pt_bucket = home_3pt_splits_all.get('splits', {}).get(home_3pt_tier, {})
         three_pt_splits_home = {
