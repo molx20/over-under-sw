@@ -64,18 +64,28 @@ function MatchupIndicators({ homeTeam, awayTeam, homeStats, awayStats }) {
 
   // Calculate ball movement and turnovers
   const getBallMovement = () => {
-    const homeAst = parseFloat(homeStats?.ast_pct) || 0
-    const awayAst = parseFloat(awayStats?.ast_pct) || 0
+    // AST% = Percentage of made field goals that were assisted (should be 50-75%)
+    const homeAst = homeStats?.ast_pct !== null && homeStats?.ast_pct !== undefined
+      ? parseFloat(homeStats.ast_pct)
+      : null
+    const awayAst = awayStats?.ast_pct !== null && awayStats?.ast_pct !== undefined
+      ? parseFloat(awayStats.ast_pct)
+      : null
     const homeTo = parseFloat(homeStats?.tov_pct) || 0
     const awayTo = parseFloat(awayStats?.tov_pct) || 0
 
     return {
-      homeAst: homeAst.toFixed(1),
-      awayAst: awayAst.toFixed(1),
+      homeAst: homeAst !== null ? homeAst.toFixed(1) : '—',
+      awayAst: awayAst !== null ? awayAst.toFixed(1) : '—',
       homeTo: homeTo.toFixed(1),
       awayTo: awayTo.toFixed(1),
-      betterBallMovement: homeAst > awayAst ? homeTeam?.abbreviation : awayTeam?.abbreviation,
-      betterProtection: homeTo < awayTo ? homeTeam?.abbreviation : awayTeam?.abbreviation
+      betterBallMovement: homeAst !== null && awayAst !== null && homeAst > awayAst
+        ? homeTeam?.abbreviation
+        : homeAst !== null && awayAst !== null
+          ? awayTeam?.abbreviation
+          : '—',
+      betterProtection: homeTo < awayTo ? homeTeam?.abbreviation : awayTeam?.abbreviation,
+      hasValidData: homeAst !== null && awayAst !== null
     }
   }
 
@@ -223,7 +233,10 @@ function MatchupIndicators({ homeTeam, awayTeam, homeStats, awayStats }) {
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <div className="text-gray-500 dark:text-gray-400">{awayTeam?.abbreviation}</div>
-                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                <div
+                  className="text-sm font-bold text-gray-900 dark:text-white"
+                  title="Percentage of made field goals that were assisted. Indicates how often scoring is created through ball movement."
+                >
                   {ballMovement.awayAst}% AST
                 </div>
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
@@ -232,7 +245,10 @@ function MatchupIndicators({ homeTeam, awayTeam, homeStats, awayStats }) {
               </div>
               <div>
                 <div className="text-gray-500 dark:text-gray-400">{homeTeam?.abbreviation}</div>
-                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                <div
+                  className="text-sm font-bold text-gray-900 dark:text-white"
+                  title="Percentage of made field goals that were assisted. Indicates how often scoring is created through ball movement."
+                >
                   {ballMovement.homeAst}% AST
                 </div>
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
@@ -241,7 +257,10 @@ function MatchupIndicators({ homeTeam, awayTeam, homeStats, awayStats }) {
               </div>
             </div>
             <p className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
-              {ballMovement.betterBallMovement} moves ball better, {ballMovement.betterProtection} protects it more
+              {ballMovement.hasValidData
+                ? `${ballMovement.betterBallMovement} moves ball better, ${ballMovement.betterProtection} protects it more`
+                : `${ballMovement.betterProtection} protects ball better`
+              }
             </p>
           </div>
         </IndicatorTile>

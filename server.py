@@ -665,6 +665,7 @@ def game_detail():
                 }
 
             # Use all available games for season averages
+            # IMPORTANT: All stats must come from same team, same games, same filters
             paint_pts = [g.get('PTS_PAINT', 0) or 0 for g in all_games if g.get('PTS_PAINT')]
             assists = [g.get('AST', 0) or 0 for g in all_games if g.get('AST')]
             turnovers = [g.get('TOV', 0) or 0 for g in all_games if g.get('TOV')]
@@ -675,13 +676,37 @@ def game_detail():
             avg_tov = sum(turnovers) / len(turnovers) if turnovers else 0
             avg_fgm = sum(fg_made) / len(fg_made) if fg_made else 0
 
-            # Simplified percentage calculations (actual formula is more complex)
-            ast_pct = (avg_ast / (avg_fgm + 0.0001)) * 100  # Avoid division by zero
-            tov_pct = (avg_tov / (avg_fgm + avg_tov + 0.0001)) * 100
+            # Calculate Team Assist Rate (AST%)
+            # Definition: Percentage of made field goals that were assisted
+            # Formula: AST% = (Team Assists ÷ Team Field Goals Made) × 100
+            # Expected range: 50-75% (normal), 40-85% (acceptable edge cases)
+            # Must NEVER exceed 100% - if it does, it's a data pipeline error
+
+            if avg_fgm > 0:
+                ast_rate_pct = (avg_ast / avg_fgm) * 100
+
+                # Validation: AST% should never exceed 100%
+                if ast_rate_pct > 100:
+                    logger.warning(
+                        f"[AST_RATE_ERROR] AST% > 100 detected "
+                        f"(AST={avg_ast:.2f}, FGM={avg_fgm:.2f}, AST%={ast_rate_pct:.1f})"
+                    )
+                    ast_rate_pct = None  # Treat as data error
+                elif ast_rate_pct < 40 or ast_rate_pct > 85:
+                    logger.info(
+                        f"[AST_RATE_WARNING] AST% outside normal range: {ast_rate_pct:.1f}% "
+                        f"(AST={avg_ast:.2f}, FGM={avg_fgm:.2f})"
+                    )
+            else:
+                ast_rate_pct = None
+
+            # TOV% = (Turnovers / Possessions) approximated by TOV / (FGM + TOV)
+            # For simplicity using TOV / (FGM + TOV) as a rough estimate
+            tov_pct = (avg_tov / (avg_fgm + avg_tov + 1e-6)) * 100
 
             return {
                 'paint_pts_per_game': round(avg_paint, 1),
-                'ast_pct': round(ast_pct, 1),
+                'ast_pct': round(ast_rate_pct, 1) if ast_rate_pct is not None else None,
                 'tov_pct': round(tov_pct, 1)
             }
 
