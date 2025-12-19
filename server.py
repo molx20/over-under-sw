@@ -3326,7 +3326,8 @@ def get_full_matchup_summary_writeup(game_id):
             'highlighted_bucket': {
                 'pace_bucket': pace_bucket,
                 'ppg': home_pace_split.get('home_ppg' if True else 'away_ppg', 'N/A'),
-                'gp': home_pace_split.get('home_games' if True else 'away_games', 0)
+                'gp': home_pace_split.get('home_games' if True else 'away_games', 0),
+                'projected_pace': round(projected_pace, 1)
             }
         }
 
@@ -3335,7 +3336,8 @@ def get_full_matchup_summary_writeup(game_id):
             'highlighted_bucket': {
                 'pace_bucket': pace_bucket,
                 'ppg': away_pace_split.get('away_ppg' if True else 'home_ppg', 'N/A'),
-                'gp': away_pace_split.get('away_games' if True else 'home_games', 0)
+                'gp': away_pace_split.get('away_games' if True else 'home_games', 0),
+                'projected_pace': round(projected_pace, 1)
             }
         }
 
@@ -3354,8 +3356,9 @@ def get_full_matchup_summary_writeup(game_id):
         three_pt_splits_home = {
             'highlighted_bucket': {
                 'opp_3pt_tier': home_3pt_tier.capitalize(),
-                'three_pt_pct': home_3pt_bucket.get('home_three_pt_pct' if True else 'away_three_pt_pct', 'N/A'),
-                'gp': home_3pt_bucket.get('home_games' if True else 'away_games', 0)
+                'three_pt_ppg': home_3pt_bucket.get('home_three_pt_ppg' if True else 'away_three_pt_ppg', 'N/A'),
+                'gp': home_3pt_bucket.get('home_games' if True else 'away_games', 0),
+                'opp_rank': away_3pt_def_rank
             }
         }
 
@@ -3363,8 +3366,9 @@ def get_full_matchup_summary_writeup(game_id):
         three_pt_splits_away = {
             'highlighted_bucket': {
                 'opp_3pt_tier': away_3pt_tier.capitalize(),
-                'three_pt_pct': away_3pt_bucket.get('away_three_pt_pct' if True else 'home_three_pt_pct', 'N/A'),
-                'gp': away_3pt_bucket.get('away_games' if True else 'home_games', 0)
+                'three_pt_ppg': away_3pt_bucket.get('away_three_pt_ppg' if True else 'home_three_pt_ppg', 'N/A'),
+                'gp': away_3pt_bucket.get('away_games' if True else 'home_games', 0),
+                'opp_rank': home_3pt_def_rank
             }
         }
 
@@ -3384,7 +3388,8 @@ def get_full_matchup_summary_writeup(game_id):
             'highlighted_bucket': {
                 'pressure_tier': home_to_tier.capitalize() + ' Pressure',
                 'to_avg': home_to_bucket.get('home_to_avg' if True else 'away_to_avg', 'N/A'),
-                'gp': home_to_bucket.get('home_games' if True else 'away_games', 0)
+                'gp': home_to_bucket.get('home_games' if True else 'away_games', 0),
+                'opp_rank': away_to_pressure_rank
             }
         }
 
@@ -3393,7 +3398,8 @@ def get_full_matchup_summary_writeup(game_id):
             'highlighted_bucket': {
                 'pressure_tier': away_to_tier.capitalize() + ' Pressure',
                 'to_avg': away_to_bucket.get('away_to_avg' if True else 'home_to_avg', 'N/A'),
-                'gp': away_to_bucket.get('away_games' if True else 'home_games', 0)
+                'gp': away_to_bucket.get('away_games' if True else 'home_games', 0),
+                'opp_rank': home_to_pressure_rank
             }
         }
 

@@ -197,9 +197,11 @@ def _generate_advanced_splits_narrative(home_team, away_team,
     home_pace_label = home_pace_bucket.get('pace_bucket', 'Moderate Pace')
     home_pace_ppg = home_pace_bucket.get('ppg', 'N/A')
     home_pace_gp = home_pace_bucket.get('gp', 0)
+    projected_pace = home_pace_bucket.get('projected_pace', 'N/A')
 
     if home_pace_ppg != 'N/A' and home_pace_gp > 0:
-        lines.append(f"**{home_abbr}** in **{home_pace_label}** games: **{home_pace_ppg} PPG** ({home_pace_gp} games). This {'elevated' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'moderate'} output shows {'strong' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'reasonable'} scoring efficiency in this pace context.")
+        pace_text = f" (Projected pace: **{projected_pace}**)" if projected_pace != 'N/A' else ""
+        lines.append(f"**{home_abbr}** in **{home_pace_label}** games: **{home_pace_ppg} PPG** across {home_pace_gp} games{pace_text}. This {'elevated' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'moderate'} output shows {'strong' if isinstance(home_pace_ppg, (int, float)) and home_pace_ppg > 115 else 'reasonable'} scoring efficiency in this pace context.")
     else:
         lines.append(f"**{home_abbr}** benefits from added possessions in faster-paced games, though specific pace bucket data is limited.")
     lines.append("")
@@ -210,7 +212,8 @@ def _generate_advanced_splits_narrative(home_team, away_team,
     away_pace_gp = away_pace_bucket.get('gp', 0)
 
     if away_pace_ppg != 'N/A' and away_pace_gp > 0:
-        lines.append(f"**{away_abbr}** in **{away_pace_label}** games: **{away_pace_ppg} PPG** ({away_pace_gp} games). Their output shows {'volatility' if isinstance(away_pace_ppg, (int, float)) and away_pace_ppg < 110 else 'consistency'} in pace-adjusted scoring.")
+        pace_text = f" (Projected pace: **{projected_pace}**)" if projected_pace != 'N/A' else ""
+        lines.append(f"**{away_abbr}** in **{away_pace_label}** games: **{away_pace_ppg} PPG** across {away_pace_gp} games{pace_text}. Their output shows {'volatility' if isinstance(away_pace_ppg, (int, float)) and away_pace_ppg < 110 else 'consistency'} in pace-adjusted scoring.")
     else:
         lines.append(f"**{away_abbr}** shows more volatility depending on shooting efficiency in pace-adjusted contexts.")
     lines.append("")
@@ -221,22 +224,26 @@ def _generate_advanced_splits_narrative(home_team, away_team,
 
     home_3pt_bucket = three_pt_home.get('highlighted_bucket', {})
     home_3pt_tier = home_3pt_bucket.get('opp_3pt_tier', 'Average')
-    home_3pt_pct = home_3pt_bucket.get('three_pt_pct', 'N/A')
+    home_3pt_ppg = home_3pt_bucket.get('three_pt_ppg', 'N/A')
     home_3pt_gp = home_3pt_bucket.get('gp', 0)
+    home_3pt_opp_rank = home_3pt_bucket.get('opp_rank', None)
 
-    if home_3pt_pct != 'N/A' and home_3pt_gp > 0:
-        lines.append(f"**{home_abbr}** vs **{home_3pt_tier}** 3PT defenses: **{home_3pt_pct}%** from three ({home_3pt_gp} games). This {'strong' if isinstance(home_3pt_pct, (int, float)) and home_3pt_pct > 37 else 'below-average'} perimeter efficiency shows {'ceiling-raising' if isinstance(home_3pt_pct, (int, float)) and home_3pt_pct > 37 else 'floor-lowering'} three-point variance.")
+    if home_3pt_ppg != 'N/A' and home_3pt_gp > 0:
+        opp_rank_text = f" (Opponent: **#{home_3pt_opp_rank}**)" if home_3pt_opp_rank else ""
+        lines.append(f"**{home_abbr}** vs **{home_3pt_tier}** 3PT defenses: **{home_3pt_ppg} 3PT PPG** across {home_3pt_gp} games{opp_rank_text}. This {'strong' if isinstance(home_3pt_ppg, (int, float)) and home_3pt_ppg > 38 else 'below-average'} perimeter efficiency shows {'ceiling-raising' if isinstance(home_3pt_ppg, (int, float)) and home_3pt_ppg > 38 else 'floor-lowering'} three-point variance.")
     else:
         lines.append(f"**{home_abbr}** shows perimeter volume sensitivity. When threes fall, scoring ceiling rises.")
     lines.append("")
 
     away_3pt_bucket = three_pt_away.get('highlighted_bucket', {})
     away_3pt_tier = away_3pt_bucket.get('opp_3pt_tier', 'Average')
-    away_3pt_pct = away_3pt_bucket.get('three_pt_pct', 'N/A')
+    away_3pt_ppg = away_3pt_bucket.get('three_pt_ppg', 'N/A')
     away_3pt_gp = away_3pt_bucket.get('gp', 0)
+    away_3pt_opp_rank = away_3pt_bucket.get('opp_rank', None)
 
-    if away_3pt_pct != 'N/A' and away_3pt_gp > 0:
-        lines.append(f"**{away_abbr}** vs **{away_3pt_tier}** 3PT defenses: **{away_3pt_pct}%** ({away_3pt_gp} games). Their perimeter shooting is {'reliable' if isinstance(away_3pt_pct, (int, float)) and away_3pt_pct > 36 else 'inconsistent'}, with {'high' if isinstance(away_3pt_pct, (int, float)) and away_3pt_pct > 36 else 'moderate'} variance potential.")
+    if away_3pt_ppg != 'N/A' and away_3pt_gp > 0:
+        opp_rank_text = f" (Opponent: **#{away_3pt_opp_rank}**)" if away_3pt_opp_rank else ""
+        lines.append(f"**{away_abbr}** vs **{away_3pt_tier}** 3PT defenses: **{away_3pt_ppg} 3PT PPG** across {away_3pt_gp} games{opp_rank_text}. Their perimeter shooting is {'reliable' if isinstance(away_3pt_ppg, (int, float)) and away_3pt_ppg > 37 else 'inconsistent'}, with {'high' if isinstance(away_3pt_ppg, (int, float)) and away_3pt_ppg > 37 else 'moderate'} variance potential.")
     else:
         lines.append(f"**{away_abbr}** depends heavily on three-point shot-making, with floors dropping quickly when shots don't fall.")
     lines.append("")
@@ -249,9 +256,11 @@ def _generate_advanced_splits_narrative(home_team, away_team,
     home_to_tier = home_to_bucket.get('pressure_tier', 'Average Pressure')
     home_to_avg = home_to_bucket.get('to_avg', 'N/A')
     home_to_gp = home_to_bucket.get('gp', 0)
+    home_to_opp_rank = home_to_bucket.get('opp_rank', None)
 
     if home_to_avg != 'N/A' and home_to_gp > 0:
-        lines.append(f"**{home_abbr}** vs **{home_to_tier}**: **{home_to_avg} TO/game** ({home_to_gp} games). This {'controlled' if isinstance(home_to_avg, (int, float)) and home_to_avg < 13 else 'elevated'} turnover rate shows {'strong' if isinstance(home_to_avg, (int, float)) and home_to_avg < 13 else 'concerning'} ball security.")
+        opp_rank_text = f" (Opponent: **#{home_to_opp_rank}**)" if home_to_opp_rank else ""
+        lines.append(f"**{home_abbr}** vs **{home_to_tier}**: **{home_to_avg} TOV/G** across {home_to_gp} games{opp_rank_text}. This {'controlled' if isinstance(home_to_avg, (int, float)) and home_to_avg < 13 else 'elevated'} turnover rate shows {'strong' if isinstance(home_to_avg, (int, float)) and home_to_avg < 13 else 'concerning'} ball security.")
     else:
         lines.append(f"**{home_abbr}** maintains reasonable ball control across varying defensive pressure.")
     lines.append("")
@@ -260,9 +269,11 @@ def _generate_advanced_splits_narrative(home_team, away_team,
     away_to_tier = away_to_bucket.get('pressure_tier', 'Average Pressure')
     away_to_avg = away_to_bucket.get('to_avg', 'N/A')
     away_to_gp = away_to_bucket.get('gp', 0)
+    away_to_opp_rank = away_to_bucket.get('opp_rank', None)
 
     if away_to_avg != 'N/A' and away_to_gp > 0:
-        lines.append(f"**{away_abbr}** vs **{away_to_tier}**: **{away_to_avg} TO/game** ({away_to_gp} games). Their turnover management is {'solid' if isinstance(away_to_avg, (int, float)) and away_to_avg < 13 else 'problematic'} in high-pressure situations.")
+        opp_rank_text = f" (Opponent: **#{away_to_opp_rank}**)" if away_to_opp_rank else ""
+        lines.append(f"**{away_abbr}** vs **{away_to_tier}**: **{away_to_avg} TOV/G** across {away_to_gp} games{opp_rank_text}. Their turnover management is {'solid' if isinstance(away_to_avg, (int, float)) and away_to_avg < 13 else 'problematic'} in high-pressure situations.")
     else:
         lines.append(f"**{away_abbr}** shows slightly higher turnover susceptibility under defensive pressure.")
 
