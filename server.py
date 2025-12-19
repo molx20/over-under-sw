@@ -3510,23 +3510,78 @@ def get_full_matchup_summary_writeup(game_id):
         team_form_away = calculate_team_form(away_recent, away_season_ppg, away_season_opp_ppg, away_season_pace)
 
         # 5. Matchup Indicators
-        # Build from available data
+        # Build comprehensive matchup data for write-up
         home_pace = home_stats.get('stats', {}).get('pace', {}).get('value', 100) if home_stats else 100
         away_pace = away_stats.get('stats', {}).get('pace', {}).get('value', 100) if away_stats else 100
-        pace_diff = abs(home_pace - away_pace)
-        pace_leader = home_team_abbr if home_pace > away_pace else away_team_abbr
+        projected_pace = (home_pace + away_pace) / 2
+
+        # 3PT data
+        home_fg3a = home_data.get('home_stats', {}).get('fg3a_per_game', 0)
+        away_fg3a = away_data.get('away_stats', {}).get('fg3a_per_game', 0)
+        home_fg3_pct = home_data.get('home_stats', {}).get('fg3_pct', 0)
+        away_fg3_pct = away_data.get('away_stats', {}).get('fg3_pct', 0)
+        three_pt_attempt_edge = abs(home_fg3a - away_fg3a)
+
+        # Paint data
+        home_paint = home_advanced.get('paint_pts_per_game', 0)
+        away_paint = away_advanced.get('paint_pts_per_game', 0)
+        home_opp_paint = home_data.get('home_stats', {}).get('opp_paint_pts_per_game', 0)
+        away_opp_paint = away_data.get('away_stats', {}).get('opp_paint_pts_per_game', 0)
+        home_paint_edge = home_paint + away_opp_paint - away_paint - home_opp_paint
+        away_paint_edge = away_paint + home_opp_paint - home_paint - away_opp_paint
+
+        # Ball movement data
+        home_ast_pct = home_advanced.get('ast_pct', 0)
+        away_ast_pct = away_advanced.get('ast_pct', 0)
+        home_tov_pct = home_advanced.get('tov_pct', 0)
+        away_tov_pct = away_advanced.get('tov_pct', 0)
+
+        # FT data
+        home_fta = home_data.get('home_stats', {}).get('fta_per_game', 0)
+        away_fta = away_data.get('away_stats', {}).get('fta_per_game', 0)
+        home_ft_pct = home_data.get('home_stats', {}).get('ft_pct', 0)
+        away_ft_pct = away_data.get('away_stats', {}).get('ft_pct', 0)
 
         matchup_indicators = {
-            'pace_edge': {
-                'leader': pace_leader,
-                'difference': pace_diff
+            'pace': {
+                'home': home_pace,
+                'away': away_pace,
+                'projected': projected_pace,
+                'leader': home_team_abbr if home_pace > away_pace else away_team_abbr
             },
-            'three_pt_advantage': {
-                'leader': home_team_abbr,  # Placeholder
-                'difference': 0
+            'three_pt': {
+                'home_attempts': home_fg3a,
+                'away_attempts': away_fg3a,
+                'home_pct': home_fg3_pct,
+                'away_pct': away_fg3_pct,
+                'attempt_edge': three_pt_attempt_edge,
+                'attempt_leader': home_team_abbr if home_fg3a > away_fg3a else away_team_abbr,
+                'efficiency_leader': home_team_abbr if home_fg3_pct > away_fg3_pct else away_team_abbr
             },
-            'turnover_battle': {
-                'advantage': 'Even'  # Placeholder
+            'paint': {
+                'home_paint': home_paint,
+                'away_paint': away_paint,
+                'home_opp_paint': home_opp_paint,
+                'away_opp_paint': away_opp_paint,
+                'home_edge': home_paint_edge,
+                'away_edge': away_paint_edge,
+                'leader': home_team_abbr if home_paint_edge > away_paint_edge else away_team_abbr
+            },
+            'ball_movement': {
+                'home_ast_pct': home_ast_pct,
+                'away_ast_pct': away_ast_pct,
+                'home_tov_pct': home_tov_pct,
+                'away_tov_pct': away_tov_pct,
+                'ast_leader': home_team_abbr if home_ast_pct > away_ast_pct else away_team_abbr,
+                'tov_leader': home_team_abbr if home_tov_pct < away_tov_pct else away_team_abbr
+            },
+            'free_throws': {
+                'home_fta': home_fta,
+                'away_fta': away_fta,
+                'home_ft_pct': home_ft_pct,
+                'away_ft_pct': away_ft_pct,
+                'attempt_leader': home_team_abbr if home_fta > away_fta else away_team_abbr,
+                'efficiency_leader': home_team_abbr if home_ft_pct > away_ft_pct else away_team_abbr
             }
         }
 

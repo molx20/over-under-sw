@@ -381,39 +381,80 @@ def _generate_team_form_narrative(home_team, away_team, form_home, form_away):
 
 
 def _generate_matchup_indicators_narrative(home_team, away_team, indicators, home_adv, away_adv):
-    """Generate Matchup Indicators with specific edges"""
+    """Generate Matchup Indicators with detailed written breakdown"""
     lines = ["## Matchup Indicators", ""]
 
     home_abbr = home_team.get('abbreviation', 'Home')
     away_abbr = away_team.get('abbreviation', 'Away')
 
     # Pace Edge
-    pace_edge = indicators.get('pace_edge', {})
-    pace_leader = pace_edge.get('leader', home_abbr)
-    pace_diff = pace_edge.get('difference', 0)
-    lines.append(f"**Pace Edge:** {pace_leader} holds a pace advantage of +{pace_diff:.1f}.")
+    pace = indicators.get('pace', {})
+    home_pace = pace.get('home', 100)
+    away_pace = pace.get('away', 100)
+    projected = pace.get('projected', 100)
+    pace_leader = pace.get('leader', home_abbr)
+    pace_follower = away_abbr if pace_leader == home_abbr else home_abbr
+
+    pace_env = "slightly fast" if projected > 100 else "moderate" if projected >= 98 else "slower"
+    tempo_desc = "modestly elevated" if projected > 100 else "measured" if projected >= 98 else "deliberate"
+
+    lines.append(f"**Pace Edge**")
+    lines.append(f"{pace_leader} holds a {'slight' if abs(home_pace - away_pace) < 3 else 'clear'} pace advantage in this matchup. While {pace_follower} averages {min(home_pace, away_pace):.1f} possessions and {pace_leader} plays {'faster' if abs(home_pace - away_pace) > 2 else 'slightly faster'} at {max(home_pace, away_pace):.1f}, the projected pace lands at {projected:.1f}, placing this game in a {pace_env} environment. That suggests tempo should be {tempo_desc} but not extreme, favoring a {'controlled uptick' if projected > 100 else 'grind-it-out pace'} rather than a {'full track meet' if projected > 100 else 'complete standstill'}.")
     lines.append("")
 
     # 3PT Advantage
-    three_pt = indicators.get('three_pt_advantage', {})
-    three_leader = three_pt.get('leader', 'Even')
-    three_diff = three_pt.get('difference', 0)
-    if three_diff > 1:
-        lines.append(f"**3PT Advantage:** {three_leader} attempts and converts more threes (+{three_diff:.1f}%).")
-    else:
-        lines.append(f"**3PT Advantage:** Evenly matched from beyond the arc.")
+    three_pt = indicators.get('three_pt', {})
+    home_3pa = three_pt.get('home_attempts', 0)
+    away_3pa = three_pt.get('away_attempts', 0)
+    home_3p_pct = three_pt.get('home_pct', 0)
+    away_3p_pct = three_pt.get('away_pct', 0)
+    attempt_edge = three_pt.get('attempt_edge', 0)
+    attempt_leader = three_pt.get('attempt_leader', home_abbr)
+    efficiency_leader = three_pt.get('efficiency_leader', home_abbr)
+
+    lines.append(f"**3PT Advantage**")
+    lines.append(f"{attempt_leader} carries the edge in three-point volume, attempting {max(home_3pa, away_3pa):.1f} threes per game compared to {min(home_3pa, away_3pa):.1f}. However, {efficiency_leader} shoots more efficiently from deep at {max(home_3p_pct, away_3p_pct):.1f}% versus {min(home_3p_pct, away_3p_pct):.1f}%. Overall, {attempt_leader} has a +{attempt_edge:.1f} three-point attempt edge, but {efficiency_leader}'s shooting efficiency {'offsets that volume advantage' if attempt_leader != efficiency_leader else 'compounds their volume edge'}, making perimeter scoring {'more balanced than the raw attempts suggest' if attempt_leader != efficiency_leader else 'heavily tilted in their favor'}.")
     lines.append("")
 
     # Paint Pressure
-    lines.append(f"**Paint Pressure:** {home_abbr} likely has interior advantage based on defensive matchups.")
+    paint = indicators.get('paint', {})
+    home_paint = paint.get('home_paint', 0)
+    away_paint = paint.get('away_paint', 0)
+    home_opp_paint = paint.get('home_opp_paint', 0)
+    away_opp_paint = paint.get('away_opp_paint', 0)
+    home_edge = paint.get('home_edge', 0)
+    away_edge = paint.get('away_edge', 0)
+    paint_leader = paint.get('leader', home_abbr)
+    paint_edge = max(abs(home_edge), abs(away_edge))
+
+    lines.append(f"**Paint Pressure**")
+    lines.append(f"{paint_leader} owns a {'clear' if paint_edge > 15 else 'slight' if paint_edge > 5 else 'marginal'} interior scoring advantage in this matchup. {paint_leader} {'average' if paint_leader == home_abbr else 'averages'} {home_paint if paint_leader == home_abbr else away_paint:.1f} points in the paint, while {away_abbr if paint_leader == home_abbr else home_abbr} scores {away_paint if paint_leader == home_abbr else home_paint:.1f}, and {paint_leader} also benefits from {away_abbr if paint_leader == home_abbr else home_abbr} allowing {away_opp_paint if paint_leader == home_abbr else home_opp_paint:.1f} paint points per game. This creates a +{paint_edge:.1f} point paint edge for {paint_leader} in the matchup, making interior scoring {'one of the strongest structural advantages on the floor' if paint_edge > 15 else 'a moderate edge to exploit' if paint_edge > 5 else 'relatively even between both teams'}.")
     lines.append("")
 
     # Ball Movement
-    lines.append(f"**Ball Movement:** {home_abbr} shows better assist rate and ball security.")
+    ball = indicators.get('ball_movement', {})
+    home_ast = ball.get('home_ast_pct', 0) if ball.get('home_ast_pct') else 0
+    away_ast = ball.get('away_ast_pct', 0) if ball.get('away_ast_pct') else 0
+    home_tov = ball.get('home_tov_pct', 0)
+    away_tov = ball.get('away_tov_pct', 0)
+    ast_leader = ball.get('ast_leader', home_abbr)
+    tov_leader = ball.get('tov_leader', home_abbr)
+
+    lines.append(f"**Ball Movement**")
+    lines.append(f"{ast_leader} moves the ball more effectively, posting a {max(home_ast, away_ast):.1f}% assist rate compared to {min(home_ast, away_ast):.1f}%. At the same time, {tov_leader} protects the ball better, with a lower turnover rate ({min(home_tov, away_tov):.1f}%) than {away_abbr if tov_leader == home_abbr else home_abbr} ({max(home_tov, away_tov):.1f}%). This indicates {ast_leader}'s offense is {'more structured and efficient' if ast_leader == tov_leader else 'more fluid but riskier'}, while {away_abbr if ast_leader == home_abbr else home_abbr} is {'more prone to possessions breaking down' if ast_leader == tov_leader else 'more conservative with possessions'}.")
     lines.append("")
 
-    # Free Throws
-    lines.append(f"**Free Throw Leverage:** Both teams get to the line at similar rates.")
+    # Free Throw Leverage
+    ft = indicators.get('free_throws', {})
+    home_fta = ft.get('home_fta', 0)
+    away_fta = ft.get('away_fta', 0)
+    home_ft_pct = ft.get('home_ft_pct', 0)
+    away_ft_pct = ft.get('away_ft_pct', 0)
+    attempt_leader = ft.get('attempt_leader', home_abbr)
+    efficiency_leader = ft.get('efficiency_leader', home_abbr)
+
+    lines.append(f"**Free Throw Leverage**")
+    lines.append(f"{attempt_leader} {'also' if attempt_leader == ast_leader or attempt_leader == paint_leader else ''} holds an edge at the free-throw line. {attempt_leader} {'attempt' if attempt_leader == away_abbr else 'attempts'} more free throws per game ({max(home_fta, away_fta):.1f} vs {min(home_fta, away_fta):.1f}) and {'convert' if efficiency_leader == attempt_leader else 'while'} {efficiency_leader} {'converts' if efficiency_leader != attempt_leader else ''} them at a {'slightly' if abs(home_ft_pct - away_ft_pct) < 3 else 'noticeably'} {'higher' if attempt_leader == efficiency_leader else 'better'} rate ({max(home_ft_pct, away_ft_pct):.1f}% vs {min(home_ft_pct, away_ft_pct):.1f}%). This gives {attempt_leader if attempt_leader == efficiency_leader else efficiency_leader} a {'small but meaningful' if abs(home_ft_pct - away_ft_pct) < 3 else 'clear'} efficiency advantage, particularly in half-court and late-possession situations.")
 
     return "\n".join(lines)
 
