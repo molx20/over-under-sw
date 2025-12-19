@@ -3452,7 +3452,7 @@ def get_full_matchup_summary_writeup(game_id):
 
         # 4. Team Form Index Data
         # Calculate from recent games vs season averages
-        def calculate_team_form(recent_games, season_ppg, season_opp_ppg=None):
+        def calculate_team_form(recent_games, season_ppg, season_opp_ppg=None, season_pace=None):
             if not recent_games or len(recent_games) < 3:
                 return {
                     'offense_delta_vs_season': 0,
@@ -3462,21 +3462,27 @@ def get_full_matchup_summary_writeup(game_id):
 
             recent_ppg = sum(g.get('PTS', 0) for g in recent_games) / len(recent_games)
             recent_opp_ppg = sum(g.get('OPP_PTS', 0) for g in recent_games) / len(recent_games)
+            recent_pace = sum(g.get('PACE', 100) for g in recent_games) / len(recent_games)
 
             offense_delta = recent_ppg - season_ppg if season_ppg else 0
             defense_delta = (season_opp_ppg - recent_opp_ppg) if season_opp_ppg else 0  # Positive = better defense
+            pace_delta = (recent_pace - season_pace) if season_pace else 0
 
             return {
                 'offense_delta_vs_season': round(offense_delta, 1),
                 'defense_delta_vs_season': round(defense_delta, 1),
-                'pace_delta_vs_season': 0  # Would need historical pace data
+                'pace_delta_vs_season': round(pace_delta, 1)
             }
 
         home_season_ppg = home_scoring_all.get('season_avg_ppg', 110)
         away_season_ppg = away_scoring_all.get('season_avg_ppg', 110)
+        home_season_opp_ppg = home_stats.get('stats', {}).get('opp_pts', {}).get('value') if home_stats else None
+        away_season_opp_ppg = away_stats.get('stats', {}).get('opp_pts', {}).get('value') if away_stats else None
+        home_season_pace = home_stats.get('stats', {}).get('pace', {}).get('value') if home_stats else None
+        away_season_pace = away_stats.get('stats', {}).get('pace', {}).get('value') if away_stats else None
 
-        team_form_home = calculate_team_form(home_recent, home_season_ppg)
-        team_form_away = calculate_team_form(away_recent, away_season_ppg)
+        team_form_home = calculate_team_form(home_recent, home_season_ppg, home_season_opp_ppg, home_season_pace)
+        team_form_away = calculate_team_form(away_recent, away_season_ppg, away_season_opp_ppg, away_season_pace)
 
         # 5. Matchup Indicators
         # Build from available data
