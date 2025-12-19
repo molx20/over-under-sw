@@ -381,3 +381,178 @@ export const useGameScoringSplits = (gameId, season = '2025-26') => {
     refetchOnWindowFocus: false,
   })
 }
+
+// ============================================
+// Three-Point Scoring Splits
+// ============================================
+
+/**
+ * Fetch 3PT defense-adjusted scoring splits for both teams in a game
+ */
+export const fetchGameThreePointScoringSplits = async (gameId, season = '2025-26') => {
+  try {
+    const response = await api.get('/game-three-pt-scoring-splits', {
+      params: { game_id: gameId, season },
+      timeout: 10000
+    })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data.data
+  } catch (error) {
+    console.error('[fetchGameThreePointScoringSplits] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch 3PT scoring splits')
+  }
+}
+
+/**
+ * Hook to fetch game 3PT scoring splits for both teams
+ * Cache key: ['game-three-pt-scoring-splits', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameThreePointScoringSplits = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-three-pt-scoring-splits', gameId, season],
+    queryFn: () => fetchGameThreePointScoringSplits(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Fetch 3PT scoring vs pace for both teams in a game
+ */
+const fetchGameThreePointScoringVsPace = async (gameId, season) => {
+  try {
+    const response = await axios.get('/api/game-three-pt-scoring-vs-pace', {
+      params: { game_id: gameId, season }
+    })
+
+    console.log('[fetchGameThreePointScoringVsPace] Response:', response.data)
+
+    if (!response.data?.success || !response.data?.data) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data.data
+  } catch (error) {
+    console.error('[fetchGameThreePointScoringVsPace] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch 3PT scoring vs pace')
+  }
+}
+
+/**
+ * Hook to fetch game 3PT scoring vs pace for both teams
+ * Cache key: ['game-three-pt-scoring-vs-pace', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameThreePointScoringVsPace = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-three-pt-scoring-vs-pace', gameId, season],
+    queryFn: () => fetchGameThreePointScoringVsPace(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Fetch turnover vs defense pressure for both teams in a game
+ */
+const fetchGameTurnoverVsDefensePressure = async (gameId, season) => {
+  try {
+    const response = await axios.get('/api/game-turnover-vs-defense-pressure', {
+      params: { game_id: gameId, season }
+    })
+    return response.data.data || {}
+  } catch (error) {
+    console.error('Error fetching turnover vs defense pressure:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch turnover vs defense pressure')
+  }
+}
+
+/**
+ * Hook to fetch game turnover vs defense pressure for both teams
+ * Cache key: ['game-turnover-vs-defense-pressure', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameTurnoverVsDefensePressure = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-turnover-vs-defense-pressure', gameId, season],
+    queryFn: () => fetchGameTurnoverVsDefensePressure(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Fetch turnover vs pace for both teams in a game
+ */
+const fetchGameTurnoverVsPace = async (gameId, season) => {
+  try {
+    const response = await axios.get('/api/game-turnover-vs-pace', {
+      params: { game_id: gameId, season }
+    })
+    return response.data.data || {}
+  } catch (error) {
+    console.error('Error fetching turnover vs pace:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch turnover vs pace')
+  }
+}
+
+/**
+ * Hook to fetch game turnover vs pace for both teams
+ * Cache key: ['game-turnover-vs-pace', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameTurnoverVsPace = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-turnover-vs-pace', gameId, season],
+    queryFn: () => fetchGameTurnoverVsPace(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Fetch full matchup summary writeup for a game
+ */
+const fetchFullMatchupSummaryWriteup = async (gameId) => {
+  try {
+    const response = await axios.get(`/api/game/${gameId}/full_matchup_summary_writeup`)
+    return response.data.writeup || ''
+  } catch (error) {
+    console.error('Error fetching full matchup summary writeup:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch matchup summary writeup')
+  }
+}
+
+/**
+ * Hook to fetch full matchup summary writeup
+ * Cache key: ['full-matchup-summary-writeup', gameId]
+ * Stale time: 1 hour
+ */
+export const useFullMatchupSummaryWriteup = (gameId) => {
+  return useQuery({
+    queryKey: ['full-matchup-summary-writeup', gameId],
+    queryFn: () => fetchFullMatchupSummaryWriteup(gameId),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}

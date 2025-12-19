@@ -9,7 +9,8 @@ import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
 import MatchupSimilarityCard from '../components/MatchupSimilarityCard'
 import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
-import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace } from '../utils/api'
+import MarkdownRenderer from '../components/MarkdownRenderer'
+import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useFullMatchupSummaryWriteup } from '../utils/api'
 
 function WarRoom() {
   const { gameId } = useParams()
@@ -56,6 +57,12 @@ function WarRoom() {
     data: turnoverVsPaceData,
     isLoading: turnoverVsPaceLoading,
   } = useGameTurnoverVsPace(gameId, '2025-26')
+
+  // Fetch full matchup summary writeup
+  const {
+    data: matchupWriteup,
+    isLoading: writeupLoading,
+  } = useFullMatchupSummaryWriteup(gameId)
 
   // Show loading state
   if (isLoading && !gameData) {
@@ -338,8 +345,26 @@ function WarRoom() {
               </button>
             </div>
 
-            {/* Scrollable Content - 5 Sections Only */}
+            {/* Scrollable Content - AI Write-up + 5 Sections */}
             <div className="px-6 py-8 max-h-[80vh] overflow-y-auto space-y-8">
+
+              {/* AI-Generated Matchup Summary Write-up */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 rounded-lg p-6 border border-blue-200 dark:border-gray-700">
+                <div className="flex items-center mb-4">
+                  <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">AI Matchup Breakdown</h3>
+                </div>
+                {writeupLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-3 text-gray-600 dark:text-gray-400">Generating analysis...</span>
+                  </div>
+                ) : (
+                  <MarkdownRenderer content={matchupWriteup} />
+                )}
+              </div>
 
               {/* 1. Last 5 Games */}
               <Last5GamesPanel
