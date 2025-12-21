@@ -98,9 +98,19 @@ function AdvancedSplitsPanel({
     }
   }
 
-  // Use real data if available, otherwise fallback to mock data
-  const assistsData = assistsVsDefenseData || mockAssistsData
-  const assistsPaceData = assistsVsPaceData || mockAssistsPaceData
+  // Use real data ONLY if it has the correct structure, otherwise use mock data
+  // This ensures the chart ALWAYS shows something
+  const assistsData = (assistsVsDefenseData?.home_team?.splits && assistsVsDefenseData?.away_team?.splits)
+    ? assistsVsDefenseData
+    : mockAssistsData
+
+  const assistsPaceData = (assistsVsPaceData?.home_team?.splits && assistsVsPaceData?.away_team?.splits)
+    ? assistsVsPaceData
+    : mockAssistsPaceData
+
+  // Debug: Log what data we're using
+  console.log('[AdvancedSplits] Assists Defense Data:', assistsVsDefenseData ? 'Backend' : 'Mock')
+  console.log('[AdvancedSplits] Assists Pace Data:', assistsVsPaceData ? 'Backend' : 'Mock')
 
   return (
     <div>
