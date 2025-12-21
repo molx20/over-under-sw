@@ -473,6 +473,7 @@ def get_games():
             # America/Denver automatically switches between MST (UTC-8) and MDT (UTC-7)
             mt_tz = ZoneInfo("America/Denver")
             mt_now = datetime.now(mt_tz)
+            today_mt = mt_now.strftime('%Y-%m-%d')
 
             # Show yesterday's games until 10:30 AM MT (when cron runs)
             # This keeps yesterday's games visible until new games are synced
@@ -483,7 +484,6 @@ def get_games():
                 print(f'[games] Before 10:30 AM MT - using yesterday: {yesterday_mt}')
             else:
                 # After 10:30 AM MT - show today's games
-                today_mt = mt_now.strftime('%Y-%m-%d')
                 default_date = today_mt
                 print(f'[games] After 10:30 AM MT - using today: {today_mt}')
 
