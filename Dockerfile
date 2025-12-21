@@ -12,7 +12,7 @@ RUN npm ci
 # Copy frontend source
 COPY . .
 
-# Build frontend
+# Build frontend (CACHE BUST: 2025-12-21-10:15)
 RUN npm run build
 
 # Final stage
