@@ -523,6 +523,25 @@ def _sync_season_stats_impl(season: str = '2025-26',
 
         logger.info(f"✓ Season opponent stats aggregated for all {len(team_ids)} teams")
 
+        # Compute opp_assists rankings after aggregation
+        logger.info("Computing opp_assists rankings...")
+        cursor.execute('''
+            SELECT team_id, opp_assists
+            FROM team_season_stats
+            WHERE season = ? AND split_type = 'overall' AND opp_assists IS NOT NULL
+            ORDER BY opp_assists ASC
+        ''', (season,))
+
+        ranked_teams = cursor.fetchall()
+        for rank, team in enumerate(ranked_teams, start=1):
+            cursor.execute('''
+                UPDATE team_season_stats
+                SET opp_assists_rank = ?
+                WHERE team_id = ? AND season = ? AND split_type = 'overall'
+            ''', (rank, team['team_id'], season))
+
+        logger.info(f"✓ Ranked {len(ranked_teams)} teams by opp_assists")
+
         conn.commit()
         conn.close()
 
