@@ -473,7 +473,19 @@ def get_games():
             # America/Denver automatically switches between MST (UTC-8) and MDT (UTC-7)
             mt_tz = ZoneInfo("America/Denver")
             mt_now = datetime.now(mt_tz)
-            today_mt = mt_now.strftime('%Y-%m-%d')
+
+            # Show yesterday's games until 10:30 AM MT (when cron runs)
+            # This keeps yesterday's games visible until new games are synced
+            if mt_now.hour < 10 or (mt_now.hour == 10 and mt_now.minute < 30):
+                # Before 10:30 AM MT - show yesterday's games
+                yesterday_mt = (mt_now - timedelta(days=1)).strftime('%Y-%m-%d')
+                default_date = yesterday_mt
+                print(f'[games] Before 10:30 AM MT - using yesterday: {yesterday_mt}')
+            else:
+                # After 10:30 AM MT - show today's games
+                today_mt = mt_now.strftime('%Y-%m-%d')
+                default_date = today_mt
+                print(f'[games] After 10:30 AM MT - using today: {today_mt}')
 
             # Connect to database
             db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
@@ -499,22 +511,22 @@ def get_games():
                     date_selection_reason = f"user_requested (found {row['count']} games)"
                     print(f'[games] Using user-requested date: {requested_date}')
 
-            # STEP 2: Check if today (MT) has games - ONLY USE TODAY, NO FALLBACK
+            # STEP 2: Use default date (yesterday before 10:30 AM, today after)
             if not selected_date:
                 cursor.execute('''
                     SELECT COUNT(*) as count FROM todays_games
                     WHERE game_date = ? AND season = ?
-                ''', (today_mt, current_season))
+                ''', (default_date, current_season))
                 row = cursor.fetchone()
                 if row and row['count'] > 0:
-                    selected_date = today_mt
-                    date_selection_reason = f"today_mt_has_games ({row['count']} games)"
-                    print(f'[games] Today (MT) has {row["count"]} games, using today')
+                    selected_date = default_date
+                    date_selection_reason = f"default_date_has_games ({row['count']} games)"
+                    print(f'[games] Default date has {row["count"]} games')
                 else:
-                    # NO FALLBACK - use today's date even if no games
-                    selected_date = today_mt
-                    date_selection_reason = "today_mt_no_games"
-                    print(f'[games] No games found for today ({today_mt}), showing empty list')
+                    # Use default date even if no games
+                    selected_date = default_date
+                    date_selection_reason = "default_date_no_games"
+                    print(f'[games] No games found for {default_date}, showing empty list')
 
             # Fetch games for the selected date
             cursor.execute('''
