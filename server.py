@@ -3948,51 +3948,6 @@ if __name__ == '__main__':
                 traceback.print_exc()
         else:
             print(f"[Server] Database OK - found {games_count} games")
-
-            # Check if opp_assists_rank needs to be backfilled
-            try:
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT COUNT(*) as missing
-                    FROM team_season_stats
-                    WHERE season = '2025-26'
-                      AND split_type = 'overall'
-                      AND opp_assists_rank IS NULL
-                ''')
-                missing = cursor.fetchone()[0]
-                conn.close()
-
-                if missing > 0:
-                    print(f"[Server] Assists ranks missing for {missing} teams - backfilling in background...")
-
-                    def backfill_assists_bg():
-                        try:
-                            from api.utils.season_opponent_stats_aggregator import update_team_season_opponent_stats
-                            # Quick rank update only (aggregation already done by previous sync)
-                            conn_bg = sqlite3.connect(db_path)
-                            cursor_bg = conn_bg.cursor()
-                            cursor_bg.execute('''
-                                SELECT team_id FROM team_season_stats
-                                WHERE season = '2025-26' AND split_type = 'overall' AND opp_assists IS NOT NULL
-                                ORDER BY opp_assists ASC
-                            ''')
-                            ranked = cursor_bg.fetchall()
-                            for rank, row in enumerate(ranked, start=1):
-                                cursor_bg.execute('''
-                                    UPDATE team_season_stats SET opp_assists_rank = ?
-                                    WHERE team_id = ? AND season = '2025-26' AND split_type = 'overall'
-                                ''', (rank, row[0]))
-                            conn_bg.commit()
-                            conn_bg.close()
-                            print("[Server] ✓ Assists ranks backfilled")
-                        except Exception as e:
-                            print(f"[Server] ✗ Backfill failed: {e}")
-
-                    import threading
-                    threading.Thread(target=backfill_assists_bg, daemon=True).start()
-            except Exception as e:
-                print(f"[Server] WARNING: Assists backfill check failed: {e}")
     except Exception as e:
         print(f"[Server] WARNING: Auto-sync check failed: {e}")
         import traceback

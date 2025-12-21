@@ -25,14 +25,15 @@ def backfill_assists():
     # Step 1: Update opponent stats (populates opp_assists from game logs)
     print("\n[1/2] Aggregating opponent assists from game logs...")
     cursor.execute('''
-        SELECT DISTINCT team_id
-        FROM team_season_stats
-        WHERE season = ?
-        ORDER BY team_id
+        SELECT DISTINCT tss.team_id
+        FROM team_season_stats tss
+        INNER JOIN nba_teams t ON tss.team_id = t.team_id
+        WHERE tss.season = ?
+        ORDER BY tss.team_id
     ''', (season,))
 
     teams = [row['team_id'] for row in cursor.fetchall()]
-    print(f"Found {len(teams)} teams to update")
+    print(f"Found {len(teams)} valid teams to update (excluding placeholders)")
 
     for idx, team_id in enumerate(teams, 1):
         try:
@@ -55,10 +56,11 @@ def backfill_assists():
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT team_id, opp_assists
-        FROM team_season_stats
-        WHERE season = ? AND split_type = 'overall' AND opp_assists IS NOT NULL
-        ORDER BY opp_assists ASC
+        SELECT tss.team_id, tss.opp_assists
+        FROM team_season_stats tss
+        INNER JOIN nba_teams t ON tss.team_id = t.team_id
+        WHERE tss.season = ? AND tss.split_type = 'overall' AND tss.opp_assists IS NOT NULL
+        ORDER BY tss.opp_assists ASC
     ''', (season,))
 
     ranked_teams = cursor.fetchall()
