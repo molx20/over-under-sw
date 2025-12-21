@@ -208,6 +208,43 @@ def admin_sync_now():
     })
 
 
+@app.route('/api/admin/check-assists-data', methods=['GET'])
+def check_assists_data():
+    """Check if assists data exists in database"""
+    import sqlite3
+    from api.utils.db_config import get_db_path
+
+    try:
+        db_path = get_db_path('nba_data.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM team_season_stats
+            WHERE season = '2025-26'
+              AND split_type = 'overall'
+              AND opp_assists IS NOT NULL
+              AND opp_assists_rank IS NOT NULL
+        ''')
+
+        result = cursor.fetchone()
+        count = result[0] if result else 0
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'teams_with_assists_data': count,
+            'data_exists': count >= 30,
+            'message': f'{count}/30 teams have assists data'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/admin/rank-assists', methods=['GET'])
 def admin_rank_assists():
     """Quick endpoint to just compute opp_assists rankings from existing data"""
