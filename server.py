@@ -1819,17 +1819,37 @@ def game_assists_vs_defense():
         print(f'[game_assists_vs_defense] Fetching assists vs ball-movement defense for game {game_id}')
 
         from api.utils.assists_splits import get_team_assists_splits, get_ball_movement_defense_tier
+        from api.utils.db_config import get_db_path
 
-        # Find the game to get team IDs
-        games = get_todays_games(season)
-        game = next((g for g in games if g['game_id'] == game_id), None)
+        # Find the game to get team IDs - query database directly
+        db_path = get_db_path('nba_data.db')
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                g.id as game_id,
+                g.game_date,
+                g.home_team_id,
+                g.away_team_id,
+                ht.full_name as home_team_name,
+                at.full_name as away_team_name
+            FROM games g
+            JOIN nba_teams ht ON g.home_team_id = ht.team_id
+            JOIN nba_teams at ON g.away_team_id = at.team_id
+            WHERE g.id = ? AND g.season = ?
+        ''', (game_id, season))
 
-        if not game:
+        game_row = cursor.fetchone()
+        conn.close()
+
+        if not game_row:
             return jsonify({
                 'success': False,
                 'error': f'Game {game_id} not found'
             }), 404
 
+        game = dict(game_row)
         print(f'[game_assists_vs_defense] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
 
         # Get assist splits for both teams
@@ -1932,17 +1952,37 @@ def game_assists_vs_pace():
 
         from api.utils.assists_vs_pace import get_team_assists_vs_pace
         from api.utils.pace_projection import calculate_projected_pace
+        from api.utils.db_config import get_db_path
 
-        # Find the game to get team IDs
-        games = get_todays_games(season)
-        game = next((g for g in games if g['game_id'] == game_id), None)
+        # Find the game to get team IDs - query database directly
+        db_path = get_db_path('nba_data.db')
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                g.id as game_id,
+                g.game_date,
+                g.home_team_id,
+                g.away_team_id,
+                ht.full_name as home_team_name,
+                at.full_name as away_team_name
+            FROM games g
+            JOIN nba_teams ht ON g.home_team_id = ht.team_id
+            JOIN nba_teams at ON g.away_team_id = at.team_id
+            WHERE g.id = ? AND g.season = ?
+        ''', (game_id, season))
 
-        if not game:
+        game_row = cursor.fetchone()
+        conn.close()
+
+        if not game_row:
             return jsonify({
                 'success': False,
                 'error': f'Game {game_id} not found'
             }), 404
 
+        game = dict(game_row)
         print(f'[game_assists_vs_pace] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
 
         # Get assist pace splits for both teams
