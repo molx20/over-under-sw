@@ -532,8 +532,9 @@ export const useGameTurnoverVsPace = (gameId, season = '2025-26') => {
  */
 const fetchGameAssistsVsDefense = async (gameId, season) => {
   try {
-    const response = await axios.get('/api/game-assists-vs-defense', {
-      params: { game_id: gameId, season }
+    const response = await api.get('/game-assists-vs-defense', {
+      params: { game_id: gameId, season },
+      timeout: 10000
     })
     return response.data.data || {}
   } catch (error) {
@@ -564,8 +565,9 @@ export const useGameAssistsVsDefense = (gameId, season = '2025-26') => {
  */
 const fetchGameAssistsVsPace = async (gameId, season) => {
   try {
-    const response = await axios.get('/api/game-assists-vs-pace', {
-      params: { game_id: gameId, season }
+    const response = await api.get('/game-assists-vs-pace', {
+      params: { game_id: gameId, season },
+      timeout: 10000
     })
     return response.data.data || {}
   } catch (error) {
