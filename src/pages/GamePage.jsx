@@ -65,11 +65,16 @@ function GamePage() {
     isLoading: turnoverVsPaceLoading,
   } = useGameTurnoverVsPace(gameId, '2025-26')
 
+  // DIAGNOSTIC: Log BEFORE assists hooks
+  console.log('[GamePage] BEFORE assists hooks - gameId:', gameId)
+
   // Fetch assists vs defense for both teams
   const {
     data: assistsVsDefenseData,
     isLoading: assistsVsDefenseLoading,
   } = useGameAssistsVsDefense(gameId, '2025-26')
+
+  console.log('[GamePage] AFTER useGameAssistsVsDefense')
 
   // Fetch assists vs pace for both teams
   const {
@@ -77,8 +82,9 @@ function GamePage() {
     isLoading: assistsVsPaceLoading,
   } = useGameAssistsVsPace(gameId, '2025-26')
 
+  console.log('[GamePage] AFTER useGameAssistsVsPace')
+
   // DIAGNOSTIC: Log assists hook results
-  console.log('[GamePage] gameId:', gameId)
   console.log('[GamePage] assistsVsDefenseData from hook:', assistsVsDefenseData)
   console.log('[GamePage] assistsVsDefenseLoading from hook:', assistsVsDefenseLoading)
   console.log('[GamePage] assistsVsPaceData from hook:', assistsVsPaceData)

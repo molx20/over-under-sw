@@ -78,7 +78,8 @@
       "Bash(railway login:*)",
       "Bash(timeout 10 python:*)",
       "Bash(git diff api/utils/*.py)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run build)"
     ],
     "deny": [],
     "ask": []
