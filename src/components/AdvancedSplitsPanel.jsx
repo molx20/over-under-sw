@@ -37,73 +37,9 @@ function AdvancedSplitsPanel({
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
 
-  // TEMPORARY: Mock data for Assists chart (remove after backend is ready)
-  const mockAssistsData = {
-    away_team: {
-      team_id: 1610612745,
-      team_abbreviation: 'HOU',
-      full_name: 'Houston Rockets',
-      season: '2025-26',
-      season_avg_ast: 24.5,
-      opponent_ball_movement_tier: 'average',
-      opponent_opp_ast_rank: 12,
-      splits: {
-        elite: { home_ast: 23.2, home_games: 8, away_ast: 22.5, away_games: 7 },
-        average: { home_ast: 24.8, home_games: 10, away_ast: 24.1, away_games: 9 },
-        bad: { home_ast: 26.5, home_games: 6, away_ast: 25.8, away_games: 5 }
-      }
-    },
-    home_team: {
-      team_id: 1610612743,
-      team_abbreviation: 'DEN',
-      full_name: 'Denver Nuggets',
-      season: '2025-26',
-      season_avg_ast: 27.3,
-      opponent_ball_movement_tier: 'elite',
-      opponent_opp_ast_rank: 4,
-      splits: {
-        elite: { home_ast: 26.1, home_games: 9, away_ast: 25.4, away_games: 8 },
-        average: { home_ast: 27.8, home_games: 11, away_ast: 26.9, away_games: 10 },
-        bad: { home_ast: 29.2, home_games: 7, away_ast: 28.5, away_games: 6 }
-      }
-    }
-  }
-
-  // Use mock data if backend data isn't available
-  const assistsData = assistsVsDefenseData || mockAssistsData
-
-  // TEMPORARY: Mock data for Assists vs Pace chart (remove after backend is ready)
-  const mockAssistsPaceData = {
-    away_team: {
-      team_id: 1610612745,
-      team_abbreviation: 'HOU',
-      full_name: 'Houston Rockets',
-      season: '2025-26',
-      season_avg_ast: 24.5,
-      projected_pace: 100.4,
-      splits: {
-        slow: { home_ast: 22.8, home_games: 6, away_ast: 22.1, away_games: 5 },
-        normal: { home_ast: 24.5, home_games: 12, away_ast: 23.8, away_games: 11 },
-        fast: { home_ast: 26.2, home_games: 8, away_ast: 25.6, away_games: 7 }
-      }
-    },
-    home_team: {
-      team_id: 1610612743,
-      team_abbreviation: 'DEN',
-      full_name: 'Denver Nuggets',
-      season: '2025-26',
-      season_avg_ast: 27.3,
-      projected_pace: 100.4,
-      splits: {
-        slow: { home_ast: 25.6, home_games: 7, away_ast: 24.9, away_games: 6 },
-        normal: { home_ast: 27.4, home_games: 13, away_ast: 26.7, away_games: 12 },
-        fast: { home_ast: 29.1, home_games: 9, away_ast: 28.4, away_games: 8 }
-      }
-    }
-  }
-
-  // Use mock data if backend data isn't available
-  const assistsPaceData = assistsVsPaceData || mockAssistsPaceData
+  // Use real data from backend (no mock fallback)
+  const assistsData = assistsVsDefenseData
+  const assistsPaceData = assistsVsPaceData
 
   return (
     <div>
