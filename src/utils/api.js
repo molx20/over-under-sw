@@ -531,14 +531,17 @@ export const useGameTurnoverVsPace = (gameId, season = '2025-26') => {
  * Fetch assists vs ball-movement defense for both teams in a game
  */
 const fetchGameAssistsVsDefense = async (gameId, season) => {
+  console.log('[fetchGameAssistsVsDefense] Called with gameId:', gameId, 'season:', season)
   try {
     const response = await api.get('/game-assists-vs-defense', {
       params: { game_id: gameId, season },
       timeout: 10000
     })
+    console.log('[fetchGameAssistsVsDefense] Response:', response.data)
     return response.data.data || {}
   } catch (error) {
-    console.error('Error fetching assists vs defense:', error)
+    console.error('[fetchGameAssistsVsDefense] ERROR:', error)
+    console.error('[fetchGameAssistsVsDefense] Error response:', error.response)
     throw new Error(error.response?.data?.error || error.message || 'Failed to fetch assists vs defense')
   }
 }
@@ -564,14 +567,17 @@ export const useGameAssistsVsDefense = (gameId, season = '2025-26') => {
  * Fetch assists vs pace for both teams in a game
  */
 const fetchGameAssistsVsPace = async (gameId, season) => {
+  console.log('[fetchGameAssistsVsPace] Called with gameId:', gameId, 'season:', season)
   try {
     const response = await api.get('/game-assists-vs-pace', {
       params: { game_id: gameId, season },
       timeout: 10000
     })
+    console.log('[fetchGameAssistsVsPace] Response:', response.data)
     return response.data.data || {}
   } catch (error) {
-    console.error('Error fetching assists vs pace:', error)
+    console.error('[fetchGameAssistsVsPace] ERROR:', error)
+    console.error('[fetchGameAssistsVsPace] Error response:', error.response)
     throw new Error(error.response?.data?.error || error.message || 'Failed to fetch assists vs pace')
   }
 }

@@ -77,6 +77,13 @@ function GamePage() {
     isLoading: assistsVsPaceLoading,
   } = useGameAssistsVsPace(gameId, '2025-26')
 
+  // DIAGNOSTIC: Log assists hook results
+  console.log('[GamePage] gameId:', gameId)
+  console.log('[GamePage] assistsVsDefenseData from hook:', assistsVsDefenseData)
+  console.log('[GamePage] assistsVsDefenseLoading from hook:', assistsVsDefenseLoading)
+  console.log('[GamePage] assistsVsPaceData from hook:', assistsVsPaceData)
+  console.log('[GamePage] assistsVsPaceLoading from hook:', assistsVsPaceLoading)
+
   const handleCalculatePrediction = () => {
     const line = parseFloat(bettingLine)
     if (isNaN(line) || line <= 0) {
