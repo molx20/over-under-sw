@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import sys
 import os
+import sqlite3
 import logging
 from dotenv import load_dotenv
 
