@@ -272,6 +272,12 @@ export default function BarDrilldownPopover({
                         </div>
                       )}
 
+                      {metric === 'assists' && (
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {game.team_ast} AST
+                        </div>
+                      )}
+
                       {/* Show tier/rank info if applicable */}
                       {game.opponent_rank && (
                         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
