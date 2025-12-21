@@ -208,6 +208,82 @@ def admin_sync_now():
     })
 
 
+@app.route('/api/admin/rank-assists', methods=['GET'])
+def admin_rank_assists():
+    """Quick endpoint to just compute opp_assists rankings from existing data"""
+    import sqlite3
+    from api.utils.db_config import get_db_path
+    from api.utils.season_opponent_stats_aggregator import update_team_season_opponent_stats
+
+    try:
+        season = '2025-26'
+        db_path = get_db_path('nba_data.db')
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        print(f'[rank-assists] Aggregating opponent assists for all teams...')
+
+        # Get all team IDs
+        cursor.execute('SELECT DISTINCT team_id FROM team_season_stats WHERE season = ?', (season,))
+        team_ids = [row['team_id'] for row in cursor.fetchall()]
+
+        # Aggregate opponent stats for each team
+        for idx, team_id in enumerate(team_ids, 1):
+            update_team_season_opponent_stats(team_id, season, 'overall')
+            if idx % 10 == 0:
+                print(f'[rank-assists] Progress: {idx}/{len(team_ids)} teams')
+
+        print(f'[rank-assists] ✓ Aggregated for {len(team_ids)} teams')
+
+        # Compute rankings
+        print('[rank-assists] Computing opp_assists rankings...')
+        cursor.execute('''
+            SELECT team_id, opp_assists
+            FROM team_season_stats
+            WHERE season = ? AND split_type = 'overall' AND opp_assists IS NOT NULL
+            ORDER BY opp_assists ASC
+        ''', (season,))
+
+        ranked_teams = cursor.fetchall()
+        for rank, team in enumerate(ranked_teams, start=1):
+            cursor.execute('''
+                UPDATE team_season_stats
+                SET opp_assists_rank = ?
+                WHERE team_id = ? AND season = ? AND split_type = 'overall'
+            ''', (rank, team['team_id'], season))
+
+        conn.commit()
+        print(f'[rank-assists] ✓ Ranked {len(ranked_teams)} teams by opp_assists')
+
+        # Verify
+        cursor.execute('''
+            SELECT team_id, opp_assists, opp_assists_rank
+            FROM team_season_stats
+            WHERE season = ? AND split_type = 'overall' AND opp_assists_rank IS NOT NULL
+            ORDER BY opp_assists_rank ASC
+            LIMIT 5
+        ''', (season,))
+
+        top_5 = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Ranked {len(ranked_teams)} teams',
+            'top_5_defenses': top_5
+        })
+
+    except Exception as e:
+        print(f'[rank-assists] Error: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/admin/sync', methods=['POST'])
 def admin_sync():
     """Admin endpoint to trigger data sync (protected by secret token)"""
