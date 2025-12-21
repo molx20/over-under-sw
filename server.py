@@ -3948,6 +3948,32 @@ if __name__ == '__main__':
                 traceback.print_exc()
         else:
             print(f"[Server] Database OK - found {games_count} games")
+
+            # Check if opp_assists_rank needs to be backfilled
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT COUNT(*) as missing
+                    FROM team_season_stats
+                    WHERE season = '2025-26'
+                      AND split_type = 'overall'
+                      AND opp_assists_rank IS NULL
+                ''')
+                missing = cursor.fetchone()[0]
+                conn.close()
+
+                if missing > 0:
+                    print(f"[Server] Assists ranks missing for {missing} teams - running backfill...")
+                    import subprocess
+                    result = subprocess.run(['python', 'backfill_assists_data.py'],
+                                          capture_output=True, text=True, timeout=30)
+                    if result.returncode == 0:
+                        print("[Server] ✓ Assists backfill completed automatically")
+                    else:
+                        print(f"[Server] ✗ Backfill failed: {result.stderr}")
+            except Exception as e:
+                print(f"[Server] WARNING: Assists backfill check failed: {e}")
     except Exception as e:
         print(f"[Server] WARNING: Auto-sync check failed: {e}")
         import traceback
