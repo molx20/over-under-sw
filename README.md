@@ -7,6 +7,8 @@ A modern web application for predicting NBA game totals (Over/Under) using real-
 - **Daily Game Predictions**: View all NBA games with Over/Under predictions
 - **Advanced Analytics**: Predictions based on pace, efficiency, home/away splits, and recent form
 - **Detailed Breakdowns**: Click any game for in-depth statistical analysis
+- **AI-Powered Post-Game Analysis**: Upload box score screenshots for automated game reviews using OpenAI Vision API
+- **Model Coach**: Daily AI summaries analyzing prediction accuracy and model performance
 - **Confidence Ratings**: Each prediction includes a confidence percentage
 - **Dark Mode**: Toggle between light and dark themes
 - **Mobile Responsive**: Works seamlessly on all devices
@@ -17,10 +19,12 @@ A modern web application for predicting NBA game totals (Over/Under) using real-
 
 - **Frontend**: React 18 + Vite
 - **Styling**: Tailwind CSS
-- **Backend**: Python Flask (Serverless Functions)
+- **Backend**: Python Flask
 - **Data Source**: nba_api library
-- **Deployment**: Vercel (Free Tier)
+- **AI**: OpenAI Vision API (gpt-4.1-mini) for screenshot analysis
+- **Deployment**: Railway
 - **Routing**: React Router
+- **Database**: SQLite
 
 ## Project Structure
 
@@ -82,6 +86,13 @@ nba-over-under/
    cp .env.example .env
    ```
 
+   Edit the `.env` file and add your OpenAI API key:
+   ```bash
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+
+   Get your API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
 ### Running Locally
 
 1. **Start the frontend development server**
@@ -98,9 +109,11 @@ nba-over-under/
    print(games)
    ```
 
-## Deployment to Vercel (FREE)
+## Deployment to Railway
 
-### One-Time Setup
+Railway is a modern deployment platform that handles both Python backends and React frontends seamlessly.
+
+#### One-Time Setup
 
 1. **Create a GitHub repository**
    ```bash
@@ -111,36 +124,30 @@ nba-over-under/
    git push -u origin main
    ```
 
-2. **Sign up for Vercel**
-   - Go to [vercel.com](https://vercel.com)
+2. **Sign up for Railway**
+   - Go to [railway.app](https://railway.app)
    - Sign up with GitHub
 
 3. **Deploy the project**
    - Click "New Project"
-   - Import your GitHub repository
-   - Vercel will automatically detect the configuration
-   - Click "Deploy"
+   - Select "Deploy from GitHub repo"
+   - Choose your repository
+   - Railway will automatically detect Python and deploy
 
-### Vercel Configuration
+4. **Configure environment variables**
+   - In your Railway project dashboard
+   - Click on "Variables"
+   - Add the following variable:
+     - `OPENAI_API_KEY`: Your OpenAI API key (get it at [platform.openai.com/api-keys](https://platform.openai.com/api-keys))
+   - Redeploy your service after adding the variable
 
-The `vercel.json` file is already configured for:
-- Static frontend build (React + Vite)
-- Python serverless functions in `/api`
-- Proper routing between frontend and API
+#### Features on Railway
 
-### Environment Variables (Optional)
-
-If you need to set environment variables in production:
-1. Go to your project in Vercel dashboard
-2. Settings → Environment Variables
-3. Add variables like `VITE_API_URL` if needed
-
-### Custom Domain (Optional)
-
-1. Go to your project in Vercel
-2. Settings → Domains
-3. Add your custom domain
-4. Follow DNS configuration instructions
+- Automatic deploys on git push
+- Free tier includes 500 hours/month
+- Built-in database support (if needed)
+- Custom domains
+- Environment variable management
 
 ## How the Prediction Algorithm Works
 

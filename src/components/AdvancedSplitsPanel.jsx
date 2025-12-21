@@ -37,6 +37,20 @@ function AdvancedSplitsPanel({
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
 
+  // DIAGNOSTIC LOGGING
+  console.log('[AdvancedSplitsPanel] Current metric:', metric)
+  console.log('[AdvancedSplitsPanel] Current context:', context)
+
+  if (metric === 'assists') {
+    console.log('[AdvancedSplitsPanel] ASSISTS TAB ACTIVE')
+    console.log('[AdvancedSplitsPanel] assistsVsDefenseData:', assistsVsDefenseData)
+    console.log('[AdvancedSplitsPanel] assistsVsDefenseData?.away_team:', assistsVsDefenseData?.away_team)
+    console.log('[AdvancedSplitsPanel] assistsVsDefenseData?.home_team:', assistsVsDefenseData?.home_team)
+    console.log('[AdvancedSplitsPanel] assistsVsDefenseLoading:', assistsVsDefenseLoading)
+    console.log('[AdvancedSplitsPanel] Render check: metric===assists && context===defense && assistsVsDefenseData =',
+      metric === 'assists' && context === 'defense' && !!assistsVsDefenseData)
+  }
+
   return (
     <div>
       {/* Section Header */}

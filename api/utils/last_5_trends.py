@@ -86,12 +86,28 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
     season_pace = season_stats['stats']['pace']['value']
     season_ppg = season_stats['stats']['ppg']['value']
 
-    # Compute deltas
+    # Build season averages dict
+    season_avg = {
+        'pace': round(season_pace, 1),
+        'off_rtg': round(season_off_rtg, 1),
+        'def_rtg': round(season_def_rtg, 1),
+        'ppg': round(season_ppg, 1)
+    }
+
+    # Compute deltas (last5 - season)
+    delta_vs_season = {
+        'pace': round(averages['pace'] - season_pace, 1),
+        'off_rtg': round(averages['off_rtg'] - season_off_rtg, 1),
+        'def_rtg': round(averages['def_rtg'] - season_def_rtg, 1),
+        'ppg': round(averages['ppg'] - season_ppg, 1)
+    }
+
+    # Legacy season_comparison for backward compatibility
     season_comparison = {
-        'pace_delta': round(averages['pace'] - season_pace, 1),
-        'off_rtg_delta': round(averages['off_rtg'] - season_off_rtg, 1),
-        'def_rtg_delta': round(averages['def_rtg'] - season_def_rtg, 1),
-        'ppg_delta': round(averages['ppg'] - season_ppg, 1)
+        'pace_delta': delta_vs_season['pace'],
+        'off_rtg_delta': delta_vs_season['off_rtg'],
+        'def_rtg_delta': delta_vs_season['def_rtg'],
+        'ppg_delta': delta_vs_season['ppg']
     }
 
     # Analyze opponent strength
@@ -109,13 +125,15 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
         data_quality = 'poor'
 
     print(f'[last_5_trends] {team_tricode}: {len(enriched_games)} games, quality={data_quality}')
-    print(f'[last_5_trends] {team_tricode}: Deltas - PACE:{season_comparison["pace_delta"]:+.1f}, OFF:{season_comparison["off_rtg_delta"]:+.1f}, DEF:{season_comparison["def_rtg_delta"]:+.1f}')
+    print(f'[last_5_trends] {team_tricode}: Deltas - PACE:{delta_vs_season["pace"]:+.1f}, OFF:{delta_vs_season["off_rtg"]:+.1f}, DEF:{delta_vs_season["def_rtg"]:+.1f}')
 
     return {
         'team_tricode': team_tricode,
         'games': enriched_games,
         'averages': averages,
-        'season_comparison': season_comparison,
+        'season_avg': season_avg,
+        'delta_vs_season': delta_vs_season,
+        'season_comparison': season_comparison,  # Legacy, keep for backward compat
         'opponent_breakdown': opponent_breakdown,
         'trend_tags': trend_tags,
         'data_quality': data_quality
@@ -160,7 +178,24 @@ def _enrich_game_with_opponent(game: Dict, season: str) -> Optional[Dict]:
         # Get opponent's season stats
         opponent_stats = get_team_stats_with_ranks(opponent_id, season)
 
-        # Build enriched game record
+        # Extract 3PT data for calculation
+        fg3m = game.get('FG3M', 0)
+        fg3a = game.get('FG3A', 0)
+
+        # Calculate 3PT scoring object
+        three_pt_points = fg3m * 3
+        three_pt_pct = None
+        if fg3a > 0:
+            three_pt_pct = round((fg3m / fg3a) * 100, 1)
+
+        three_pt_obj = {
+            'points': three_pt_points,
+            'made': fg3m,
+            'attempted': fg3a,
+            'percentage': three_pt_pct
+        } if fg3a > 0 or fg3m > 0 else None
+
+        # Build enriched game record with detailed box score stats
         enriched = {
             'game_id': game.get('GAME_ID'),
             'game_date': game.get('GAME_DATE'),
@@ -171,6 +206,12 @@ def _enrich_game_with_opponent(game: Dict, season: str) -> Optional[Dict]:
             'team_pace': game.get('PACE', 0),
             'team_off_rtg': game.get('OFF_RATING', 0),
             'team_def_rtg': game.get('DEF_RATING', 0),
+            # Detailed box score stats
+            'pace': game.get('PACE', 0),
+            'three_pt': three_pt_obj,
+            'tov': game.get('TOV', 0),
+            'ast': game.get('AST', 0),
+            'reb': game.get('REB', 0),
         }
 
         # Add opponent profile if available

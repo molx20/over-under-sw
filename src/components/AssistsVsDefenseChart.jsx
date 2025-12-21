@@ -16,6 +16,12 @@ function AssistsVsDefenseChart({ teamData, compact = false }) {
   const [drilldownParams, setDrilldownParams] = useState(null)
   const [drilldownAnchor, setDrilldownAnchor] = useState(null)
 
+  // DIAGNOSTIC LOGGING
+  console.log('[AssistsVsDefenseChart] Received teamData:', teamData)
+  console.log('[AssistsVsDefenseChart] teamData?.splits:', teamData?.splits)
+  console.log('[AssistsVsDefenseChart] teamData?.team_abbreviation:', teamData?.team_abbreviation)
+  console.log('[AssistsVsDefenseChart] teamData?.season_avg_ast:', teamData?.season_avg_ast)
+
   if (!teamData || !teamData.splits) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 py-8">

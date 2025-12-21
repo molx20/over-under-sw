@@ -113,7 +113,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
               className="absolute left-0 right-0 border-t-2 border-dashed border-blue-500 dark:border-blue-400 z-10 pointer-events-none"
               style={{ bottom: `${getLinePosition(season_avg_ppg)}%` }}
             >
-              <span className="absolute -top-2 -right-1 text-[10px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 px-1 whitespace-nowrap">
+              <span className="absolute -top-2 right-0 text-[11px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 px-1 whitespace-nowrap">
                 Avg: {season_avg_ppg.toFixed(1)}
               </span>
             </div>
@@ -161,7 +161,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                       >
                         {/* Tooltip */}
                         {homeValue && (
-                          <div className="absolute bottom-full mb-2 hidden group-hover:block z-20
+                          <div className="absolute bottom-full mb-2 hidden group-hover:block group-active:block z-20
                 max-sm:left-0 sm:left-1/2 sm:transform sm:-translate-x-1/2">
                             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 shadow-xl
                   max-sm:max-w-[85vw] max-sm:whitespace-normal sm:whitespace-nowrap">
@@ -224,7 +224,7 @@ function ScoringVsPaceChart({ teamData, compact = false }) {
                       >
                         {/* Tooltip */}
                         {awayValue && (
-                          <div className="absolute bottom-full mb-2 hidden group-hover:block z-20
+                          <div className="absolute bottom-full mb-2 hidden group-hover:block group-active:block z-20
                 max-sm:right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2">
                             <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 shadow-xl
                   max-sm:max-w-[85vw] max-sm:whitespace-normal sm:whitespace-nowrap">

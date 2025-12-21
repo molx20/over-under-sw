@@ -108,6 +108,7 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
         }
 
         # Step 2: Fetch game logs with opponent defensive rankings
+        # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)
         cursor.execute('''
             SELECT
                 tgl.is_home,
@@ -121,6 +122,7 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             WHERE tgl.team_id = ?
                 AND tgl.season = ?
                 AND tgl.team_pts IS NOT NULL
+                AND tgl.game_type IN ('Regular Season', 'NBA Cup')
             ORDER BY tgl.game_date DESC
         ''', (team_id, season))
 

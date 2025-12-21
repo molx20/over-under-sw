@@ -1,9 +1,21 @@
-import GlassTooltip from './GlassTooltip'
-import './GlassTooltip.css'
+import { useState } from 'react'
+import BoxScoreModal from './BoxScoreModal'
 import { formatDelta, shouldInvertColors } from '../utils/formatHelpers.jsx'
 import { getOffenseHeat, getRestStatus } from '../utils/predictionHelpers'
 
 function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
+  const [selectedGame, setSelectedGame] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const handleGameClick = (game) => {
+    setSelectedGame(game)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedGame(null)
+  }
   // Handle missing or empty trends data
   if (!trends || !trends.games || trends.games.length === 0) {
     return (
@@ -135,9 +147,6 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
           {games.map((game, idx) => {
             const opponentTricode = game.opponent?.tricode || 'UNK'
             const strength = game.opponent?.strength || 'unknown'
-            const oppPts = game.opp_pts || 0
-            const teamPts = game.team_pts || 0
-            const result = game.matchup || ''
 
             // Color badge by opponent strength
             const strengthColor = strength === 'top'
@@ -149,14 +158,13 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'
 
             return (
-              <GlassTooltip
+              <button
                 key={idx}
-                content={`${result}\n${opponentTricode} scored ${oppPts} pts (${teamAbbr}: ${teamPts})\nRank: OFF #${game.opponent?.off_rtg_rank || 'N/A'}, DEF #${game.opponent?.def_rtg_rank || 'N/A'}`}
+                onClick={() => handleGameClick(game)}
+                className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-all hover:scale-105 active:scale-95 ${strengthColor}`}
               >
-                <span className={`px-2 py-0.5 rounded text-xs font-medium cursor-help ${strengthColor}`}>
-                  {opponentTricode}
-                </span>
-              </GlassTooltip>
+                {opponentTricode}
+              </button>
             )
           })}
         </div>
@@ -183,6 +191,14 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
           ))}
         </div>
       </div>
+
+      {/* Box Score Modal */}
+      <BoxScoreModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        game={selectedGame}
+        teamAbbr={teamAbbr}
+      />
     </div>
   )
 }

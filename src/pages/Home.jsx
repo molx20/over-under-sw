@@ -3,8 +3,7 @@ import GameCard from '../components/GameCard'
 import { useGames } from '../utils/api'
 
 function Home() {
-  const [sortBy, setSortBy] = useState('confidence') // confidence, time, alphabetical
-  const [filterConfidence, setFilterConfidence] = useState(0) // 0 = show all
+  const [sortBy, setSortBy] = useState('time') // time, alphabetical
 
   // Use React Query for automatic caching and refetching
   const {
@@ -21,23 +20,19 @@ function Home() {
     return () => clearInterval(interval)
   }, [refetch])
 
-  // Extract games and last_updated from query data
+  // Extract games and metadata from query data
   const games = data?.games || []
   const lastUpdated = data?.last_updated ? new Date(data.last_updated) : null
+  const selectedDate = data?.date || null
+  const dateReason = data?.date_selection_reason || null
+  const todayMT = data?.today_mt || null
 
-  // Memoize sorted/filtered games to avoid recalculation on every render
-  const getSortedAndFilteredGames = useMemo(() => {
-    let filtered = games.filter(game => {
-      if (!game.prediction) return true
-      return game.prediction.confidence >= filterConfidence
-    })
-
-    return filtered.sort((a, b) => {
+  // Memoize sorted games to avoid recalculation on every render
+  const getSortedGames = useMemo(() => {
+    return games.sort((a, b) => {
       if (!a.prediction || !b.prediction) return 0
 
       switch (sortBy) {
-        case 'confidence':
-          return b.prediction.confidence - a.prediction.confidence
         case 'time':
           return a.game_time.localeCompare(b.game_time)
         case 'alphabetical':
@@ -46,14 +41,19 @@ function Home() {
           return 0
       }
     })
-  }, [games, sortBy, filterConfidence]) // Recalculate only when these dependencies change
+  }, [games, sortBy]) // Recalculate only when these dependencies change
 
   if (isLoading && games.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading today's games...</p>
+          <div className="mt-6 space-y-2">
+            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">Analyzing matchup…</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Pulling team stats, trends, and playstyle data.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">This usually takes 10–30 seconds.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">If it takes too long, try again — cached data may load instantly.</p>
+          </div>
         </div>
       </div>
     )
@@ -76,7 +76,7 @@ function Home() {
     )
   }
 
-  const sortedGames = getSortedAndFilteredGames
+  const sortedGames = getSortedGames
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -84,10 +84,17 @@ function Home() {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Today's Games</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {selectedDate && selectedDate !== todayMT ? `Games for ${selectedDate}` : "Today's Games"}
+            </h2>
             {lastUpdated && (
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Last updated: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+            {selectedDate && selectedDate !== todayMT && (
+              <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                ℹ️ No games today (MT: {todayMT}), showing latest available slate
               </p>
             )}
           </div>
@@ -112,23 +119,8 @@ function Home() {
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              <option value="confidence">Confidence</option>
               <option value="time">Game Time</option>
               <option value="alphabetical">Alphabetical</option>
-            </select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Min Confidence:</label>
-            <select
-              value={filterConfidence}
-              onChange={(e) => setFilterConfidence(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="0">All Games</option>
-              <option value="60">60%+</option>
-              <option value="70">70%+</option>
-              <option value="80">80%+</option>
             </select>
           </div>
         </div>
@@ -140,10 +132,16 @@ function Home() {
           <div className="text-6xl mb-4">🏀</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Games Found</h3>
           <p className="text-gray-600 dark:text-gray-400">
-            {filterConfidence > 0
-              ? `No games meet the ${filterConfidence}% confidence threshold`
-              : 'There are no NBA games scheduled for today'}
+            {dateReason === 'fallback_today_mt (empty_db)'
+              ? 'The games database is empty. Please run the sync job to fetch game data.'
+              : `There are no NBA games scheduled for ${selectedDate || 'this date'}`
+            }
           </p>
+          {dateReason === 'fallback_today_mt (empty_db)' && (
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">
+              Sync runs automatically at 3:00 AM MT, or you can trigger it manually from the admin panel.
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

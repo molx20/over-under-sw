@@ -184,6 +184,9 @@ export default function BarDrilldownPopover({
               {count} {count === 1 ? 'game' : 'games'} • Avg: {computedValue?.toFixed(1)} {getMetricLabel()}
               {avgPace && ` • ${avgPace} pace`}
             </p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic">
+              Regular season + NBA Cup only
+            </p>
           </div>
           <button
             onClick={onClose}

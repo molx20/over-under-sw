@@ -96,9 +96,8 @@ def _generate_recent_form_narrative(home_team, away_team, last5_home, last5_away
                      "maintaining similar pace"
 
     off_narrative = f"offense is {'heating up' if off_delta > 3 else 'cooling' if off_delta < -3 else 'stable'}"
-    def_narrative = f"defense has {'improved significantly' if def_delta > 3 else 'struggled' if def_delta < -3 else 'remained consistent'}"
 
-    lines.append(f"**{home_abbr}** has been {pace_narrative} over the last five games. {off_narrative.capitalize()} with scoring at {home_ppg} PPG ({off_delta:+.1f} vs season). Their {def_narrative}, allowing {home_opp_ppg} PPG ({def_delta:+.1f}).")
+    lines.append(f"**{home_abbr}** has been {pace_narrative} over the last five games. {off_narrative.capitalize()} with scoring at {home_ppg} PPG ({off_delta:+.1f} vs season).")
     lines.append("")
 
     # Away team analysis
@@ -116,9 +115,8 @@ def _generate_recent_form_narrative(home_team, away_team, last5_home, last5_away
                           "maintaining pace"
 
     away_off_narrative = f"offense has {'surged' if away_off_delta > 3 else 'dropped off' if away_off_delta < -3 else 'held steady'}"
-    away_def_narrative = f"Defensively, they have {'improved' if away_def_delta > 3 else 'regressed' if away_def_delta < -3 else 'been consistent'}"
 
-    lines.append(f"**{away_abbr}** ({away_record}) is {away_pace_narrative}. Their {away_off_narrative} at {away_ppg} PPG ({away_off_delta:+.1f}). {away_def_narrative}, allowing {away_opp_ppg} PPG ({away_def_delta:+.1f}).")
+    lines.append(f"**{away_abbr}** ({away_record}) is {away_pace_narrative}. Their {away_off_narrative} at {away_ppg} PPG ({away_off_delta:+.1f}).")
     lines.append("")
 
     # Summary

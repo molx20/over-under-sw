@@ -111,3 +111,9 @@ def get_tier_rank_range(tier: str) -> Optional[tuple]:
         'bad': (21, 30)
     }
     return ranges.get(tier)
+
+
+# Alias for backwards compatibility with scoring_breakdown.py
+def get_defense_tier_range(tier: str) -> Optional[tuple]:
+    """Alias for get_tier_rank_range()"""
+    return get_tier_rank_range(tier)
