@@ -12,7 +12,9 @@ import PostGameReviewModal from '../components/PostGameReviewModal'
 import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace } from '../utils/api'
 
 function GamePage() {
+  console.log('[GamePage] ===== COMPONENT RENDERING =====')
   const { gameId } = useParams()
+  console.log('[GamePage] gameId from useParams:', gameId)
   const navigate = useNavigate()
   const [bettingLine, setBettingLine] = useState('')
   const [customBettingLine, setCustomBettingLine] = useState(null)
