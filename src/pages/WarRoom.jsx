@@ -10,7 +10,7 @@ import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
 import MatchupSimilarityCard from '../components/MatchupSimilarityCard'
 import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
 import MarkdownRenderer from '../components/MarkdownRenderer'
-import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useFullMatchupSummaryWriteup } from '../utils/api'
+import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace, useFullMatchupSummaryWriteup } from '../utils/api'
 
 function WarRoom() {
   const { gameId } = useParams()
@@ -57,6 +57,18 @@ function WarRoom() {
     data: turnoverVsPaceData,
     isLoading: turnoverVsPaceLoading,
   } = useGameTurnoverVsPace(gameId, '2025-26')
+
+  // Fetch assists vs defense for both teams
+  const {
+    data: assistsVsDefenseData,
+    isLoading: assistsVsDefenseLoading,
+  } = useGameAssistsVsDefense(gameId, '2025-26')
+
+  // Fetch assists vs pace for both teams
+  const {
+    data: assistsVsPaceData,
+    isLoading: assistsVsPaceLoading,
+  } = useGameAssistsVsPace(gameId, '2025-26')
 
   // Fetch full matchup summary writeup
   const {
@@ -296,11 +308,15 @@ function WarRoom() {
                 threePtVsPaceData={threePtVsPaceData}
                 turnoverVsDefenseData={turnoverVsDefenseData}
                 turnoverVsPaceData={turnoverVsPaceData}
+                assistsVsDefenseData={assistsVsDefenseData}
+                assistsVsPaceData={assistsVsPaceData}
                 splitsLoading={splitsLoading}
                 threePtSplitsLoading={threePtSplitsLoading}
                 threePtVsPaceLoading={threePtVsPaceLoading}
                 turnoverVsDefenseLoading={turnoverVsDefenseLoading}
                 turnoverVsPaceLoading={turnoverVsPaceLoading}
+                assistsVsDefenseLoading={assistsVsDefenseLoading}
+                assistsVsPaceLoading={assistsVsPaceLoading}
                 onShowGlossary={() => {}}
               />
             )}
