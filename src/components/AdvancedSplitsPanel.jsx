@@ -72,6 +72,39 @@ function AdvancedSplitsPanel({
   // Use mock data if backend data isn't available
   const assistsData = assistsVsDefenseData || mockAssistsData
 
+  // TEMPORARY: Mock data for Assists vs Pace chart (remove after backend is ready)
+  const mockAssistsPaceData = {
+    away_team: {
+      team_id: 1610612745,
+      team_abbreviation: 'HOU',
+      full_name: 'Houston Rockets',
+      season: '2025-26',
+      season_avg_ast: 24.5,
+      projected_pace: 100.4,
+      splits: {
+        slow: { home_ast: 22.8, home_games: 6, away_ast: 22.1, away_games: 5 },
+        normal: { home_ast: 24.5, home_games: 12, away_ast: 23.8, away_games: 11 },
+        fast: { home_ast: 26.2, home_games: 8, away_ast: 25.6, away_games: 7 }
+      }
+    },
+    home_team: {
+      team_id: 1610612743,
+      team_abbreviation: 'DEN',
+      full_name: 'Denver Nuggets',
+      season: '2025-26',
+      season_avg_ast: 27.3,
+      projected_pace: 100.4,
+      splits: {
+        slow: { home_ast: 25.6, home_games: 7, away_ast: 24.9, away_games: 6 },
+        normal: { home_ast: 27.4, home_games: 13, away_ast: 26.7, away_games: 12 },
+        fast: { home_ast: 29.1, home_games: 9, away_ast: 28.4, away_games: 8 }
+      }
+    }
+  }
+
+  // Use mock data if backend data isn't available
+  const assistsPaceData = assistsVsPaceData || mockAssistsPaceData
+
   return (
     <div>
       {/* Section Header */}
@@ -338,13 +371,13 @@ function AdvancedSplitsPanel({
         )}
 
         {/* Assists + Pace */}
-        {metric === 'assists' && context === 'pace' && assistsVsPaceData && (
+        {metric === 'assists' && context === 'pace' && assistsPaceData && (
           <>
-            {assistsVsPaceData.away_team && (
-              <AssistsVsPaceChart teamData={assistsVsPaceData.away_team} />
+            {assistsPaceData.away_team && (
+              <AssistsVsPaceChart teamData={assistsPaceData.away_team} />
             )}
-            {assistsVsPaceData.home_team && (
-              <AssistsVsPaceChart teamData={assistsVsPaceData.home_team} />
+            {assistsPaceData.home_team && (
+              <AssistsVsPaceChart teamData={assistsPaceData.home_team} />
             )}
           </>
         )}
