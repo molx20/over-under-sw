@@ -183,6 +183,31 @@ def admin_sync_status():
     })
 
 
+@app.route('/api/admin/sync-now', methods=['GET'])
+def admin_sync_now():
+    """Temporary GET endpoint to trigger sync (remove after initial sync)"""
+    import threading
+    from api.utils.sync_nba_data import sync_all
+
+    def background_sync():
+        try:
+            print('[admin/sync-now] Starting background sync...')
+            result = sync_all(season='2025-26', triggered_by='admin_get')
+            print(f'[admin/sync-now] Sync completed: {result}')
+        except Exception as e:
+            print(f'[admin/sync-now] Sync failed: {e}')
+            import traceback
+            traceback.print_exc()
+
+    thread = threading.Thread(target=background_sync, daemon=True)
+    thread.start()
+
+    return jsonify({
+        'success': True,
+        'message': 'Sync started in background. Check logs for progress.'
+    })
+
+
 @app.route('/api/admin/sync', methods=['POST'])
 def admin_sync():
     """Admin endpoint to trigger data sync (protected by secret token)"""
