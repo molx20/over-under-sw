@@ -136,6 +136,27 @@ def get_pressure_tier_from_rank(rank: int) -> Optional[str]:
         return 'low'
 
 
+def get_ball_movement_tier_from_rank(rank: int) -> Optional[str]:
+    """
+    Map ball-movement defense rank (1-30) to tier.
+
+    Args:
+        rank: Ball-movement defense rank (1 = allows fewest assists, 30 = most)
+
+    Returns:
+        'elite' (ranks 1-10), 'avg' (11-20), or 'bad' (21-30)
+    """
+    if rank is None or rank < 1 or rank > 30:
+        return None
+
+    if rank <= 10:
+        return 'elite'
+    elif rank <= 20:
+        return 'avg'
+    else:
+        return 'bad'
+
+
 # ============================================================================
 # OPPONENT RANK LOOKUP
 # ============================================================================
@@ -238,6 +259,38 @@ def get_opponent_pressure_rank(opponent_team_id: int, game_date: str, season: st
         conn.close()
 
 
+def get_opponent_assists_rank(opponent_team_id: int, game_date: str, season: str) -> Optional[int]:
+    """
+    Get opponent's ball-movement defense rank (based on opponent assists allowed).
+
+    Args:
+        opponent_team_id: Opponent team ID
+        game_date: Game date
+        season: Season string
+
+    Returns:
+        Assists allowed rank (1-30) or None
+    """
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Get opponent's assists allowed rank (already computed in team_season_stats)
+        cursor.execute('''
+            SELECT opp_assists_rank
+            FROM team_season_stats
+            WHERE team_id = ?
+                AND season = ?
+                AND split_type = 'overall'
+        ''', (opponent_team_id, season))
+
+        row = cursor.fetchone()
+        return row['opp_assists_rank'] if row and row['opp_assists_rank'] else None
+
+    finally:
+        conn.close()
+
+
 # ============================================================================
 # DRILLDOWN QUERY FUNCTIONS
 # ============================================================================
@@ -280,6 +333,7 @@ def get_drilldown_games(
         is_home = 1 if context == 'home' else 0
 
         # Base query gets all games for this team in this context
+        # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)
         query = '''
             SELECT
                 tgl.game_id,
@@ -293,6 +347,7 @@ def get_drilldown_games(
                 tgl.fg3a,
                 tgl.fg3_pct,
                 tgl.turnovers as team_tov,
+                tgl.assists as team_ast,
                 tgl.pace as pace_actual,
                 g.actual_total_points as total_points
             FROM team_game_logs tgl
@@ -301,6 +356,7 @@ def get_drilldown_games(
                 AND tgl.season = ?
                 AND tgl.is_home = ?
                 AND tgl.team_pts IS NOT NULL
+                AND tgl.game_type IN ('Regular Season', 'NBA Cup')
         '''
 
         params = [team_id, season, is_home]
@@ -366,6 +422,19 @@ def get_drilldown_games(
                     game_dict['tier_label'] = opp_tier.capitalize() if opp_tier else None
                     include_game = (opp_tier == tier)
 
+            elif dimension == 'ball_movement_tier':
+                # Get opponent's ball-movement defense rank
+                opp_rank = get_opponent_assists_rank(
+                    game['opponent_team_id'],
+                    game['game_date'],
+                    season
+                )
+                if opp_rank:
+                    opp_tier = get_ball_movement_tier_from_rank(opp_rank)
+                    game_dict['opponent_rank'] = opp_rank
+                    game_dict['tier_label'] = opp_tier.capitalize() if opp_tier else None
+                    include_game = (opp_tier == tier)
+
             if include_game:
                 filtered_games.append(game_dict)
 
@@ -390,6 +459,10 @@ def get_drilldown_games(
         elif metric == 'turnovers':
             # Average turnovers per game
             bar_value = sum(g['team_tov'] or 0 for g in filtered_games) / len(filtered_games)
+
+        elif metric == 'assists':
+            # Average assists per game
+            bar_value = sum(g['team_ast'] or 0 for g in filtered_games) / len(filtered_games)
 
         return {
             'count': len(filtered_games),

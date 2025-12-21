@@ -6,6 +6,8 @@ import ThreePointScoringVsDefenseChart from './ThreePointScoringVsDefenseChart'
 import ThreePointScoringVsPaceChart from './ThreePointScoringVsPaceChart'
 import TurnoverVsDefensePressureChart from './TurnoverVsDefensePressureChart'
 import TurnoverVsPaceChart from './TurnoverVsPaceChart'
+import AssistsVsDefenseChart from './AssistsVsDefenseChart'
+import AssistsVsPaceChart from './AssistsVsPaceChart'
 import { EXPLANATION_TEXT } from '../utils/explanationText'
 
 /**
@@ -20,15 +22,19 @@ function AdvancedSplitsPanel({
   threePtVsPaceData,
   turnoverVsDefenseData,
   turnoverVsPaceData,
+  assistsVsDefenseData,
+  assistsVsPaceData,
   splitsLoading,
   threePtSplitsLoading,
   threePtVsPaceLoading,
   turnoverVsDefenseLoading,
   turnoverVsPaceLoading,
+  assistsVsDefenseLoading,
+  assistsVsPaceLoading,
   onShowGlossary
 }) {
   // Toggle states for metric and context
-  const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers'
+  const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
 
   return (
@@ -54,7 +60,7 @@ function AdvancedSplitsPanel({
         </button>
       </div>
 
-      {/* Metric Toggle (Scoring | 3PT | Turnovers) */}
+      {/* Metric Toggle (Scoring | 3PT | Turnovers | Assists) */}
       <div className="mb-3">
         <div className="inline-flex w-full sm:w-auto rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
           <button
@@ -79,13 +85,23 @@ function AdvancedSplitsPanel({
           </button>
           <button
             onClick={() => setMetric('turnovers')}
-            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors ${
+            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors border-r border-gray-300 dark:border-gray-600 ${
               metric === 'turnovers'
                 ? 'bg-primary-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             Turnovers
+          </button>
+          <button
+            onClick={() => setMetric('assists')}
+            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors ${
+              metric === 'assists'
+                ? 'bg-primary-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Assists
           </button>
         </div>
       </div>
@@ -130,15 +146,20 @@ function AdvancedSplitsPanel({
               {metric === 'threePt' && context === 'pace' && 'About 3-Point Shooting vs Game Speed'}
               {metric === 'turnovers' && context === 'defense' && 'About Turnovers vs Defense Pressure'}
               {metric === 'turnovers' && context === 'pace' && 'About Turnovers vs Game Speed'}
+              {metric === 'assists' && context === 'defense' && 'About Assists vs Ball-Movement Defense'}
+              {metric === 'assists' && context === 'pace' && 'About Assists vs Game Speed'}
             </h4>
             <p className="text-sm text-blue-800 dark:text-blue-200">
               {metric === 'scoring' && EXPLANATION_TEXT.scoring.description}
               {metric === 'threePt' && EXPLANATION_TEXT.threePt.description}
               {metric === 'turnovers' && EXPLANATION_TEXT.turnovers.description}
+              {metric === 'assists' && EXPLANATION_TEXT.assists?.description}
             </p>
             {context === 'defense' && (
               <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                {EXPLANATION_TEXT.defenseTiers.description}
+                {metric === 'assists'
+                  ? EXPLANATION_TEXT.ballMovementTiers.description
+                  : EXPLANATION_TEXT.defenseTiers.description}
               </p>
             )}
             {context === 'pace' && (
@@ -268,6 +289,30 @@ function AdvancedSplitsPanel({
             )}
           </>
         )}
+
+        {/* Assists + Defense */}
+        {metric === 'assists' && context === 'defense' && assistsVsDefenseData && (
+          <>
+            {assistsVsDefenseData.away_team && (
+              <AssistsVsDefenseChart teamData={assistsVsDefenseData.away_team} />
+            )}
+            {assistsVsDefenseData.home_team && (
+              <AssistsVsDefenseChart teamData={assistsVsDefenseData.home_team} />
+            )}
+          </>
+        )}
+
+        {/* Assists + Pace */}
+        {metric === 'assists' && context === 'pace' && assistsVsPaceData && (
+          <>
+            {assistsVsPaceData.away_team && (
+              <AssistsVsPaceChart teamData={assistsVsPaceData.away_team} />
+            )}
+            {assistsVsPaceData.home_team && (
+              <AssistsVsPaceChart teamData={assistsVsPaceData.home_team} />
+            )}
+          </>
+        )}
       </div>
 
       {/* Loading States */}
@@ -299,6 +344,18 @@ function AdvancedSplitsPanel({
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
           <p>Loading turnover vs pace...</p>
+        </div>
+      )}
+      {metric === 'assists' && context === 'defense' && assistsVsDefenseLoading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
+          <p>Loading assists vs defense...</p>
+        </div>
+      )}
+      {metric === 'assists' && context === 'pace' && assistsVsPaceLoading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
+          <p>Loading assists vs pace...</p>
         </div>
       )}
     </div>

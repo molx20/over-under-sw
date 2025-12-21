@@ -528,6 +528,70 @@ export const useGameTurnoverVsPace = (gameId, season = '2025-26') => {
 }
 
 /**
+ * Fetch assists vs ball-movement defense for both teams in a game
+ */
+const fetchGameAssistsVsDefense = async (gameId, season) => {
+  try {
+    const response = await axios.get('/api/game-assists-vs-defense', {
+      params: { game_id: gameId, season }
+    })
+    return response.data.data || {}
+  } catch (error) {
+    console.error('Error fetching assists vs defense:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch assists vs defense')
+  }
+}
+
+/**
+ * Hook to fetch game assists vs defense for both teams
+ * Cache key: ['game-assists-vs-defense', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameAssistsVsDefense = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-assists-vs-defense', gameId, season],
+    queryFn: () => fetchGameAssistsVsDefense(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * Fetch assists vs pace for both teams in a game
+ */
+const fetchGameAssistsVsPace = async (gameId, season) => {
+  try {
+    const response = await axios.get('/api/game-assists-vs-pace', {
+      params: { game_id: gameId, season }
+    })
+    return response.data.data || {}
+  } catch (error) {
+    console.error('Error fetching assists vs pace:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch assists vs pace')
+  }
+}
+
+/**
+ * Hook to fetch game assists vs pace for both teams
+ * Cache key: ['game-assists-vs-pace', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameAssistsVsPace = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-assists-vs-pace', gameId, season],
+    queryFn: () => fetchGameAssistsVsPace(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
  * Fetch full matchup summary writeup for a game
  */
 const fetchFullMatchupSummaryWriteup = async (gameId) => {

@@ -1040,6 +1040,10 @@ def _sync_game_logs_impl(season: str = '2025-26',
                 # Get box score stats from cache
                 box_stats = box_score_cache.get(game_id, {}).get(team_id, {})
 
+                # Classify game type for filtering
+                from api.utils.game_classifier import get_game_type_label
+                game_type = get_game_type_label(game_id, game_data['game_date'])
+
                 # Insert game log with game pace, scoring breakdown, and box score stats
                 cursor.execute('''
                     INSERT OR REPLACE INTO team_game_logs (
@@ -1054,8 +1058,8 @@ def _sync_game_logs_impl(season: str = '2025-26',
                         offensive_rebounds, defensive_rebounds,
                         steals, blocks,
                         points_off_turnovers, fast_break_points, points_in_paint, second_chance_points,
-                        synced_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        game_type, synced_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     game_id,
                     int(team_id),
@@ -1095,6 +1099,7 @@ def _sync_game_logs_impl(season: str = '2025-26',
                     box_stats.get('fast_break_points', None),
                     box_stats.get('points_in_paint', None),
                     box_stats.get('second_chance_points', None),
+                    game_type,
                     synced_at
                 ))
 
@@ -1229,6 +1234,10 @@ def _sync_todays_games_impl(season: str = '2025-26') -> Tuple[int, Optional[str]
                 home_team = game.get('homeTeam', {})
                 away_team = game.get('awayTeam', {})
 
+                # Classify game type for filtering
+                from api.utils.game_classifier import get_game_type_label
+                game_type = get_game_type_label(game_id, game_date)
+
                 # Use INSERT OR REPLACE to handle any duplicate key conflicts
                 cursor.execute('''
                     INSERT OR REPLACE INTO todays_games (
@@ -1236,8 +1245,8 @@ def _sync_todays_games_impl(season: str = '2025-26') -> Tuple[int, Optional[str]
                         home_team_id, home_team_name, home_team_score,
                         away_team_id, away_team_name, away_team_score,
                         game_status_text, game_status_code, game_time_utc,
-                        synced_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        game_type, synced_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     game_id,
                     game_date,
@@ -1251,6 +1260,7 @@ def _sync_todays_games_impl(season: str = '2025-26') -> Tuple[int, Optional[str]
                     game.get('gameStatusText', ''),
                     game.get('gameStatus', 1),
                     game.get('gameTimeUTC', ''),
+                    game_type,
                     synced_at
                 ))
 
@@ -1602,7 +1612,7 @@ def _compute_and_save_rankings(cursor, stats_data: List[Dict], season: str):
     # Stats where higher is better
     stats_high = ['ppg', 'fg_pct', 'fg3_pct', 'ft_pct', 'off_rtg', 'net_rtg', 'pace', 'opp_tov']
     # Stats where lower is better
-    stats_low = ['opp_ppg', 'def_rtg']
+    stats_low = ['opp_ppg', 'def_rtg', 'opp_assists']
 
     # Rank high stats (descending)
     for stat in stats_high:

@@ -183,6 +183,10 @@ def get_team_stats(team_id: int, season: str = '2025-26') -> Optional[Dict]:
             'STL': row['steals'],
             'BLK': row['blocks'],
             'TOV': row['turnovers'],
+            # Shot attempts for MatchupIndicators
+            'FGA': row['fg2a'] + row['fg3a'],  # Total FG attempts = 2PA + 3PA
+            'FG3A': row['fg3a'],
+            'FTA': row['fta'],
         }
 
     return result
@@ -300,6 +304,7 @@ def get_team_stats_with_ranks(team_id: int, season: str = '2025-26') -> Optional
             'pace': {'value': row['pace'], 'rank': row['pace_rank']},
             'opp_fg3_pct_rank': {'value': row['opp_fg3_pct'] if 'opp_fg3_pct' in row.keys() else None, 'rank': row['opp_fg3_pct_rank'] if 'opp_fg3_pct_rank' in row.keys() else None},
             'opp_tov': {'value': row['opp_tov'] if 'opp_tov' in row.keys() else None, 'rank': row['opp_tov_rank'] if 'opp_tov_rank' in row.keys() else None},
+            'opp_assists': {'value': row['opp_assists'] if 'opp_assists' in row.keys() else None, 'rank': row['opp_assists_rank'] if 'opp_assists_rank' in row.keys() else None},
             # Add stats needed for expected vs actual comparison
             'fta': {'value': row['fta'] if 'fta' in row.keys() else None, 'rank': None},
             'turnovers': {'value': row['turnovers'] if 'turnovers' in row.keys() else None, 'rank': None},
@@ -317,17 +322,32 @@ def get_team_last_n_games(team_id: int, n: int = 5, season: str = '2025-26') -> 
 
     Returns:
         List of game dicts with GAME_ID, GAME_DATE, MATCHUP, PTS, OPP_PTS, WL, etc.
+
+    Note: If GAME_FILTER_MODE=REGULAR_PLUS_ALL_CUP, only returns Regular Season + NBA Cup games
     """
+    import os
     conn = _get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT *
-        FROM team_game_logs
-        WHERE team_id = ? AND season = ?
-        ORDER BY game_date DESC
-        LIMIT ?
-    ''', (team_id, season, n))
+    # Apply game filtering if enabled
+    filter_mode = os.environ.get('GAME_FILTER_MODE', 'DISABLED')
+    if filter_mode == 'REGULAR_PLUS_ALL_CUP':
+        cursor.execute('''
+            SELECT *
+            FROM team_game_logs
+            WHERE team_id = ? AND season = ?
+              AND game_type IN ('Regular Season', 'NBA Cup')
+            ORDER BY game_date DESC
+            LIMIT ?
+        ''', (team_id, season, n))
+    else:
+        cursor.execute('''
+            SELECT *
+            FROM team_game_logs
+            WHERE team_id = ? AND season = ?
+            ORDER BY game_date DESC
+            LIMIT ?
+        ''', (team_id, season, n))
 
     rows = cursor.fetchall()
     conn.close()
@@ -353,6 +373,13 @@ def get_team_last_n_games(team_id: int, n: int = 5, season: str = '2025-26') -> 
             'REB': row['rebounds'],
             'AST': row['assists'],
             'TOV': row['turnovers'],
+            'FGM': row['fgm'],  # Fixed: column is 'fgm' not 'fg_made'
+            'FG3A': row['fg3a'],
+            'FG3M': row['fg3m'],
+            'PTS_PAINT': row['points_in_paint'],
+            'OPP_PTS_PAINT': row['opp_points_in_paint'],
+            'PTS_FB': row['fast_break_points'],
+            'PTS_2ND_CHANCE': row['second_chance_points'],
         }
         for row in rows
     ]
@@ -700,6 +727,10 @@ def _get_league_average_fallback(season: str, stat_type: str) -> Dict:
                 'STL': 7.5,
                 'BLK': 5.0,
                 'TOV': 13.0,
+                # Shot attempts for MatchupIndicators
+                'FGA': 88.0,  # League average ~88 FGA/game
+                'FG3A': 35.0,  # League average ~35 3PA/game
+                'FTA': 23.0,  # League average ~23 FTA/game
             },
             'home': {},
             'away': {}

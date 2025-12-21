@@ -8,10 +8,14 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import sys
 import os
+import logging
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Add the api directory to path
 sys.path.append(os.path.dirname(__file__))
@@ -394,7 +398,7 @@ def get_games():
                     date_selection_reason = f"user_requested (found {row['count']} games)"
                     print(f'[games] Using user-requested date: {requested_date}')
 
-            # STEP 2: Check if today (MT) has games
+            # STEP 2: Check if today (MT) has games - ONLY USE TODAY, NO FALLBACK
             if not selected_date:
                 cursor.execute('''
                     SELECT COUNT(*) as count FROM todays_games
@@ -405,27 +409,11 @@ def get_games():
                     selected_date = today_mt
                     date_selection_reason = f"today_mt_has_games ({row['count']} games)"
                     print(f'[games] Today (MT) has {row["count"]} games, using today')
-
-            # STEP 3: Find the most recent date that has games
-            if not selected_date:
-                cursor.execute('''
-                    SELECT game_date, COUNT(*) as count
-                    FROM todays_games
-                    WHERE season = ?
-                    GROUP BY game_date
-                    ORDER BY game_date DESC
-                    LIMIT 1
-                ''', (current_season,))
-                row = cursor.fetchone()
-                if row:
-                    selected_date = row['game_date']
-                    date_selection_reason = f"latest_available_date ({row['count']} games)"
-                    print(f'[games] No games today, showing latest slate: {selected_date} ({row["count"]} games)')
                 else:
-                    # STEP 4: Absolute fallback - no games in DB at all
+                    # NO FALLBACK - use today's date even if no games
                     selected_date = today_mt
-                    date_selection_reason = "fallback_today_mt (empty_db)"
-                    print(f'[games] WARNING: No games found in database, using today as fallback')
+                    date_selection_reason = "today_mt_no_games"
+                    print(f'[games] No games found for today ({today_mt}), showing empty list')
 
             # Fetch games for the selected date
             cursor.execute('''
@@ -1632,6 +1620,223 @@ def game_turnover_vs_pace():
         }), 500
 
 
+@app.route('/api/game-assists-vs-defense', methods=['GET'])
+def game_assists_vs_defense():
+    """
+    Get assist splits by opponent ball-movement defense tier for both teams in a game.
+
+    Query params:
+        - game_id: NBA game ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'data': {
+                'game_id': '0022500234',
+                'game_date': '2025-11-30',
+                'home_team': {
+                    'team_id': 1610612738,
+                    'team_abbreviation': 'BOS',
+                    'full_name': 'Boston Celtics',
+                    'season_avg_ast': 27.5,
+                    'opponent_ball_movement_tier': 'elite',
+                    'splits': {
+                        'elite': {
+                            'home_ast': 26.2,
+                            'home_games': 8,
+                            'away_ast': 25.3,
+                            'away_games': 7
+                        },
+                        'average': { ... },
+                        'bad': { ... }
+                    }
+                },
+                'away_team': { ... }
+            }
+        }
+    """
+    try:
+        game_id = request.args.get('game_id')
+        season = request.args.get('season', '2025-26')
+
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'game_id parameter is required'
+            }), 400
+
+        print(f'[game_assists_vs_defense] Fetching assists vs ball-movement defense for game {game_id}')
+
+        from api.utils.assists_splits import get_team_assists_splits, get_ball_movement_defense_tier
+
+        # Find the game to get team IDs
+        games = get_todays_games(season)
+        game = next((g for g in games if g['game_id'] == game_id), None)
+
+        if not game:
+            return jsonify({
+                'success': False,
+                'error': f'Game {game_id} not found'
+            }), 404
+
+        print(f'[game_assists_vs_defense] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
+
+        # Get assist splits for both teams
+        home_splits = get_team_assists_splits(game['home_team_id'], season)
+        away_splits = get_team_assists_splits(game['away_team_id'], season)
+
+        if not home_splits or not away_splits:
+            return jsonify({
+                'success': False,
+                'error': 'Team data not found for one or both teams'
+            }), 404
+
+        # Get opponent ball-movement defense tier for each team
+        # Home team faces away team's ball-movement defense
+        away_team_stats = get_team_stats_with_ranks(game['away_team_id'], season)
+        away_opp_ast_rank = away_team_stats['stats']['opp_assists']['rank'] if away_team_stats and 'opp_assists' in away_team_stats['stats'] else None
+        home_opponent_tier = get_ball_movement_defense_tier(away_opp_ast_rank)
+
+        # Away team faces home team's ball-movement defense
+        home_team_stats = get_team_stats_with_ranks(game['home_team_id'], season)
+        home_opp_ast_rank = home_team_stats['stats']['opp_assists']['rank'] if home_team_stats and 'opp_assists' in home_team_stats['stats'] else None
+        away_opponent_tier = get_ball_movement_defense_tier(home_opp_ast_rank)
+
+        # Add opponent tier and rank to each team's data
+        home_splits['opponent_ball_movement_tier'] = home_opponent_tier
+        home_splits['opponent_opp_ast_rank'] = away_opp_ast_rank
+
+        away_splits['opponent_ball_movement_tier'] = away_opponent_tier
+        away_splits['opponent_opp_ast_rank'] = home_opp_ast_rank
+
+        print(f'[game_assists_vs_defense] Home faces {home_opponent_tier} ball-movement defense, Away faces {away_opponent_tier} ball-movement defense')
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'game_id': game_id,
+                'game_date': game.get('game_date'),
+                'home_team': home_splits,
+                'away_team': away_splits
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/game-assists-vs-pace', methods=['GET'])
+def game_assists_vs_pace():
+    """
+    Get assist splits by game pace tier for both teams in a game.
+
+    Query params:
+        - game_id: NBA game ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'data': {
+                'game_id': '0022500234',
+                'game_date': '2025-11-30',
+                'projected_pace': 101.5,
+                'home_team': {
+                    'team_id': 1610612738,
+                    'team_abbreviation': 'BOS',
+                    'full_name': 'Boston Celtics',
+                    'season_avg_ast': 27.5,
+                    'projected_pace': 101.5,
+                    'splits': {
+                        'slow': {
+                            'home_ast': 26.8,
+                            'home_games': 6,
+                            'away_ast': 25.3,
+                            'away_games': 5
+                        },
+                        'normal': { ... },
+                        'fast': { ... }
+                    }
+                },
+                'away_team': { ... }
+            }
+        }
+    """
+    try:
+        game_id = request.args.get('game_id')
+        season = request.args.get('season', '2025-26')
+
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'game_id parameter is required'
+            }), 400
+
+        print(f'[game_assists_vs_pace] Fetching assists vs pace for game {game_id}')
+
+        from api.utils.assists_vs_pace import get_team_assists_vs_pace
+        from api.utils.pace_projection import calculate_projected_pace
+
+        # Find the game to get team IDs
+        games = get_todays_games(season)
+        game = next((g for g in games if g['game_id'] == game_id), None)
+
+        if not game:
+            return jsonify({
+                'success': False,
+                'error': f'Game {game_id} not found'
+            }), 404
+
+        print(f'[game_assists_vs_pace] Found game: {game.get("away_team_name")} @ {game.get("home_team_name")}')
+
+        # Get assist pace splits for both teams
+        home_splits = get_team_assists_vs_pace(game['home_team_id'], season)
+        away_splits = get_team_assists_vs_pace(game['away_team_id'], season)
+
+        if not home_splits or not away_splits:
+            return jsonify({
+                'success': False,
+                'error': 'Team data not found for one or both teams'
+            }), 404
+
+        # Calculate projected pace for the game
+        try:
+            projected_pace = calculate_projected_pace(game['home_team_id'], game['away_team_id'], season)
+            print(f'[game_assists_vs_pace] Projected pace: {projected_pace:.1f}')
+        except Exception as e:
+            print(f'[game_assists_vs_pace] Error calculating projected pace: {e}')
+            projected_pace = None
+
+        # Add projected pace to each team's data
+        home_splits['projected_pace'] = projected_pace
+        away_splits['projected_pace'] = projected_pace
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'game_id': game_id,
+                'game_date': game.get('game_date'),
+                'projected_pace': projected_pace,
+                'home_team': home_splits,
+                'away_team': away_splits
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/team/<int:team_id>/drilldown', methods=['GET'])
 def team_drilldown(team_id):
     """
@@ -1641,10 +1846,11 @@ def team_drilldown(team_id):
     - Scoring vs Defense Tiers / Pace Buckets
     - 3PT Scoring vs 3PT Defense Tiers / Pace Buckets
     - Turnovers vs Pressure Tiers / Pace Buckets
+    - Assists vs Ball-Movement Defense Tiers / Pace Buckets
 
     Query params:
-        - metric: scoring | threept | turnovers
-        - dimension: defense_tier | pace_bucket | threept_def_tier | pressure_tier
+        - metric: scoring | threept | turnovers | assists
+        - dimension: defense_tier | pace_bucket | threept_def_tier | pressure_tier | ball_movement_tier
         - context: home | away
         - bucket: slow | normal | fast (for pace_bucket)
         - tier: elite | avg | bad | low (for tier dimensions)
@@ -1675,13 +1881,13 @@ def team_drilldown(team_id):
         season = request.args.get('season', '2025-26')
 
         # Validate required params
-        if not metric or metric not in ['scoring', 'threept', 'turnovers']:
+        if not metric or metric not in ['scoring', 'threept', 'turnovers', 'assists']:
             return jsonify({
                 'success': False,
                 'error': 'Invalid or missing metric parameter'
             }), 400
 
-        if not dimension or dimension not in ['pace_bucket', 'defense_tier', 'threept_def_tier', 'pressure_tier']:
+        if not dimension or dimension not in ['pace_bucket', 'defense_tier', 'threept_def_tier', 'pressure_tier', 'ball_movement_tier']:
             return jsonify({
                 'success': False,
                 'error': 'Invalid or missing dimension parameter'
@@ -3285,6 +3491,64 @@ def get_full_matchup_summary_writeup(game_id):
         last5_home = calculate_last5_trends(home_recent)
         last5_away = calculate_last5_trends(away_recent)
 
+        # Calculate advanced stats from game logs (paint pts, AST%, TOV%)
+        def calculate_advanced_stats_from_games(all_games):
+            """Calculate paint pts, assist%, and turnover% from game logs"""
+            if not all_games or len(all_games) == 0:
+                return {
+                    'paint_pts_per_game': 0,
+                    'ast_pct': 0,
+                    'tov_pct': 0
+                }
+
+            # Use all available games for season averages
+            # IMPORTANT: All stats must come from same team, same games, same filters
+            paint_pts = [g.get('PTS_PAINT', 0) or 0 for g in all_games if g.get('PTS_PAINT')]
+            assists = [g.get('AST', 0) or 0 for g in all_games if g.get('AST')]
+            turnovers = [g.get('TOV', 0) or 0 for g in all_games if g.get('TOV')]
+            fg_made = [g.get('FGM', 0) or 0 for g in all_games if g.get('FGM')]
+
+            avg_paint = sum(paint_pts) / len(paint_pts) if paint_pts else 0
+            avg_ast = sum(assists) / len(assists) if assists else 0
+            avg_tov = sum(turnovers) / len(turnovers) if turnovers else 0
+            avg_fgm = sum(fg_made) / len(fg_made) if fg_made else 0
+
+            # Calculate Team Assist Rate (AST%)
+            # Formula: (Team Assists / Team Field Goals Made) × 100
+            # Basketball-valid range: typically 50-75% for NBA teams
+            ast_rate_pct = None
+            if avg_ast > 0 and avg_fgm > 0:
+                ast_rate_pct = (avg_ast / avg_fgm) * 100
+
+                # Validation: AST% cannot exceed 100%
+                if ast_rate_pct > 100:
+                    logger.warning(
+                        f"[AST_RATE_ERROR] AST% > 100 detected "
+                        f"(AST={avg_ast:.2f}, FGM={avg_fgm:.2f}, AST%={ast_rate_pct:.1f})"
+                    )
+                    ast_rate_pct = None  # Treat as data error
+                elif ast_rate_pct < 40 or ast_rate_pct > 85:
+                    logger.info(
+                        f"[AST_RATE_WARNING] AST% outside normal range: {ast_rate_pct:.1f}% "
+                        f"(AST={avg_ast:.2f}, FGM={avg_fgm:.2f})"
+                    )
+            else:
+                ast_rate_pct = None
+
+            # TOV% = (Turnovers / Possessions) approximated by TOV / (FGM + TOV)
+            # For simplicity using TOV / (FGM + TOV) as a rough estimate
+            tov_pct = (avg_tov / (avg_fgm + avg_tov + 1e-6)) * 100
+
+            return {
+                'paint_pts_per_game': round(avg_paint, 1),
+                'ast_pct': round(ast_rate_pct, 1) if ast_rate_pct is not None else None,
+                'tov_pct': round(tov_pct, 1)
+            }
+
+        # Calculate advanced stats for both teams using ALL recent games
+        home_advanced_stats = calculate_advanced_stats_from_games(matchup_data['home'].get('recent_games', []))
+        away_advanced_stats = calculate_advanced_stats_from_games(matchup_data['away'].get('recent_games', []))
+
         # 2. Advanced Splits Data (determine highlighted buckets based on opponent)
         from api.utils.scoring_splits import get_team_scoring_splits
         from api.utils.defense_tiers import get_defense_tier
@@ -3516,31 +3780,32 @@ def get_full_matchup_summary_writeup(game_id):
         projected_pace = (home_pace + away_pace) / 2
 
         # 3PT data
-        home_fg3a = home_data.get('home_stats', {}).get('fg3a_per_game', 0)
-        away_fg3a = away_data.get('away_stats', {}).get('fg3a_per_game', 0)
-        home_fg3_pct = home_data.get('home_stats', {}).get('fg3_pct', 0)
-        away_fg3_pct = away_data.get('away_stats', {}).get('fg3_pct', 0)
+        home_fg3a = home_stats.get('stats', {}).get('fg3a', {}).get('value', 0) if home_stats else 0
+        away_fg3a = away_stats.get('stats', {}).get('fg3a', {}).get('value', 0) if away_stats else 0
+        home_fg3_pct = home_stats.get('stats', {}).get('three_pct', {}).get('value', 0) if home_stats else 0
+        away_fg3_pct = away_stats.get('stats', {}).get('three_pct', {}).get('value', 0) if away_stats else 0
         three_pt_attempt_edge = abs(home_fg3a - away_fg3a)
 
-        # Paint data
-        home_paint = home_advanced.get('paint_pts_per_game', 0)
-        away_paint = away_advanced.get('paint_pts_per_game', 0)
-        home_opp_paint = home_data.get('home_stats', {}).get('opp_paint_pts_per_game', 0)
-        away_opp_paint = away_data.get('away_stats', {}).get('opp_paint_pts_per_game', 0)
+        # Paint data - use calculated advanced stats
+        home_paint = home_advanced_stats.get('paint_pts_per_game', 0)
+        away_paint = away_advanced_stats.get('paint_pts_per_game', 0)
+        # Opponent paint defense is the opponent's paint pts allowed (their offensive paint pts from their perspective)
+        home_opp_paint = away_advanced_stats.get('paint_pts_per_game', 0)
+        away_opp_paint = home_advanced_stats.get('paint_pts_per_game', 0)
         home_paint_edge = home_paint + away_opp_paint - away_paint - home_opp_paint
         away_paint_edge = away_paint + home_opp_paint - home_paint - away_opp_paint
 
-        # Ball movement data
-        home_ast_pct = home_advanced.get('ast_pct', 0)
-        away_ast_pct = away_advanced.get('ast_pct', 0)
-        home_tov_pct = home_advanced.get('tov_pct', 0)
-        away_tov_pct = away_advanced.get('tov_pct', 0)
+        # Ball movement data - use calculated advanced stats
+        home_ast_pct = home_advanced_stats.get('ast_pct', 0)
+        away_ast_pct = away_advanced_stats.get('ast_pct', 0)
+        home_tov_pct = home_advanced_stats.get('tov_pct', 0)
+        away_tov_pct = away_advanced_stats.get('tov_pct', 0)
 
         # FT data
-        home_fta = home_data.get('home_stats', {}).get('fta_per_game', 0)
-        away_fta = away_data.get('away_stats', {}).get('fta_per_game', 0)
-        home_ft_pct = home_data.get('home_stats', {}).get('ft_pct', 0)
-        away_ft_pct = away_data.get('away_stats', {}).get('ft_pct', 0)
+        home_fta = home_stats.get('stats', {}).get('fta', {}).get('value', 0) if home_stats else 0
+        away_fta = away_stats.get('stats', {}).get('fta', {}).get('value', 0) if away_stats else 0
+        home_ft_pct = home_stats.get('stats', {}).get('ft_pct', {}).get('value', 0) if home_stats else 0
+        away_ft_pct = away_stats.get('stats', {}).get('ft_pct', {}).get('value', 0) if away_stats else 0
 
         matchup_indicators = {
             'pace': {
@@ -3572,7 +3837,7 @@ def get_full_matchup_summary_writeup(game_id):
                 'away_ast_pct': away_ast_pct,
                 'home_tov_pct': home_tov_pct,
                 'away_tov_pct': away_tov_pct,
-                'ast_leader': home_team_abbr if home_ast_pct > away_ast_pct else away_team_abbr,
+                'ast_leader': home_team_abbr if (home_ast_pct is not None and away_ast_pct is not None and home_ast_pct > away_ast_pct) else away_team_abbr if (home_ast_pct is not None and away_ast_pct is not None) else '—',
                 'tov_leader': home_team_abbr if home_tov_pct < away_tov_pct else away_team_abbr
             },
             'free_throws': {
@@ -3640,6 +3905,53 @@ if __name__ == '__main__':
         checkpoint_all_databases()
     except Exception as e:
         print(f"[Server] Warning: Database checkpoint failed: {e}")
+
+    # Auto-sync on startup if database is empty (first deploy or data loss)
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+
+        print(f"[Server] Checking database at: {db_path}")
+        print(f"[Server] Database exists: {os.path.exists(db_path)}")
+
+        # Check if database has any games
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='todays_games'")
+        table_exists = cursor.fetchone() is not None
+        print(f"[Server] todays_games table exists: {table_exists}")
+
+        games_count = 0
+        if table_exists:
+            cursor.execute('SELECT COUNT(*) as count FROM todays_games')
+            row = cursor.fetchone()
+            games_count = row[0] if row else 0
+
+        conn.close()
+
+        print(f"[Server] Games in database: {games_count}")
+
+        if games_count == 0 or not table_exists:
+            print("[Server] Database is empty or incomplete - running BLOCKING sync...")
+            from api.utils.sync_nba_data import sync_all
+
+            # Run sync SYNCHRONOUSLY (blocking) to ensure it completes before server starts
+            try:
+                print("[Server] Starting sync_all (BLOCKING)...")
+                result = sync_all(season='2025-26', triggered_by='startup')
+                print(f"[Server] Initial sync completed: {result}")
+            except Exception as e:
+                print(f"[Server] Initial sync FAILED: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f"[Server] Database OK - found {games_count} games")
+    except Exception as e:
+        print(f"[Server] WARNING: Auto-sync check failed: {e}")
+        import traceback
+        traceback.print_exc()
 
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
