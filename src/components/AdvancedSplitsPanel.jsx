@@ -37,81 +37,6 @@ function AdvancedSplitsPanel({
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
 
-  // TEMPORARY: Mock data for Assists chart (fallback while debugging)
-  const mockAssistsData = {
-    away_team: {
-      team_id: 1610612745,
-      team_abbreviation: 'HOU',
-      full_name: 'Houston Rockets',
-      season: '2025-26',
-      season_avg_ast: 24.5,
-      opponent_ball_movement_tier: 'average',
-      opponent_opp_ast_rank: 12,
-      splits: {
-        elite: { home_ast: 23.2, home_games: 8, away_ast: 22.5, away_games: 7 },
-        average: { home_ast: 24.8, home_games: 10, away_ast: 24.1, away_games: 9 },
-        bad: { home_ast: 26.5, home_games: 6, away_ast: 25.8, away_games: 5 }
-      }
-    },
-    home_team: {
-      team_id: 1610612743,
-      team_abbreviation: 'DEN',
-      full_name: 'Denver Nuggets',
-      season: '2025-26',
-      season_avg_ast: 27.3,
-      opponent_ball_movement_tier: 'elite',
-      opponent_opp_ast_rank: 4,
-      splits: {
-        elite: { home_ast: 26.1, home_games: 9, away_ast: 25.4, away_games: 8 },
-        average: { home_ast: 27.8, home_games: 11, away_ast: 26.9, away_games: 10 },
-        bad: { home_ast: 29.2, home_games: 7, away_ast: 28.5, away_games: 6 }
-      }
-    }
-  }
-
-  const mockAssistsPaceData = {
-    away_team: {
-      team_id: 1610612745,
-      team_abbreviation: 'HOU',
-      full_name: 'Houston Rockets',
-      season: '2025-26',
-      season_avg_ast: 24.5,
-      projected_pace: 100.4,
-      splits: {
-        slow: { home_ast: 22.8, home_games: 6, away_ast: 22.1, away_games: 5 },
-        normal: { home_ast: 24.5, home_games: 12, away_ast: 23.8, away_games: 11 },
-        fast: { home_ast: 26.2, home_games: 8, away_ast: 25.6, away_games: 7 }
-      }
-    },
-    home_team: {
-      team_id: 1610612743,
-      team_abbreviation: 'DEN',
-      full_name: 'Denver Nuggets',
-      season: '2025-26',
-      season_avg_ast: 27.3,
-      projected_pace: 100.4,
-      splits: {
-        slow: { home_ast: 25.6, home_games: 7, away_ast: 24.9, away_games: 6 },
-        normal: { home_ast: 27.4, home_games: 13, away_ast: 26.7, away_games: 12 },
-        fast: { home_ast: 29.1, home_games: 9, away_ast: 28.4, away_games: 8 }
-      }
-    }
-  }
-
-  // Use real data ONLY if it has the correct structure, otherwise use mock data
-  // This ensures the chart ALWAYS shows something
-  const assistsData = (assistsVsDefenseData?.home_team?.splits && assistsVsDefenseData?.away_team?.splits)
-    ? assistsVsDefenseData
-    : mockAssistsData
-
-  const assistsPaceData = (assistsVsPaceData?.home_team?.splits && assistsVsPaceData?.away_team?.splits)
-    ? assistsVsPaceData
-    : mockAssistsPaceData
-
-  // Debug: Log what data we're using
-  console.log('[AdvancedSplits] Assists Defense Data:', assistsVsDefenseData ? 'Backend' : 'Mock')
-  console.log('[AdvancedSplits] Assists Pace Data:', assistsVsPaceData ? 'Backend' : 'Mock')
-
   return (
     <div>
       {/* Section Header */}
@@ -366,25 +291,25 @@ function AdvancedSplitsPanel({
         )}
 
         {/* Assists + Defense */}
-        {metric === 'assists' && context === 'defense' && assistsData && (
+        {metric === 'assists' && context === 'defense' && assistsVsDefenseData && (
           <>
-            {assistsData.away_team && (
-              <AssistsVsDefenseChart teamData={assistsData.away_team} />
+            {assistsVsDefenseData.away_team && (
+              <AssistsVsDefenseChart teamData={assistsVsDefenseData.away_team} />
             )}
-            {assistsData.home_team && (
-              <AssistsVsDefenseChart teamData={assistsData.home_team} />
+            {assistsVsDefenseData.home_team && (
+              <AssistsVsDefenseChart teamData={assistsVsDefenseData.home_team} />
             )}
           </>
         )}
 
         {/* Assists + Pace */}
-        {metric === 'assists' && context === 'pace' && assistsPaceData && (
+        {metric === 'assists' && context === 'pace' && assistsVsPaceData && (
           <>
-            {assistsPaceData.away_team && (
-              <AssistsVsPaceChart teamData={assistsPaceData.away_team} />
+            {assistsVsPaceData.away_team && (
+              <AssistsVsPaceChart teamData={assistsVsPaceData.away_team} />
             )}
-            {assistsPaceData.home_team && (
-              <AssistsVsPaceChart teamData={assistsPaceData.home_team} />
+            {assistsVsPaceData.home_team && (
+              <AssistsVsPaceChart teamData={assistsVsPaceData.home_team} />
             )}
           </>
         )}
