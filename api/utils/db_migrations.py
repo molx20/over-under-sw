@@ -302,10 +302,105 @@ def check_migration_status():
     return status
 
 
+def _get_connection_nba_data():
+    """Get database connection to nba_data.db"""
+    try:
+        from api.utils.db_config import get_db_path
+    except ImportError:
+        from db_config import get_db_path
+
+    class NBADataConnection:
+        def __enter__(self):
+            self.conn = sqlite3.connect(get_db_path('nba_data.db'), timeout=30.0)
+            self.conn.row_factory = sqlite3.Row
+            return self.conn
+        def __exit__(self, *args):
+            if self.conn:
+                self.conn.close()
+    return NBADataConnection()
+
+
+def migrate_to_v10_enhance_sync_log():
+    """
+    Migrate data_sync_log table to include enhanced tracking fields
+
+    Adds:
+    - run_id: UUID for tracking async jobs
+    - target_date_mt: The MT date being synced
+    - cdn_games_found: How many games NBA CDN returned
+    - inserted_count: New games added
+    - updated_count: Existing games updated
+    - skipped_count: Games skipped (wrong season, etc)
+    - retry_attempt: Retry counter for failed syncs
+    - nba_cdn_url: URL used to fetch games
+    - game_ids_sample: JSON array of first 5 gameIds for diagnostics
+
+    Safe to run multiple times - will skip existing columns
+    """
+    print('[db_migrations] Running NBA data migration v10 (enhance_sync_log)...')
+
+    with _get_connection_nba_data() as conn:
+        cursor = conn.cursor()
+
+        # Add new columns for enhanced tracking
+        new_columns = [
+            ('run_id', 'TEXT'),
+            ('target_date_mt', 'TEXT'),
+            ('cdn_games_found', 'INTEGER', 0),
+            ('inserted_count', 'INTEGER', 0),
+            ('updated_count', 'INTEGER', 0),
+            ('skipped_count', 'INTEGER', 0),
+            ('retry_attempt', 'INTEGER', 0),
+            ('nba_cdn_url', 'TEXT'),
+            ('game_ids_sample', 'TEXT')  # JSON array
+        ]
+
+        for col_info in new_columns:
+            col_name = col_info[0]
+            col_type = col_info[1]
+            default_val = col_info[2] if len(col_info) > 2 else None
+
+            try:
+                if default_val is not None:
+                    cursor.execute(f'ALTER TABLE data_sync_log ADD COLUMN {col_name} {col_type} DEFAULT {default_val}')
+                else:
+                    cursor.execute(f'ALTER TABLE data_sync_log ADD COLUMN {col_name} {col_type}')
+                print(f'[db_migrations] Added column: {col_name}')
+            except sqlite3.OperationalError as e:
+                if "duplicate column" in str(e).lower():
+                    print(f'[db_migrations] Column {col_name} already exists, skipping')
+                else:
+                    raise
+
+        # Add indexes for efficient queries
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sync_log_run_id
+                ON data_sync_log(run_id)
+            """)
+            print('[db_migrations] Created index: idx_sync_log_run_id')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_sync_log_run_id already exists')
+
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sync_log_target_date
+                ON data_sync_log(target_date_mt DESC, started_at DESC)
+            """)
+            print('[db_migrations] Created index: idx_sync_log_target_date')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_sync_log_target_date already exists')
+
+        conn.commit()
+
+    print('[db_migrations] Migration v10 completed successfully')
+    print('[db_migrations] data_sync_log table now has enhanced tracking capabilities')
+
+
 if __name__ == '__main__':
     # Run migration when executed directly
     print('=== Database Migration Tool ===')
-    print(f'Database: {DB_PATH}')
+    print(f'Predictions DB: {DB_PATH}')
     print()
 
     print('Current status:')
@@ -315,12 +410,19 @@ if __name__ == '__main__':
     print()
 
     if all(status.values()):
-        print('All migrations already applied. Database is up to date.')
+        print('All predictions.db migrations already applied.')
     else:
-        print('Running migrations...')
+        print('Running predictions.db migrations...')
         migrate_to_v3_features()
+        migrate_to_v4_opponent_ranks()
         print()
         print('New status:')
         status = check_migration_status()
         for feature, enabled in status.items():
             print(f'  {feature}: {"✓" if enabled else "✗"}')
+
+    print()
+    print('Running nba_data.db migrations...')
+    migrate_to_v10_enhance_sync_log()
+    print()
+    print('All migrations complete!')

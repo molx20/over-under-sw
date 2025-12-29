@@ -42,9 +42,33 @@ def get_similarity_data(home_team_id: int, away_team_id: int, season: str = '202
         home_cluster = get_team_cluster_assignment(home_team_id, season)
         away_cluster = get_team_cluster_assignment(away_team_id, season)
 
-        # Get similar teams (top 3 for brevity)
-        home_similar_teams = get_team_similarity_ranking(home_team_id, season, limit=3)
-        away_similar_teams = get_team_similarity_ranking(away_team_id, season, limit=3)
+        # Get similar teams using CONDITIONAL SIMILARITY (top 3 for brevity)
+        # Home similar: Teams like home_team when facing away_team's archetype
+        # Away similar: Teams like away_team when facing home_team's archetype
+
+        home_opponent_cluster_id = away_cluster['primary_cluster']['id'] if away_cluster else None
+        away_opponent_cluster_id = home_cluster['primary_cluster']['id'] if home_cluster else None
+
+        # Get conditional similarity (with fallback to global if no conditional data)
+        home_similar_teams = get_team_similarity_ranking(
+            home_team_id, season, limit=3,
+            opponent_cluster_id=home_opponent_cluster_id,
+            window_mode='season'
+        )
+
+        # Fallback to global similarity if no conditional data
+        if not home_similar_teams and home_opponent_cluster_id:
+            home_similar_teams = get_team_similarity_ranking(home_team_id, season, limit=3)
+
+        away_similar_teams = get_team_similarity_ranking(
+            away_team_id, season, limit=3,
+            opponent_cluster_id=away_opponent_cluster_id,
+            window_mode='season'
+        )
+
+        # Fallback to global similarity if no conditional data
+        if not away_similar_teams and away_opponent_cluster_id:
+            away_similar_teams = get_team_similarity_ranking(away_team_id, season, limit=3)
 
         # Determine matchup type
         matchup_cluster_type = _get_matchup_cluster_type(home_cluster, away_cluster)

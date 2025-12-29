@@ -294,6 +294,7 @@ def get_team_stats_with_ranks(team_id: int, season: str = '2025-26') -> Optional
         'season': season,
         'stats': {
             'ppg': {'value': row['ppg'], 'rank': row['ppg_rank']},
+            'apg': {'value': row['assists'] if 'assists' in row.keys() else None, 'rank': None},
             'opp_ppg': {'value': row['opp_ppg'], 'rank': row['opp_ppg_rank']},
             'fg_pct': {'value': row['fg_pct'], 'rank': row['fg_pct_rank']},
             'three_pct': {'value': row['fg3_pct'], 'rank': row['fg3_pct_rank']},

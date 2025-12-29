@@ -25,6 +25,7 @@ from nba_api.stats.endpoints import (
     teamgamelogs,
     boxscoretraditionalv3,
     boxscorescoringv3,
+    scoreboard,
 )
 from nba_api.stats.static import teams
 import requests
@@ -50,6 +51,9 @@ NBA_DATA_DB_PATH = get_db_path('nba_data.db')
 
 # NBA CDN endpoint for games
 NBA_CDN_SCOREBOARD_URL = "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json"
+
+# NBA CDN full season schedule (use this to fetch games by date)
+NBA_CDN_SCHEDULE_URL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json"
 
 # Rate limiting
 MIN_REQUEST_INTERVAL = 0.6  # 600ms between requests (100 req/min max)
@@ -120,14 +124,31 @@ def _get_db_connection() -> sqlite3.Connection:
     return conn
 
 
-def _log_sync_start(sync_type: str, season: Optional[str] = None,
-                   triggered_by: str = 'manual') -> int:
+def _log_sync_start(
+    sync_type: str,
+    season: Optional[str] = None,
+    triggered_by: str = 'manual',
+    run_id: Optional[str] = None,
+    target_date_mt: Optional[str] = None
+) -> int:
     """
-    Log sync operation start
+    Log sync operation start with enhanced tracking
+
+    Args:
+        sync_type: Type of sync operation
+        season: NBA season
+        triggered_by: Who triggered the sync
+        run_id: UUID for tracking this run
+        target_date_mt: Target date in MT timezone (YYYY-MM-DD)
 
     Returns:
         sync_id for tracking this operation
     """
+    import uuid
+
+    if run_id is None:
+        run_id = str(uuid.uuid4())
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -136,12 +157,24 @@ def _log_sync_start(sync_type: str, season: Optional[str] = None,
 
             try:
                 cursor.execute('''
-                    INSERT INTO data_sync_log (sync_type, season, status, started_at, triggered_by)
-                    VALUES (?, ?, 'started', ?, ?)
-                ''', (sync_type, season, datetime.now(timezone.utc).isoformat(), triggered_by))
+                    INSERT INTO data_sync_log (
+                        sync_type, season, status, started_at, triggered_by,
+                        run_id, target_date_mt
+                    )
+                    VALUES (?, ?, 'started', ?, ?, ?, ?)
+                ''', (
+                    sync_type, season,
+                    datetime.now(timezone.utc).isoformat(),
+                    triggered_by,
+                    run_id,
+                    target_date_mt
+                ))
                 sync_id = cursor.lastrowid
                 conn.commit()
-                logger.info(f"Started sync: type={sync_type}, id={sync_id}")
+                logger.info(
+                    f"[run_id={run_id}] Started sync: type={sync_type}, "
+                    f"target_date={target_date_mt}, id={sync_id}"
+                )
                 return sync_id
 
             except sqlite3.Error as db_error:
@@ -1174,133 +1207,386 @@ def sync_todays_games(season: str = '2025-26') -> Tuple[int, Optional[str]]:
         return 0, error_msg
 
 
-def _sync_todays_games_impl(season: str = '2025-26') -> Tuple[int, Optional[str]]:
+def _fetch_games_for_date(date_str: str, run_id: str) -> List[Dict]:
+    """
+    Fetch games for a specific date from NBA CDN schedule
+
+    Args:
+        date_str: Date in YYYY-MM-DD format
+        run_id: UUID for logging
+
+    Returns:
+        List of game dictionaries in CDN format
+    """
+    try:
+        logger.info(f"[run_id={run_id}] Fetching season schedule from NBA CDN to find games for {date_str}")
+
+        response = requests.get(NBA_CDN_SCHEDULE_URL, timeout=30)
+        response.raise_for_status()
+        schedule_data = response.json()
+
+        # Parse the schedule and filter by target date
+        games_for_date = []
+        game_dates = schedule_data.get('leagueSchedule', {}).get('gameDates', [])
+
+        for game_date_obj in game_dates:
+            # gameDate is in format "MM/DD/YYYY HH:MM:SS"
+            game_date_str = game_date_obj.get('gameDate', '')
+            if game_date_str:
+                # Extract just the date part and convert to YYYY-MM-DD
+                try:
+                    dt = datetime.strptime(game_date_str.split(' ')[0], '%m/%d/%Y')
+                    formatted_date = dt.strftime('%Y-%m-%d')
+
+                    if formatted_date == date_str:
+                        # Found matching date - add all games from this date
+                        games = game_date_obj.get('games', [])
+                        games_for_date.extend(games)
+                except ValueError:
+                    continue
+
+        logger.info(f"[run_id={run_id}] Found {len(games_for_date)} games for {date_str} from NBA schedule")
+        return games_for_date
+
+    except Exception as e:
+        logger.warning(f"[run_id={run_id}] Failed to fetch schedule for {date_str}: {e}")
+        return []
+
+
+def get_games_for_window(
+    target_date_mt: str,
+    run_id: str,
+    allow_stats_fallback: bool = True
+) -> Dict:
+    """
+    Fetch games for a date window (yesterday + target_date) from NBA sources
+
+    Args:
+        target_date_mt: Target date in YYYY-MM-DD (MT timezone)
+        run_id: UUID for logging
+        allow_stats_fallback: Whether to use stats API for historical dates
+
+    Returns:
+        Dict with:
+            - games: List of normalized game dicts
+            - metadata: Dict with sources_used, urls_used, cdn_games_found, etc.
+    """
+    from zoneinfo import ZoneInfo
+
+    mt_tz = ZoneInfo("America/Denver")
+    mt_now = datetime.now(mt_tz)
+    today_mt = mt_now.strftime('%Y-%m-%d')
+
+    # Calculate fetch window: yesterday + target date
+    target_date_obj = datetime.strptime(target_date_mt, '%Y-%m-%d')
+    yesterday_mt = (target_date_obj - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    metadata = {
+        'target_date_mt': target_date_mt,
+        'fetch_window_start': yesterday_mt,
+        'fetch_window_end': target_date_mt,
+        'sources_used': [],
+        'urls_used': [],
+        'cdn_games_found': 0,
+        'stats_games_found': 0,
+        'total_games_found': 0
+    }
+
+    all_games_raw = []
+
+    # Try NBA CDN only if target_date is today (CDN only has "today")
+    if target_date_mt == today_mt:
+        try:
+            logger.info(f"[run_id={run_id}] Target is today, trying NBA CDN")
+            response = requests.get(NBA_CDN_SCOREBOARD_URL, timeout=30)
+            response.raise_for_status()
+            cdn_data = response.json()
+
+            if cdn_data and 'scoreboard' in cdn_data:
+                cdn_games = cdn_data['scoreboard'].get('games', [])
+                metadata['cdn_games_found'] = len(cdn_games)
+                metadata['sources_used'].append('NBA CDN')
+                metadata['urls_used'].append(NBA_CDN_SCOREBOARD_URL)
+                all_games_raw.extend(cdn_games)
+                logger.info(f"[run_id={run_id}] NBA CDN returned {len(cdn_games)} games")
+        except Exception as e:
+            logger.warning(f"[run_id={run_id}] CDN fetch failed: {e}")
+
+    # Use stats API for historical dates or as fallback
+    if allow_stats_fallback:
+        # Fetch yesterday's games
+        yesterday_games = _fetch_games_for_date(yesterday_mt, run_id)
+        stats_count = len(yesterday_games)
+
+        # Fetch target date games
+        target_games = _fetch_games_for_date(target_date_mt, run_id)
+        stats_count += len(target_games)
+
+        if stats_count > 0:
+            metadata['stats_games_found'] = stats_count
+            metadata['sources_used'].append('NBA CDN Schedule')
+            metadata['urls_used'].append(NBA_CDN_SCHEDULE_URL)
+
+        # Convert schedule format to normalized format with gameDate field
+        for sched_game in yesterday_games + target_games:
+            game_id = str(sched_game.get('gameId', ''))
+
+            # Extract date from gameDateEst: "2025-12-23T19:00:00Z" -> "2025-12-23"
+            game_date_est = sched_game.get('gameDateEst', '')
+            if 'T' in str(game_date_est):
+                game_date = str(game_date_est).split('T')[0]
+            else:
+                game_date = str(game_date_est)[:10] if game_date_est else ''
+
+            # Create normalized game object with gameDate field
+            normalized_game = {
+                'gameId': game_id,
+                'gameDate': game_date,  # Direct date field for processing
+                'gameCode': sched_game.get('gameCode', ''),
+                'gameStatus': sched_game.get('gameStatus', 1),
+                'gameStatusText': sched_game.get('gameStatusText', ''),
+                'gameTimeUTC': sched_game.get('gameTimeUTC', ''),
+                'homeTeam': sched_game.get('homeTeam', {}),
+                'awayTeam': sched_game.get('awayTeam', {})
+            }
+
+            # Only add if not already in CDN games
+            if not any(g.get('gameId') == game_id for g in all_games_raw):
+                all_games_raw.append(normalized_game)
+
+    metadata['total_games_found'] = len(all_games_raw)
+
+    return {
+        'games': all_games_raw,
+        'metadata': metadata
+    }
+
+
+def _sync_todays_games_impl(
+    season: str = '2025-26',
+    run_id: Optional[str] = None,
+    target_date_mt: Optional[str] = None
+) -> Tuple[int, Optional[str]]:
     """
     Internal implementation of sync_todays_games (wrapped by sync_lock)
 
-    Syncs today's AND tomorrow's games to handle timezone edge cases.
+    Fetches games for YESTERDAY and TODAY (America/Denver) to ensure we don't miss games
+
+    Args:
+        season: NBA season
+        run_id: UUID for tracking this run
+        target_date_mt: Target date in MT timezone (for logging purposes)
+
+    Returns:
+        Tuple of (records_synced, error_message)
     """
-    sync_id = _log_sync_start('todays_games', season)
+    import uuid
+    import json
+
+    if run_id is None:
+        run_id = str(uuid.uuid4())
+
+    # Define timezones
+    mt_tz = ZoneInfo("America/Denver")
+
+    # Determine target_date_mt if not provided (use today MT)
+    mt_now = datetime.now(mt_tz)
+    if target_date_mt is None:
+        target_date_mt = mt_now.strftime('%Y-%m-%d')
+
+    # Calculate yesterday MT to ensure we don't miss games
+    yesterday_mt = (mt_now - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    sync_id = _log_sync_start('todays_games', season, run_id=run_id, target_date_mt=target_date_mt)
 
     try:
-        # Define timezones with proper DST handling
-        # America/Denver: auto-switches between MST (UTC-7) and MDT (UTC-6)
-        # America/New_York: auto-switches between EST (UTC-5) and EDT (UTC-4)
-        mt_tz = ZoneInfo("America/Denver")
-        et_tz = ZoneInfo("America/New_York")
-
         # Calculate current times for logging
         utc_now = datetime.now(timezone.utc)
-        mt_now = datetime.now(mt_tz)
-        et_now = datetime.now(et_tz)
 
         # Log all timezone contexts for debugging
-        logger.info(f"[SYNC] UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info(f"[SYNC] MT  now: {mt_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        logger.info(f"[SYNC] ET  now: {et_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        logger.info(f"[run_id={run_id}] UTC: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"[run_id={run_id}] MT:  {mt_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        logger.info(f"[run_id={run_id}] Fetch window: {yesterday_mt} to {target_date_mt}")
 
-        # Fetch today's AND tomorrow's games (handles timezone edge cases)
-        today_et = et_now.strftime('%Y-%m-%d')
-        tomorrow_et = (et_now + timedelta(days=1)).strftime('%Y-%m-%d')
+        # Use shared function to fetch games
+        fetch_result = get_games_for_window(target_date_mt, run_id, allow_stats_fallback=True)
+        games = fetch_result['games']
+        fetch_metadata = fetch_result['metadata']
 
-        logger.info(f"[SYNC] Syncing all games from CDN (current ET date: {today_et})")
-
-        # Fetch from NBA CDN (more reliable than stats.nba.com)
-        # Note: NBA CDN typically returns today's and some upcoming games
-        response = requests.get(NBA_CDN_SCOREBOARD_URL, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        if not data or 'scoreboard' not in data:
-            raise Exception("Invalid CDN response: missing scoreboard data")
-
-        scoreboard = data['scoreboard']
-        games = scoreboard.get('games', [])
+        logger.info(
+            f"[run_id={run_id}] Fetched {len(games)} games from {', '.join(fetch_metadata['sources_used']) or 'no sources'}"
+        )
 
         conn = _get_db_connection()
         cursor = conn.cursor()
         synced_at = datetime.now(timezone.utc).isoformat()
 
         try:
-            # Clear all existing games (we'll re-sync whatever CDN returns)
-            # This keeps the database fresh with only current/upcoming games
-            cursor.execute('DELETE FROM todays_games')
+            # Delete games older than 7 days to keep database fresh
+            # This allows users to see recent past games and upcoming games
+            seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%d')
+            cursor.execute('DELETE FROM todays_games WHERE game_date < ?', (seven_days_ago,))
+            deleted_count = cursor.rowcount
+            logger.info(f"[run_id={run_id}] Deleted {deleted_count} games older than {seven_days_ago}")
 
-            records_synced = 0
+            inserted_count = 0
+            updated_count = 0
+            skipped_count = 0
+            game_ids_sample = []
+
+            error_log = []  # Track errors per game
 
             for game in games:
-                game_id = game.get('gameId', '')
+                try:
+                    game_id = game.get('gameId', '')
 
-                # Filter by season (only 2025-26 games)
-                if not _is_current_season_game(game_id, season):
-                    continue
-
-                # Extract game date from gameCode (format: "YYYYMMDD/AWYHOM")
-                game_code = game.get('gameCode', '')
-                if '/' in game_code:
-                    date_str = game_code.split('/')[0]  # Extract YYYYMMDD
-                    if len(date_str) == 8:
-                        game_date = f"{date_str[0:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                    else:
-                        logger.warning(f"Invalid gameCode date format: {game_code}, skipping")
+                    # Filter by season (only 2025-26 games)
+                    if not _is_current_season_game(game_id, season):
+                        skipped_count += 1
                         continue
-                else:
-                    logger.warning(f"Invalid gameCode format: {game_code}, skipping")
+
+                    # Get game date - prefer direct gameDate field, fallback to parsing gameCode
+                    game_code = game.get('gameCode', '')  # Always define game_code
+                    game_date = game.get('gameDate')
+                    if not game_date:
+                        # Fallback: Extract from gameCode (format: "YYYYMMDD/AWYHOM")
+                        if '/' in game_code:
+                            date_str = game_code.split('/')[0]  # Extract YYYYMMDD
+                            if len(date_str) == 8:
+                                game_date = f"{date_str[0:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                            else:
+                                logger.warning(f"[run_id={run_id}] Invalid gameCode date: {game_code}")
+                                skipped_count += 1
+                                continue
+                        else:
+                            logger.warning(f"[run_id={run_id}] Missing gameDate and invalid gameCode: {game_code}")
+                            skipped_count += 1
+                            continue
+
+                    # Track sample of game IDs for diagnostics (first 5)
+                    if len(game_ids_sample) < 5:
+                        game_ids_sample.append({
+                            'gameId': game_id,
+                            'gameDate': game_date,
+                            'gameCode': game_code
+                        })
+
+                    # Check if game already exists
+                    cursor.execute('SELECT game_id FROM todays_games WHERE game_id = ?', (game_id,))
+                    existing = cursor.fetchone()
+
+                    home_team = game.get('homeTeam', {})
+                    away_team = game.get('awayTeam', {})
+
+                    # Classify game type for filtering
+                    from api.utils.game_classifier import get_game_type_label
+                    game_type = get_game_type_label(game_id, game_date)
+
+                    # Use INSERT OR REPLACE to handle any duplicate key conflicts
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO todays_games (
+                            game_id, game_date, season,
+                            home_team_id, home_team_name, home_team_score,
+                            away_team_id, away_team_name, away_team_score,
+                            game_status_text, game_status_code, game_time_utc,
+                            game_type, synced_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        game_id,
+                        game_date,
+                        season,
+                        home_team.get('teamId'),
+                        home_team.get('teamTricode', 'UNK'),
+                        home_team.get('score', 0),
+                        away_team.get('teamId'),
+                        away_team.get('teamTricode', 'UNK'),
+                        away_team.get('score', 0),
+                        game.get('gameStatusText', ''),
+                        game.get('gameStatus', 1),
+                        game.get('gameTimeUTC', ''),
+                        game_type,
+                        synced_at
+                    ))
+
+                    # Track whether this was insert or update
+                    if existing:
+                        updated_count += 1
+                    else:
+                        inserted_count += 1
+
+                except Exception as game_error:
+                    # Log error for this game but continue processing others
+                    error_msg = f"gameId={game.get('gameId', 'unknown')}: {str(game_error)}"
+                    error_log.append(error_msg)
+                    logger.error(f"[run_id={run_id}] Error processing game: {error_msg}")
+                    skipped_count += 1
                     continue
 
-                # Sync all games returned by CDN (they manage what's current/relevant)
+            # Update sync log with detailed counts and fetch window
+            records_synced = inserted_count + updated_count
 
-                home_team = game.get('homeTeam', {})
-                away_team = game.get('awayTeam', {})
+            # Log metadata including fetch window and errors
+            sync_metadata = {
+                'fetch_window_start': fetch_metadata['fetch_window_start'],
+                'fetch_window_end': fetch_metadata['fetch_window_end'],
+                'sources_used': fetch_metadata['sources_used'],
+                'cdn_games_found': fetch_metadata['cdn_games_found'],
+                'stats_games_found': fetch_metadata['stats_games_found'],
+                'error_log': error_log
+            }
 
-                # Classify game type for filtering
-                from api.utils.game_classifier import get_game_type_label
-                game_type = get_game_type_label(game_id, game_date)
-
-                # Use INSERT OR REPLACE to handle any duplicate key conflicts
-                cursor.execute('''
-                    INSERT OR REPLACE INTO todays_games (
-                        game_id, game_date, season,
-                        home_team_id, home_team_name, home_team_score,
-                        away_team_id, away_team_name, away_team_score,
-                        game_status_text, game_status_code, game_time_utc,
-                        game_type, synced_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    game_id,
-                    game_date,
-                    season,
-                    home_team.get('teamId'),
-                    home_team.get('teamTricode', 'UNK'),
-                    home_team.get('score', 0),
-                    away_team.get('teamId'),
-                    away_team.get('teamTricode', 'UNK'),
-                    away_team.get('score', 0),
-                    game.get('gameStatusText', ''),
-                    game.get('gameStatus', 1),
-                    game.get('gameTimeUTC', ''),
-                    game_type,
-                    synced_at
-                ))
-
-                records_synced += 1
+            cursor.execute('''
+                UPDATE data_sync_log
+                SET
+                    cdn_games_found = ?,
+                    inserted_count = ?,
+                    updated_count = ?,
+                    skipped_count = ?,
+                    nba_cdn_url = ?,
+                    game_ids_sample = ?,
+                    error_message = ?
+                WHERE id = ?
+            ''', (
+                fetch_metadata['total_games_found'],
+                inserted_count,
+                updated_count,
+                skipped_count,
+                ', '.join(fetch_metadata['sources_used']) or 'No sources',
+                json.dumps(game_ids_sample),
+                json.dumps(sync_metadata) if error_log else None,
+                sync_id
+            ))
 
             conn.commit()
         except sqlite3.Error as db_error:
             conn.rollback()
-            logger.error(f"Database error during todays_games sync: {db_error}")
+            logger.error(f"[run_id={run_id}] Database error: {db_error}")
             raise
         finally:
             conn.close()
 
+        # Log completion
         _log_sync_complete(sync_id, records_synced)
-        logger.info(f"[SYNC] Saved {records_synced} games from CDN into SQLite")
+
+        # Check if we got zero games and it's early morning
+        if len(games) == 0 and mt_now.hour < 12:
+            logger.warning(
+                f"[run_id={run_id}] NBA CDN returned 0 games at {mt_now.strftime('%H:%M')} MT. "
+                f"Games may not be published yet. Consider scheduling another sync later."
+            )
+
+        logger.info(
+            f"[run_id={run_id}] Sync complete: {records_synced} total "
+            f"({inserted_count} new, {updated_count} updated, {skipped_count} skipped, "
+            f"{len(error_log)} errors) for window {fetch_metadata['fetch_window_start']} to {fetch_metadata['fetch_window_end']}"
+        )
+
         return records_synced, None
 
     except Exception as e:
         error_msg = f"Today's games sync failed: {str(e)}"
         _log_sync_complete(sync_id, 0, error_msg)
-        logger.error(error_msg)
+        logger.error(f"[run_id={run_id}] {error_msg}")
         import traceback
         traceback.print_exc()
         return 0, error_msg
@@ -1501,7 +1787,12 @@ def _sync_scoring_vs_pace_impl(season: str = '2025-26') -> Tuple[int, Optional[s
         return 0, error_msg
 
 
-def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
+def sync_all(
+    season: str = '2025-26',
+    triggered_by: str = 'manual',
+    run_id: Optional[str] = None,
+    target_date_mt: Optional[str] = None
+) -> Dict:
     """
     Full data sync (teams, stats, game logs, today's games)
 
@@ -1509,7 +1800,9 @@ def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
 
     Args:
         season: Season string
-        triggered_by: 'cron', 'manual', or 'startup'
+        triggered_by: 'cron', 'manual', 'admin_api', or 'startup'
+        run_id: Optional UUID for tracking this run
+        target_date_mt: Optional MT date (YYYY-MM-DD) to sync
 
     Returns:
         Dict with sync results
@@ -1517,7 +1810,7 @@ def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
     try:
         # Use a longer timeout for full sync (up to 5 minutes)
         with sync_lock('full', timeout=300.0, wait=False):
-            return _sync_all_impl(season, triggered_by)
+            return _sync_all_impl(season, triggered_by, run_id, target_date_mt)
     except SyncLockError as e:
         logger.warning(f"Full sync blocked: {str(e)}")
         return {
@@ -1534,10 +1827,27 @@ def sync_all(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
         }
 
 
-def _sync_all_impl(season: str = '2025-26', triggered_by: str = 'manual') -> Dict:
+def _sync_all_impl(
+    season: str = '2025-26',
+    triggered_by: str = 'manual',
+    run_id: Optional[str] = None,
+    target_date_mt: Optional[str] = None
+) -> Dict:
     """Internal implementation of sync_all (wrapped by sync_lock)"""
+    import uuid
+
+    # Generate run_id if not provided
+    if run_id is None:
+        run_id = str(uuid.uuid4())
+
+    # Determine target_date_mt if not provided
+    if target_date_mt is None:
+        mt_tz = ZoneInfo("America/Denver")
+        mt_now = datetime.now(mt_tz)
+        target_date_mt = mt_now.strftime('%Y-%m-%d')
+
     start_time = time.time()
-    sync_id = _log_sync_start('full', season, triggered_by)
+    sync_id = _log_sync_start('full', season, triggered_by, run_id=run_id, target_date_mt=target_date_mt)
 
     results = {
         'success': True,
@@ -1575,11 +1885,24 @@ def _sync_all_impl(season: str = '2025-26', triggered_by: str = 'manual') -> Dic
         results['success'] = False
 
     # Sync today's games
-    games_count, games_error = _sync_todays_games_impl(season)
+    games_count, games_error = _sync_todays_games_impl(
+        season,
+        run_id=run_id,
+        target_date_mt=target_date_mt
+    )
     results['todays_games'] = games_count
     if games_error:
         results['errors'].append(games_error)
         results['success'] = False
+
+    # Re-sync game logs after today's games to pick up newly completed games
+    # This ensures Last 5 trends include games that just finished
+    logger.info("Re-syncing game logs to include newly completed games...")
+    logs_count_refresh, logs_error_refresh = _sync_game_logs_impl(season, last_n_games=None)
+    results['game_logs'] = logs_count_refresh  # Update with latest count
+    if logs_error_refresh:
+        results['errors'].append(f"Game logs refresh: {logs_error_refresh}")
+        # Don't fail entire sync - we already have some game logs
 
     # Sync team profiles (after game logs so we have fresh data)
     profiles_count, profiles_error = _sync_team_profiles_impl(season)

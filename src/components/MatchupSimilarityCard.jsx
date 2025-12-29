@@ -88,18 +88,38 @@ function MatchupSimilarityCard({ prediction, homeTeam, awayTeam }) {
               <h4 className="font-semibold text-gray-900 dark:text-white">
                 {homeTeam}
               </h4>
-              <span className={getClusterBadgeClasses(getClusterColor(homeCluster.id))}>
-                {homeCluster.name}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={getClusterBadgeClasses(getClusterColor(homeCluster.id))}>
+                  {homeCluster.name}
+                </span>
+                {homeCluster.secondary_name && (
+                  <span className={`${getClusterBadgeClasses(getClusterColor(homeCluster.secondary_id))} opacity-70 text-[10px] border-dashed`}>
+                    {homeCluster.secondary_name}
+                  </span>
+                )}
+              </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {homeCluster.description}
             </p>
-            {homeCluster.distance_to_centroid !== null && (
-              <div className="text-xs text-gray-500 dark:text-gray-500">
-                Cluster fit: {(100 - (homeCluster.distance_to_centroid * 100)).toFixed(0)}%
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+              <div>
+                {homeCluster.confidence_label && (
+                  <span className={`font-medium ${
+                    homeCluster.confidence_label === 'High' ? 'text-green-600 dark:text-green-400' :
+                    homeCluster.confidence_label === 'Low' ? 'text-red-600 dark:text-red-400' :
+                    'text-yellow-600 dark:text-yellow-400'
+                  }`}>
+                    Confidence: {homeCluster.confidence_label}
+                  </span>
+                )}
               </div>
-            )}
+              {homeCluster.fit_score !== null && homeCluster.fit_score !== undefined && (
+                <div title={homeCluster.secondary_fit_score ? `Secondary: ${homeCluster.secondary_fit_score.toFixed(0)}` : ''}>
+                  Fit: {homeCluster.fit_score.toFixed(0)}
+                </div>
+              )}
+            </div>
             {/* Similar Teams */}
             {similarityData.home_similar_teams && similarityData.home_similar_teams.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
@@ -130,18 +150,38 @@ function MatchupSimilarityCard({ prediction, homeTeam, awayTeam }) {
               <h4 className="font-semibold text-gray-900 dark:text-white">
                 {awayTeam}
               </h4>
-              <span className={getClusterBadgeClasses(getClusterColor(awayCluster.id))}>
-                {awayCluster.name}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={getClusterBadgeClasses(getClusterColor(awayCluster.id))}>
+                  {awayCluster.name}
+                </span>
+                {awayCluster.secondary_name && (
+                  <span className={`${getClusterBadgeClasses(getClusterColor(awayCluster.secondary_id))} opacity-70 text-[10px] border-dashed`}>
+                    {awayCluster.secondary_name}
+                  </span>
+                )}
+              </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {awayCluster.description}
             </p>
-            {awayCluster.distance_to_centroid !== null && (
-              <div className="text-xs text-gray-500 dark:text-gray-500">
-                Cluster fit: {(100 - (awayCluster.distance_to_centroid * 100)).toFixed(0)}%
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+              <div>
+                {awayCluster.confidence_label && (
+                  <span className={`font-medium ${
+                    awayCluster.confidence_label === 'High' ? 'text-green-600 dark:text-green-400' :
+                    awayCluster.confidence_label === 'Low' ? 'text-red-600 dark:text-red-400' :
+                    'text-yellow-600 dark:text-yellow-400'
+                  }`}>
+                    Confidence: {awayCluster.confidence_label}
+                  </span>
+                )}
               </div>
-            )}
+              {awayCluster.fit_score !== null && awayCluster.fit_score !== undefined && (
+                <div title={awayCluster.secondary_fit_score ? `Secondary: ${awayCluster.secondary_fit_score.toFixed(0)}` : ''}>
+                  Fit: {awayCluster.fit_score.toFixed(0)}
+                </div>
+              )}
+            </div>
             {/* Similar Teams */}
             {similarityData.away_similar_teams && similarityData.away_similar_teams.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">

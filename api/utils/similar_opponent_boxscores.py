@@ -229,9 +229,9 @@ def get_similar_opponent_boxscores(
         response['archetype_team_name'] = archetype_team_data['full_name']
         response['archetype_team_abbr'] = archetype_team_data['team_abbreviation']
 
-        # Step 2: Get archetype team's cluster assignment
+        # Step 2: Get archetype team's cluster assignment (with confidence label)
         sim_cursor.execute("""
-            SELECT tca.cluster_id, tsc.cluster_name, tsc.cluster_description
+            SELECT tca.cluster_id, tsc.cluster_name, tsc.cluster_description, tca.confidence_label
             FROM team_cluster_assignments tca
             LEFT JOIN team_similarity_clusters tsc
                 ON tca.cluster_id = tsc.cluster_id AND tca.season = tsc.season
@@ -243,26 +243,50 @@ def get_similar_opponent_boxscores(
         if cluster_data:
             cluster_id = cluster_data['cluster_id']
             cluster_name = cluster_data['cluster_name']
+            confidence_label = cluster_data['confidence_label'] if cluster_data['confidence_label'] else 'Medium'
             glossary_name, glossary_desc = get_cluster_glossary_name(cluster_id, cluster_name)
 
             response['cluster_id'] = cluster_id
             response['cluster_name'] = glossary_name
             response['cluster_description'] = glossary_desc
+            response['confidence_label'] = confidence_label
 
-        # Step 3: Get top N similar teams to archetype
-        # Note: Need to join with nba_data.db for team names
-        # For now, we'll get IDs and fetch names separately
-        sim_cursor.execute("""
-            SELECT
-                tss.similar_team_id,
-                tss.similarity_score
-            FROM team_similarity_scores tss
-            WHERE tss.team_id = ? AND tss.season = ?
-            ORDER BY tss.rank ASC
-            LIMIT ?
-        """, (archetype_team_id, season, top_n_similar))
+        # Step 3: Get teams in the archetype's cluster
+        # NEW: Instead of globally similar teams, get teams that share the archetype's playstyle cluster
+        # This means: "Teams that play like archetype_team (same archetype)"
 
-        similar_teams_rows = sim_cursor.fetchall()
+        similar_teams_rows = []
+
+        if cluster_data and cluster_id:
+            # Get all teams in the same cluster as the archetype, excluding the archetype itself
+            # Order by primary fit score (how well they fit the cluster archetype)
+            sim_cursor.execute("""
+                SELECT
+                    tca.team_id as similar_team_id,
+                    tca.primary_fit_score as similarity_score
+                FROM team_cluster_assignments tca
+                WHERE tca.cluster_id = ? AND tca.season = ?
+                  AND tca.team_id != ?
+                ORDER BY tca.primary_fit_score DESC
+                LIMIT ?
+            """, (cluster_id, season, archetype_team_id, top_n_similar))
+
+            similar_teams_rows = sim_cursor.fetchall()
+
+        # Fallback to global similarity if no cluster data or no teams in cluster
+        if not similar_teams_rows:
+            sim_cursor.execute("""
+                SELECT
+                    tss.similar_team_id,
+                    tss.similarity_score
+                FROM team_similarity_scores tss
+                WHERE tss.team_id = ? AND tss.season = ?
+                  AND tss.opponent_cluster_id IS NULL
+                ORDER BY tss.rank ASC
+                LIMIT ?
+            """, (archetype_team_id, season, top_n_similar))
+
+            similar_teams_rows = sim_cursor.fetchall()
 
         if not similar_teams_rows:
             return response

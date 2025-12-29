@@ -41,14 +41,37 @@ def initialize_schema():
             ast_ratio REAL,
             def_rating_norm REAL,
             season TEXT NOT NULL,
+            window_mode TEXT DEFAULT 'season',
+            opponent_cluster_id INTEGER,
+            games_used INTEGER,
             computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(team_id, season)
+            UNIQUE(team_id, season, window_mode, opponent_cluster_id)
         )
     """)
 
+    # Migrate existing data: add new columns if missing (BEFORE creating indexes)
+    try:
+        cursor.execute("ALTER TABLE team_feature_vectors ADD COLUMN window_mode TEXT DEFAULT 'season'")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_feature_vectors ADD COLUMN opponent_cluster_id INTEGER")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_feature_vectors ADD COLUMN games_used INTEGER")
+    except:
+        pass
+
+    # Create indexes AFTER columns exist
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_feature_team
         ON team_feature_vectors(team_id, season)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_feature_conditional
+        ON team_feature_vectors(team_id, season, window_mode, opponent_cluster_id)
     """)
 
     # Table 2: Similarity Scores (top 5 most similar teams for each team)
@@ -60,11 +83,24 @@ def initialize_schema():
             similarity_score REAL NOT NULL,
             rank INTEGER NOT NULL,
             season TEXT NOT NULL,
+            window_mode TEXT DEFAULT 'season',
+            opponent_cluster_id INTEGER,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(team_id, similar_team_id, season)
+            UNIQUE(team_id, similar_team_id, season, window_mode, opponent_cluster_id)
         )
     """)
 
+    # Migrate existing data: add new columns if missing (BEFORE creating indexes)
+    try:
+        cursor.execute("ALTER TABLE team_similarity_scores ADD COLUMN window_mode TEXT DEFAULT 'season'")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_similarity_scores ADD COLUMN opponent_cluster_id INTEGER")
+    except:
+        pass
+
+    # Create indexes AFTER columns exist
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_similarity_team
         ON team_similarity_scores(team_id, season)
@@ -73,6 +109,11 @@ def initialize_schema():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_similarity_rank
         ON team_similarity_scores(team_id, rank, season)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_similarity_conditional
+        ON team_similarity_scores(team_id, season, window_mode, opponent_cluster_id, rank)
     """)
 
     # Table 3: Cluster Definitions
@@ -96,9 +137,37 @@ def initialize_schema():
             cluster_id INTEGER NOT NULL,
             distance_to_centroid REAL,
             season TEXT NOT NULL,
+            secondary_cluster_id INTEGER,
+            primary_fit_score REAL,
+            secondary_fit_score REAL,
+            confidence_label TEXT,
+            confidence_score REAL,
             UNIQUE(team_id, season)
         )
     """)
+
+    # Add new columns to existing table (safe migration)
+    # SQLite will skip ALTER TABLE if column already exists (caught by try/except)
+    try:
+        cursor.execute("ALTER TABLE team_cluster_assignments ADD COLUMN secondary_cluster_id INTEGER")
+    except:
+        pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE team_cluster_assignments ADD COLUMN primary_fit_score REAL")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_cluster_assignments ADD COLUMN secondary_fit_score REAL")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_cluster_assignments ADD COLUMN confidence_label TEXT")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE team_cluster_assignments ADD COLUMN confidence_score REAL")
+    except:
+        pass
 
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_cluster_team

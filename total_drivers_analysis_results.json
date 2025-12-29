@@ -1,0 +1,888 @@
+{
+  "season": "2025-26",
+  "total_games": 463,
+  "bin_results": {
+    "F": {
+      "bin": "F",
+      "bin_label": "240-250",
+      "count": 58,
+      "pct_of_season": 12.526997840172784,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.62,
+          "median": 0.613,
+          "p25": 0.585,
+          "p75": 0.65,
+          "lift_pct": 4.9
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.878,
+          "median": 0.872,
+          "p25": 0.804,
+          "p75": 0.934,
+          "lift_pct": 5.2
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 70.793,
+          "median": 68.5,
+          "p25": 62.25,
+          "p75": 79.0,
+          "lift_pct": 3.5
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 41.069,
+          "median": 40.0,
+          "p25": 36.0,
+          "p75": 45.75,
+          "lift_pct": 6.0
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 12.793,
+          "median": 10.0,
+          "p25": 5.25,
+          "p75": 15.0,
+          "lift_pct": 5.1
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 25.155,
+          "median": 25.0,
+          "p25": 21.0,
+          "p75": 29.75,
+          "lift_pct": 0.3
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 14.966,
+          "median": 15.0,
+          "p25": 11.0,
+          "p75": 17.75,
+          "lift_pct": -3.0
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "ISO-Heavy vs Balanced High-Assist",
+            "count_in_bin": 1,
+            "total_matchup_games": 3,
+            "prob": 33.3,
+            "lift": 166.1
+          },
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 5,
+            "total_matchup_games": 27,
+            "prob": 18.5,
+            "lift": 47.8
+          },
+          {
+            "matchup": "Three-Point Hunters vs Balanced High-Assist",
+            "count_in_bin": 5,
+            "total_matchup_games": 28,
+            "prob": 17.9,
+            "lift": 42.5
+          },
+          {
+            "matchup": "Paint Dominators vs Three-Point Hunters",
+            "count_in_bin": 3,
+            "total_matchup_games": 31,
+            "prob": 9.7,
+            "lift": -22.7
+          },
+          {
+            "matchup": "Three-Point Hunters vs ISO-Heavy",
+            "count_in_bin": 4,
+            "total_matchup_games": 28,
+            "prob": 14.3,
+            "lift": 14.0
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "ft_points",
+          "name": "FT Points",
+          "lift": 6.0
+        },
+        {
+          "feature": "combined_ts",
+          "name": "TS%",
+          "lift": 5.2
+        },
+        {
+          "feature": "margin",
+          "name": "Margin (Blowout Risk)",
+          "lift": 5.1
+        }
+      ]
+    },
+    "D": {
+      "bin": "D",
+      "bin_label": "220-230",
+      "count": 85,
+      "pct_of_season": 18.3585313174946,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.576,
+          "median": 0.573,
+          "p25": 0.546,
+          "p75": 0.603,
+          "lift_pct": -2.5
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.814,
+          "median": 0.807,
+          "p25": 0.756,
+          "p75": 0.854,
+          "lift_pct": -2.5
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 66.847,
+          "median": 66,
+          "p25": 57,
+          "p75": 74,
+          "lift_pct": -2.3
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 38.353,
+          "median": 38.0,
+          "p25": 32.0,
+          "p75": 44.0,
+          "lift_pct": -1.0
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 11.741,
+          "median": 10,
+          "p25": 4,
+          "p75": 16,
+          "lift_pct": -3.6
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 25.541,
+          "median": 25,
+          "p25": 20,
+          "p75": 29,
+          "lift_pct": 1.9
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 15.212,
+          "median": 15,
+          "p25": 11,
+          "p75": 19,
+          "lift_pct": -1.4
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "ISO-Heavy vs Paint Dominators",
+            "count_in_bin": 1,
+            "total_matchup_games": 1,
+            "prob": 100.0,
+            "lift": 444.7
+          },
+          {
+            "matchup": "ISO-Heavy vs ISO-Heavy",
+            "count_in_bin": 1,
+            "total_matchup_games": 1,
+            "prob": 100.0,
+            "lift": 444.7
+          },
+          {
+            "matchup": "Paint Dominators vs ISO-Heavy",
+            "count_in_bin": 1,
+            "total_matchup_games": 3,
+            "prob": 33.3,
+            "lift": 81.6
+          },
+          {
+            "matchup": "ISO-Heavy vs Balanced High-Assist",
+            "count_in_bin": 1,
+            "total_matchup_games": 3,
+            "prob": 33.3,
+            "lift": 81.6
+          },
+          {
+            "matchup": "ISO-Heavy vs Three-Point Hunters",
+            "count_in_bin": 6,
+            "total_matchup_games": 22,
+            "prob": 27.3,
+            "lift": 48.6
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "margin",
+          "name": "Margin (Blowout Risk)",
+          "lift": -3.6
+        },
+        {
+          "feature": "combined_efg",
+          "name": "eFG%",
+          "lift": -2.5
+        },
+        {
+          "feature": "combined_ts",
+          "name": "TS%",
+          "lift": -2.5
+        }
+      ]
+    },
+    "C": {
+      "bin": "C",
+      "bin_label": "210-220",
+      "count": 81,
+      "pct_of_season": 17.49460043196544,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.561,
+          "median": 0.561,
+          "p25": 0.533,
+          "p75": 0.586,
+          "lift_pct": -5.1
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.803,
+          "median": 0.795,
+          "p25": 0.744,
+          "p75": 0.854,
+          "lift_pct": -3.7
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 62.198,
+          "median": 62,
+          "p25": 55,
+          "p75": 70,
+          "lift_pct": -9.1
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 36.086,
+          "median": 36.0,
+          "p25": 30.0,
+          "p75": 41.0,
+          "lift_pct": -6.9
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 12.691,
+          "median": 11,
+          "p25": 7,
+          "p75": 17,
+          "lift_pct": 4.2
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 23.827,
+          "median": 23,
+          "p25": 20,
+          "p75": 28,
+          "lift_pct": -5.0
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 15.469,
+          "median": 16,
+          "p25": 13,
+          "p75": 18,
+          "lift_pct": 0.3
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "ISO-Heavy vs Balanced High-Assist",
+            "count_in_bin": 1,
+            "total_matchup_games": 3,
+            "prob": 33.3,
+            "lift": 90.5
+          },
+          {
+            "matchup": "Three-Point Hunters vs Balanced High-Assist",
+            "count_in_bin": 2,
+            "total_matchup_games": 28,
+            "prob": 7.1,
+            "lift": -59.2
+          },
+          {
+            "matchup": "Balanced High-Assist vs Three-Point Hunters",
+            "count_in_bin": 2,
+            "total_matchup_games": 27,
+            "prob": 7.4,
+            "lift": -57.7
+          },
+          {
+            "matchup": "ISO-Heavy vs Three-Point Hunters",
+            "count_in_bin": 6,
+            "total_matchup_games": 22,
+            "prob": 27.3,
+            "lift": 55.9
+          },
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 7,
+            "total_matchup_games": 27,
+            "prob": 25.9,
+            "lift": 48.2
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "combined_pitp",
+          "name": "Paint Points",
+          "lift": -9.1
+        },
+        {
+          "feature": "ft_points",
+          "name": "FT Points",
+          "lift": -6.9
+        },
+        {
+          "feature": "combined_efg",
+          "name": "eFG%",
+          "lift": -5.1
+        }
+      ]
+    },
+    "G": {
+      "bin": "G",
+      "bin_label": "250+",
+      "count": 93,
+      "pct_of_season": 20.086393088552914,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.629,
+          "median": 0.628,
+          "p25": 0.593,
+          "p75": 0.662,
+          "lift_pct": 6.4
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.873,
+          "median": 0.867,
+          "p25": 0.824,
+          "p75": 0.907,
+          "lift_pct": 4.7
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 76.387,
+          "median": 76,
+          "p25": 67,
+          "p75": 84,
+          "lift_pct": 11.6
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 43.968,
+          "median": 45.0,
+          "p25": 36.0,
+          "p75": 52.0,
+          "lift_pct": 13.5
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 11.011,
+          "median": 8,
+          "p25": 4,
+          "p75": 17,
+          "lift_pct": -9.6
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 25.548,
+          "median": 25,
+          "p25": 21,
+          "p75": 31,
+          "lift_pct": 1.9
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 16.312,
+          "median": 16,
+          "p25": 13,
+          "p75": 20,
+          "lift_pct": 5.7
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "Balanced High-Assist vs ISO-Heavy",
+            "count_in_bin": 1,
+            "total_matchup_games": 1,
+            "prob": 100.0,
+            "lift": 397.8
+          },
+          {
+            "matchup": "Balanced High-Assist vs Paint Dominators",
+            "count_in_bin": 1,
+            "total_matchup_games": 1,
+            "prob": 100.0,
+            "lift": 397.8
+          },
+          {
+            "matchup": "Paint Dominators vs ISO-Heavy",
+            "count_in_bin": 2,
+            "total_matchup_games": 3,
+            "prob": 66.7,
+            "lift": 231.9
+          },
+          {
+            "matchup": "ISO-Heavy vs Three-Point Hunters",
+            "count_in_bin": 3,
+            "total_matchup_games": 22,
+            "prob": 13.6,
+            "lift": -32.1
+          },
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 4,
+            "total_matchup_games": 27,
+            "prob": 14.8,
+            "lift": -26.2
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "ft_points",
+          "name": "FT Points",
+          "lift": 13.5
+        },
+        {
+          "feature": "combined_pitp",
+          "name": "Paint Points",
+          "lift": 11.6
+        },
+        {
+          "feature": "margin",
+          "name": "Margin (Blowout Risk)",
+          "lift": -9.6
+        }
+      ]
+    },
+    "E": {
+      "bin": "E",
+      "bin_label": "230-240",
+      "count": 96,
+      "pct_of_season": 20.734341252699785,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.609,
+          "median": 0.607,
+          "p25": 0.568,
+          "p75": 0.656,
+          "lift_pct": 3.0
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.854,
+          "median": 0.84,
+          "p25": 0.777,
+          "p75": 0.909,
+          "lift_pct": 2.3
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 69.927,
+          "median": 70.0,
+          "p25": 60.75,
+          "p75": 79.0,
+          "lift_pct": 2.2
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 39.312,
+          "median": 38.0,
+          "p25": 33.0,
+          "p75": 46.0,
+          "lift_pct": 1.5
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 13.094,
+          "median": 12.0,
+          "p25": 6.0,
+          "p75": 18.0,
+          "lift_pct": 7.5
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 26.281,
+          "median": 26.0,
+          "p25": 22.0,
+          "p75": 31.0,
+          "lift_pct": 4.8
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 15.0,
+          "median": 16.0,
+          "p25": 12.0,
+          "p75": 18.0,
+          "lift_pct": -2.8
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "ISO-Heavy vs Three-Point Hunters",
+            "count_in_bin": 2,
+            "total_matchup_games": 22,
+            "prob": 9.1,
+            "lift": -56.2
+          },
+          {
+            "matchup": "Paint Dominators vs Three-Point Hunters",
+            "count_in_bin": 10,
+            "total_matchup_games": 31,
+            "prob": 32.3,
+            "lift": 55.6
+          },
+          {
+            "matchup": "Three-Point Hunters vs ISO-Heavy",
+            "count_in_bin": 7,
+            "total_matchup_games": 28,
+            "prob": 25.0,
+            "lift": 20.6
+          },
+          {
+            "matchup": "Balanced High-Assist vs Three-Point Hunters",
+            "count_in_bin": 5,
+            "total_matchup_games": 27,
+            "prob": 18.5,
+            "lift": -10.7
+          },
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 5,
+            "total_matchup_games": 27,
+            "prob": 18.5,
+            "lift": -10.7
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "margin",
+          "name": "Margin (Blowout Risk)",
+          "lift": 7.5
+        },
+        {
+          "feature": "points_off_to",
+          "name": "Points off TO",
+          "lift": 4.8
+        },
+        {
+          "feature": "combined_efg",
+          "name": "eFG%",
+          "lift": 3.0
+        }
+      ]
+    },
+    "A": {
+      "bin": "A",
+      "bin_label": "\u2264200",
+      "count": 19,
+      "pct_of_season": 4.103671706263499,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.507,
+          "median": 0.504,
+          "p25": 0.485,
+          "p75": 0.528,
+          "lift_pct": -14.3
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.729,
+          "median": 0.732,
+          "p25": 0.679,
+          "p75": 0.751,
+          "lift_pct": -12.7
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 60.368,
+          "median": 59,
+          "p25": 56.5,
+          "p75": 65.5,
+          "lift_pct": -11.8
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 31.0,
+          "median": 33.0,
+          "p25": 27.5,
+          "p75": 34.0,
+          "lift_pct": -20.0
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 10.842,
+          "median": 8,
+          "p25": 3.5,
+          "p75": 17.0,
+          "lift_pct": -10.9
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 22.842,
+          "median": 23,
+          "p25": 17.5,
+          "p75": 28.5,
+          "lift_pct": -8.9
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 16.474,
+          "median": 15,
+          "p25": 12.5,
+          "p75": 20.0,
+          "lift_pct": 6.8
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 2,
+            "total_matchup_games": 27,
+            "prob": 7.4,
+            "lift": 80.5
+          },
+          {
+            "matchup": "Balanced High-Assist vs Three-Point Hunters",
+            "count_in_bin": 2,
+            "total_matchup_games": 27,
+            "prob": 7.4,
+            "lift": 80.5
+          },
+          {
+            "matchup": "Paint Dominators vs Three-Point Hunters",
+            "count_in_bin": 2,
+            "total_matchup_games": 31,
+            "prob": 6.5,
+            "lift": 57.2
+          },
+          {
+            "matchup": "Three-Point Hunters vs Balanced High-Assist",
+            "count_in_bin": 1,
+            "total_matchup_games": 28,
+            "prob": 3.6,
+            "lift": -13.0
+          },
+          {
+            "matchup": "Three-Point Hunters vs Three-Point Hunters",
+            "count_in_bin": 12,
+            "total_matchup_games": 288,
+            "prob": 4.2,
+            "lift": 1.5
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "ft_points",
+          "name": "FT Points",
+          "lift": -20.0
+        },
+        {
+          "feature": "combined_efg",
+          "name": "eFG%",
+          "lift": -14.3
+        },
+        {
+          "feature": "combined_ts",
+          "name": "TS%",
+          "lift": -12.7
+        }
+      ]
+    },
+    "B": {
+      "bin": "B",
+      "bin_label": "200-210",
+      "count": 31,
+      "pct_of_season": 6.695464362850973,
+      "core_drivers": {
+        "combined_efg": {
+          "name": "eFG%",
+          "mean": 0.542,
+          "median": 0.539,
+          "p25": 0.516,
+          "p75": 0.568,
+          "lift_pct": -8.3
+        },
+        "combined_ts": {
+          "name": "TS%",
+          "mean": 0.779,
+          "median": 0.768,
+          "p25": 0.726,
+          "p75": 0.803,
+          "lift_pct": -6.7
+        },
+        "combined_pitp": {
+          "name": "Paint Points",
+          "mean": 61.032,
+          "median": 60,
+          "p25": 56.5,
+          "p75": 65.5,
+          "lift_pct": -10.8
+        },
+        "ft_points": {
+          "name": "FT Points",
+          "mean": 29.742,
+          "median": 29.0,
+          "p25": 25.0,
+          "p75": 33.0,
+          "lift_pct": -23.2
+        },
+        "margin": {
+          "name": "Margin (Blowout Risk)",
+          "mean": 12.323,
+          "median": 10,
+          "p25": 4.0,
+          "p75": 16.5,
+          "lift_pct": 1.2
+        },
+        "points_off_to": {
+          "name": "Points off TO",
+          "mean": 23.065,
+          "median": 23,
+          "p25": 19.5,
+          "p75": 26.5,
+          "lift_pct": -8.0
+        },
+        "second_chance_pts": {
+          "name": "2nd Chance Points",
+          "mean": 14.774,
+          "median": 14,
+          "p25": 11.5,
+          "p75": 18.5,
+          "lift_pct": -4.2
+        }
+      },
+      "archetype_analysis": {
+        "top_matchups": [
+          {
+            "matchup": "Balanced High-Assist vs Balanced High-Assist",
+            "count_in_bin": 2,
+            "total_matchup_games": 2,
+            "prob": 100.0,
+            "lift": 1393.5
+          },
+          {
+            "matchup": "Balanced High-Assist vs Three-Point Hunters",
+            "count_in_bin": 5,
+            "total_matchup_games": 27,
+            "prob": 18.5,
+            "lift": 176.6
+          },
+          {
+            "matchup": "Three-Point Hunters vs Balanced High-Assist",
+            "count_in_bin": 4,
+            "total_matchup_games": 28,
+            "prob": 14.3,
+            "lift": 113.4
+          },
+          {
+            "matchup": "Three-Point Hunters vs ISO-Heavy",
+            "count_in_bin": 3,
+            "total_matchup_games": 28,
+            "prob": 10.7,
+            "lift": 60.0
+          },
+          {
+            "matchup": "Three-Point Hunters vs Paint Dominators",
+            "count_in_bin": 1,
+            "total_matchup_games": 27,
+            "prob": 3.7,
+            "lift": -44.7
+          }
+        ]
+      },
+      "rank_analysis": {
+        "opp_ppg_rank": [],
+        "opp_pace_rank": [],
+        "opp_off_rtg_rank": [],
+        "opp_def_rtg_rank": []
+      },
+      "top_3_drivers": [
+        {
+          "feature": "ft_points",
+          "name": "FT Points",
+          "lift": -23.2
+        },
+        {
+          "feature": "combined_pitp",
+          "name": "Paint Points",
+          "lift": -10.8
+        },
+        {
+          "feature": "combined_efg",
+          "name": "eFG%",
+          "lift": -8.3
+        }
+      ]
+    }
+  }
+}

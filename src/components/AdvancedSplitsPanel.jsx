@@ -36,6 +36,7 @@ function AdvancedSplitsPanel({
   // Toggle states for metric and context
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
+  const [showExplanation, setShowExplanation] = useState(false) // Collapsed by default on mobile
 
   // DIAGNOSTIC LOGGING
   console.log('[AdvancedSplitsPanel] Current metric:', metric)
@@ -146,14 +147,17 @@ function AdvancedSplitsPanel({
         </div>
       </div>
 
-      {/* Explanatory Text Block - Dynamic based on metric + context */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-1">
+      {/* Explanatory Text Block - Collapsible on mobile */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden mb-6">
+        <button
+          onClick={() => setShowExplanation(!showExplanation)}
+          className="w-full flex items-center justify-between p-3 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors min-h-[44px]"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">
               {metric === 'scoring' && context === 'defense' && 'About Scoring vs Defense Tiers'}
               {metric === 'scoring' && context === 'pace' && 'About Scoring vs Game Speed'}
               {metric === 'threePt' && context === 'defense' && 'About 3-Point Shooting vs Defense'}
@@ -162,7 +166,22 @@ function AdvancedSplitsPanel({
               {metric === 'turnovers' && context === 'pace' && 'About Turnovers vs Game Speed'}
               {metric === 'assists' && context === 'defense' && 'About Assists vs Ball-Movement Defense'}
               {metric === 'assists' && context === 'pace' && 'About Assists vs Game Speed'}
-            </h4>
+            </span>
+          </div>
+          <svg
+            className={`w-5 h-5 text-blue-600 dark:text-blue-400 transition-transform ${
+              showExplanation ? 'rotate-180' : ''
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showExplanation && (
+          <div className="px-4 pb-4 pt-2 border-t border-blue-200 dark:border-blue-700">
             <p className="text-sm text-blue-800 dark:text-blue-200">
               {metric === 'scoring' && EXPLANATION_TEXT.scoring.description}
               {metric === 'threePt' && EXPLANATION_TEXT.threePt.description}
@@ -182,7 +201,7 @@ function AdvancedSplitsPanel({
               </p>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Identity Tags (only for scoring metric) */}

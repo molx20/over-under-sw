@@ -16,12 +16,12 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
   const strength = game.opponent?.strength || 'unknown'
   const gameDate = game.game_date || 'Unknown Date'
 
-  // Box score stats
-  const pace = game.pace || 0
+  // Box score stats (ensure all values are safe)
+  const pace = Number(game.pace) || 0
   const threePt = game.three_pt || null
-  const turnovers = game.tov || 0
-  const assists = game.ast || 0
-  const rebounds = game.reb || 0
+  const turnovers = Number(game.tov) || 0
+  const assists = Number(game.ast) || 0
+  const rebounds = Number(game.reb) || 0
 
   // Determine result color
   const isWin = teamPts > oppPts
@@ -95,9 +95,13 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">3PT Points</div>
                 {threePt ? (
                   <>
-                    <div className="text-xl font-bold text-gray-900 dark:text-white">{threePt.points} PTS</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white">{threePt.points || 0} PTS</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      ({threePt.made}/{threePt.attempted} · {threePt.percentage !== null ? (Number.isInteger(threePt.percentage) ? threePt.percentage : threePt.percentage.toFixed(1)) : '0.0'}%)
+                      ({threePt.made || 0}/{threePt.attempted || 0} · {
+                        threePt.percentage != null
+                          ? (Number.isInteger(threePt.percentage) ? threePt.percentage : threePt.percentage.toFixed(1))
+                          : '0.0'
+                      }%)
                     </div>
                   </>
                 ) : (

@@ -77,7 +77,7 @@ function SimilarOpponentBoxScores({ gameId }) {
  * Displays one team's performance vs similar opponent types
  */
 function TeamSection({ teamData, isHome }) {
-  const { team_name, team_abbr, vs_similar_to, cluster_label, cluster_description, similar_teams, sample } = teamData
+  const { team_name, team_abbr, vs_similar_to, cluster_label, cluster_description, similar_teams, sample, confidence_label } = teamData
 
   const hasGames = sample && sample.games_played > 0
 
@@ -91,7 +91,16 @@ function TeamSection({ teamData, isHome }) {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           {cluster_label && (
             <span>
-              Matchup vs <span className="font-semibold">{cluster_label}</span> playstyle
+              Opponent Archetype: <span className="font-semibold">{cluster_label}</span>
+              {confidence_label && (
+                <span className={`ml-2 text-xs font-medium ${
+                  confidence_label === 'High' ? 'text-green-600 dark:text-green-400' :
+                  confidence_label === 'Low' ? 'text-red-600 dark:text-red-400' :
+                  'text-yellow-600 dark:text-yellow-400'
+                }`}>
+                  (Confidence: {confidence_label})
+                </span>
+              )}
             </span>
           )}
         </p>
@@ -136,7 +145,7 @@ function TeamSection({ teamData, isHome }) {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
             <StatItem label="Avg Scored" seasonValue={teamData.season_avg?.avg_pts_scored} similarValue={sample.summary.avg_pts_scored} />
             <StatItem label="Avg Allowed" seasonValue={teamData.season_avg?.avg_pts_allowed} similarValue={sample.summary.avg_pts_allowed} />
             <StatItem label="Avg Total" seasonValue={teamData.season_avg?.avg_total} similarValue={sample.summary.avg_total} />
@@ -198,32 +207,45 @@ function StatItem({ label, seasonValue, similarValue, isPercentage = false }) {
 
   return (
     <div>
-      <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">{label}</p>
-      <div className="flex items-center space-x-2 text-sm">
-        <span className="text-gray-600 dark:text-gray-400">Season</span>
-        <span className="font-semibold text-gray-900 dark:text-white">{formatValue(seasonValue)}</span>
-        <span className="text-gray-400">|</span>
-        <span className="text-gray-600 dark:text-gray-400">vs Similar</span>
-        <span className="font-semibold text-gray-900 dark:text-white">{formatValue(similarValue)}</span>
+      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">{label}</p>
+      {/* Mobile: Stack vertically, Desktop: Horizontal */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 text-sm">
+        {/* Season Value */}
+        <div className="flex items-center justify-between sm:contents mb-1 sm:mb-0">
+          <span className="text-gray-500 dark:text-gray-500 text-xs">Season</span>
+          <span className="font-semibold text-gray-900 dark:text-white">{formatValue(seasonValue)}</span>
+        </div>
+
+        <span className="hidden sm:inline text-gray-400">|</span>
+
+        {/* VS Similar Value */}
+        <div className="flex items-center justify-between sm:contents mb-1 sm:mb-0">
+          <span className="text-gray-500 dark:text-gray-500 text-xs">VS Similar</span>
+          <span className="font-semibold text-gray-900 dark:text-white">{formatValue(similarValue)}</span>
+        </div>
+
         {delta !== null && (
           <>
-            <span className="text-gray-400">|</span>
-            <div className="flex items-center space-x-1">
-              {isPositive && (
-                <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
-              {isNegative && (
-                <svg className="w-3 h-3 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            <span className="hidden sm:inline text-gray-400">|</span>
+            <div className="flex items-center justify-between sm:contents">
+              <span className="text-gray-500 dark:text-gray-500 text-xs sm:hidden">Change</span>
+              <div className="flex items-center space-x-1">
+                {isPositive && (
+                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {isNegative && (
+                  <svg className="w-3 h-3 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
               <span className={`font-semibold ${
-                isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600'
+                isPositive ? 'text-green-600 dark:text-green-400' : isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
               }`}>
                 {formatDelta(delta)}
               </span>
+            </div>
             </div>
           </>
         )}

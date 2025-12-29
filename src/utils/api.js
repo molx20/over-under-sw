@@ -600,6 +600,42 @@ export const useGameAssistsVsPace = (gameId, season = '2025-26') => {
 }
 
 /**
+ * Fetch scoring mix splits for both teams in a game
+ */
+const fetchGameScoringMix = async (gameId, season = '2025-26') => {
+  console.log('[fetchGameScoringMix] Called with gameId:', gameId, 'season:', season)
+  try {
+    const response = await api.get('/scoring-mix', {
+      params: { game_id: gameId, season },
+      timeout: 10000
+    })
+    console.log('[fetchGameScoringMix] Response:', response.data)
+    return response.data.data || {}
+  } catch (error) {
+    console.error('[fetchGameScoringMix] ERROR:', error)
+    console.error('[fetchGameScoringMix] Error response:', error.response)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch scoring mix')
+  }
+}
+
+/**
+ * Hook to fetch game scoring mix for both teams
+ * Cache key: ['game-scoring-mix', gameId, season]
+ * Stale time: 1 hour
+ */
+export const useGameScoringMix = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-scoring-mix', gameId, season],
+    queryFn: () => fetchGameScoringMix(gameId, season),
+    enabled: !!gameId,
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
  * Fetch full matchup summary writeup for a game
  */
 const fetchFullMatchupSummaryWriteup = async (gameId) => {

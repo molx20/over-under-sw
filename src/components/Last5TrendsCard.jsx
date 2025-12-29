@@ -2,10 +2,12 @@ import { useState } from 'react'
 import BoxScoreModal from './BoxScoreModal'
 import { formatDelta, shouldInvertColors } from '../utils/formatHelpers.jsx'
 import { getOffenseHeat, getRestStatus } from '../utils/predictionHelpers'
+import PointsBarChart from './PointsBarChart'
 
 function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
   const [selectedGame, setSelectedGame] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedStat, setSelectedStat] = useState('pts')
 
   const handleGameClick = (game) => {
     setSelectedGame(game)
@@ -35,7 +37,7 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
     )
   }
 
-  const { games, averages, season_comparison, opponent_breakdown, trend_tags, data_quality } = trends
+  const { games, averages, season_avg, season_comparison, opponent_breakdown, trend_tags, data_quality } = trends
 
   // Quality badge styling
   const qualityBadgeClass = data_quality === 'excellent'
@@ -173,6 +175,41 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
             Avg opponent: OFF #{opponent_breakdown.avg_opp_off_rank.toFixed(1)}, DEF #{opponent_breakdown.avg_opp_def_rank?.toFixed(1) || 'N/A'}
           </p>
         )}
+      </div>
+
+      {/* Stat Toggle + Bar Chart */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        {/* Stat Selector Tabs */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setSelectedStat('pts')}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              selectedStat === 'pts'
+                ? 'bg-blue-500 text-white dark:bg-blue-600'
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Points
+          </button>
+          <button
+            onClick={() => setSelectedStat('ast')}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              selectedStat === 'ast'
+                ? 'bg-blue-500 text-white dark:bg-blue-600'
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Assists
+          </button>
+        </div>
+
+        {/* Bar Chart */}
+        <PointsBarChart
+          games={games}
+          seasonPPG={seasonPPG}
+          seasonAPG={season_avg?.apg || averages?.apg || 0}
+          selectedStat={selectedStat}
+        />
       </div>
 
       {/* Trend Tags */}

@@ -29,6 +29,7 @@ from api.utils import team_rankings
 from api.utils import db_queries
 from api.utils.performance import create_timing_middleware
 from api.utils.matchup_summary_cache import get_or_generate_summary
+from api.utils.empty_possessions_calculator import calculate_matchup_empty_possessions
 import json
 import os
 
@@ -182,6 +183,170 @@ def admin_sync_status():
         'current_sync': get_current_sync(),
         'recent_syncs': get_sync_history(limit=5)
     })
+
+
+@app.route('/api/admin/sync/status', methods=['GET'])
+def admin_sync_run_status():
+    """
+    Get detailed status of sync runs for a specific date or run_id
+
+    Query params:
+    - date: YYYY-MM-DD (MT date, optional - defaults to today MT)
+    - run_id: specific run ID (optional)
+
+    Returns sync run details including:
+    - When sync started/completed
+    - How many games NBA CDN returned
+    - How many were inserted/updated/skipped
+    - Current games count in DB for that date
+    """
+    import sqlite3
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    from api.utils.db_config import get_db_path
+
+    # Parse query params
+    target_date_param = request.args.get('date')
+    run_id_param = request.args.get('run_id')
+
+    # Default to today MT if no date provided
+    if not target_date_param and not run_id_param:
+        mt_tz = ZoneInfo("America/Denver")
+        target_date_param = datetime.now(mt_tz).strftime('%Y-%m-%d')
+
+    try:
+        conn = sqlite3.connect(get_db_path('nba_data.db'))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        if run_id_param:
+            # Query specific run by run_id
+            cursor.execute("""
+                SELECT * FROM data_sync_log
+                WHERE run_id = ?
+                ORDER BY started_at DESC
+                LIMIT 1
+            """, (run_id_param,))
+        elif target_date_param:
+            # Query runs for target date
+            cursor.execute("""
+                SELECT * FROM data_sync_log
+                WHERE target_date_mt = ?
+                ORDER BY started_at DESC
+                LIMIT 10
+            """, (target_date_param,))
+        else:
+            # Query recent runs
+            cursor.execute("""
+                SELECT * FROM data_sync_log
+                ORDER BY started_at DESC
+                LIMIT 10
+            """)
+
+        rows = cursor.fetchall()
+        runs = [dict(row) for row in rows]
+
+        # Also get current games count for target date if specified
+        games_in_db = None
+        if target_date_param:
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM todays_games
+                WHERE game_date = ?
+            """, (target_date_param,))
+            games_in_db = cursor.fetchone()['count']
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'target_date_mt': target_date_param,
+            'run_id': run_id_param,
+            'games_in_db': games_in_db,
+            'sync_runs': runs,
+            'run_count': len(runs)
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/sync/dry-run', methods=['GET'])
+def admin_sync_dry_run():
+    """
+    Dry-run sync to preview what would be synced without writing to DB
+
+    Query params:
+    - date: YYYY-MM-DD (MT date, optional - defaults to today MT)
+
+    Returns:
+    - Uses same game source selection logic as actual sync
+    - Shows which sources would be used (CDN vs stats API)
+    - Returns game preview without writing to DB
+    """
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    import uuid
+    from api.utils.sync_nba_data import get_games_for_window
+
+    target_date_param = request.args.get('date')
+
+    # Default to today MT
+    if not target_date_param:
+        mt_tz = ZoneInfo("America/Denver")
+        target_date_param = datetime.now(mt_tz).strftime('%Y-%m-%d')
+
+    try:
+        # Use shared function - same logic as actual sync
+        run_id = str(uuid.uuid4())
+        fetch_result = get_games_for_window(
+            target_date_mt=target_date_param,
+            run_id=run_id,
+            allow_stats_fallback=True
+        )
+
+        games = fetch_result['games']
+        metadata = fetch_result['metadata']
+
+        # Extract game preview (first 10)
+        game_preview = []
+        for game in games[:10]:
+            game_preview.append({
+                'gameId': game.get('gameId'),
+                'gameDate': game.get('gameDate'),
+                'gameCode': game.get('gameCode'),
+                'homeTeam': game.get('homeTeam', {}).get('teamTricode'),
+                'awayTeam': game.get('awayTeam', {}).get('teamTricode'),
+                'status': game.get('gameStatusText')
+            })
+
+        return jsonify({
+            'success': True,
+            'dry_run': True,
+            'target_date_mt': metadata['target_date_mt'],
+            'fetch_window_start': metadata['fetch_window_start'],
+            'fetch_window_end': metadata['fetch_window_end'],
+            'sources_used': metadata['sources_used'],
+            'urls_used': metadata['urls_used'],
+            'cdn_games_found': metadata['cdn_games_found'],
+            'stats_games_found': metadata['stats_games_found'],
+            'total_games_found': metadata['total_games_found'],
+            'game_preview': game_preview,
+            'note': 'This is a dry-run using the same logic as actual sync. No data was written to the database.'
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/api/admin/sync-now', methods=['GET'])
@@ -345,46 +510,74 @@ def admin_sync():
 
     # Parse request body
     try:
+        import uuid
         data = request.get_json() or {}
         sync_type = data.get('sync_type', 'full')
         season = data.get('season', '2025-26')
-        async_mode = data.get('async', True)  # Run async by default to avoid timeout
+        async_mode = data.get('async', False)  # Synchronous by default - let cron wait for completion
+        target_date_mt = data.get('target_date_mt')  # Optional MT date to sync
     except Exception as e:
         return jsonify({'error': f'Invalid request body: {str(e)}'}), 400
 
+    # Generate run_id for tracking
+    run_id = str(uuid.uuid4())
+
     # Run sync in background thread if async mode
     if async_mode:
-        def background_sync():
+        def background_sync(run_id):
             try:
-                print(f'[admin/sync] Starting background {sync_type} sync for {season}')
-                result = sync_all(season=season, triggered_by='admin_api')
-                print(f'[admin/sync] Background sync completed: {result}')
+                print(f'[admin/sync] [run_id={run_id}] Starting background {sync_type} sync for {season}')
+                result = sync_all(
+                    season=season,
+                    triggered_by='admin_api',
+                    run_id=run_id,
+                    target_date_mt=target_date_mt
+                )
+                print(f'[admin/sync] [run_id={run_id}] Background sync completed: {result}')
             except Exception as e:
-                print(f'[admin/sync] Background sync failed: {e}')
+                print(f'[admin/sync] [run_id={run_id}] Background sync failed: {e}')
                 import traceback
                 traceback.print_exc()
 
-        thread = threading.Thread(target=background_sync, daemon=True)
+        thread = threading.Thread(target=lambda: background_sync(run_id), daemon=True)
         thread.start()
 
-        print(f'[admin/sync] Started background sync thread for {season}')
+        print(f'[admin/sync] Started background sync thread (run_id={run_id})')
         return jsonify({
             'success': True,
             'message': 'Sync started in background',
+            'run_id': run_id,
             'season': season,
             'sync_type': sync_type,
-            'note': 'Check server logs for completion status'
+            'target_date_mt': target_date_mt,
+            'status_endpoint': f'/api/admin/sync/status?run_id={run_id}'
         }), 202  # 202 Accepted
     else:
-        # Synchronous mode (may timeout on Railway)
+        # Synchronous mode (default for cron jobs)
         try:
-            print(f'[admin/sync] Starting synchronous {sync_type} sync for {season}')
-            result = sync_all(season=season, triggered_by='admin_api')
-            print(f'[admin/sync] Sync completed: {result}')
+            print(f'[admin/sync] [run_id={run_id}] Starting synchronous {sync_type} sync for {season}')
+            result = sync_all(
+                season=season,
+                triggered_by='admin_api',
+                run_id=run_id,
+                target_date_mt=target_date_mt
+            )
+            print(f'[admin/sync] [run_id={run_id}] Sync completed: {result}')
+
+            # Add run_id to response
+            result['run_id'] = run_id
+            result['status_endpoint'] = f'/api/admin/sync/status?run_id={run_id}'
+
             return jsonify(result), 200
         except Exception as e:
-            print(f'[admin/sync] Sync failed: {e}')
-            return jsonify({'error': str(e), 'success': False}), 500
+            print(f'[admin/sync] [run_id={run_id}] Sync failed: {e}')
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': str(e),
+                'success': False,
+                'run_id': run_id
+            }), 500
 
 
 @app.route('/api/debug/game-logs', methods=['GET'])
@@ -513,17 +706,17 @@ def get_games():
             mt_now = datetime.now(mt_tz)
             today_mt = mt_now.strftime('%Y-%m-%d')
 
-            # Show yesterday's games until 10:30 AM MT (when cron runs)
+            # Show yesterday's games until 3:00 AM MT (when cron runs)
             # This keeps yesterday's games visible until new games are synced
-            if mt_now.hour < 10 or (mt_now.hour == 10 and mt_now.minute < 30):
-                # Before 10:30 AM MT - show yesterday's games
+            if mt_now.hour < 3:
+                # Before 3:00 AM MT - show yesterday's games
                 yesterday_mt = (mt_now - timedelta(days=1)).strftime('%Y-%m-%d')
                 default_date = yesterday_mt
-                print(f'[games] Before 10:30 AM MT - using yesterday: {yesterday_mt}')
+                print(f'[games] Before 3:00 AM MT - using yesterday: {yesterday_mt}')
             else:
-                # After 10:30 AM MT - show today's games
+                # After 3:00 AM MT - show today's games
                 default_date = today_mt
-                print(f'[games] After 10:30 AM MT - using today: {today_mt}')
+                print(f'[games] After 3:00 AM MT - using today: {today_mt}')
 
             # Connect to database
             db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
@@ -569,38 +762,47 @@ def get_games():
             # Fetch games for the selected date
             cursor.execute('''
                 SELECT * FROM todays_games
-                WHERE game_date = ? AND season = ?
+                WHERE season = ? AND game_date = ?
                 ORDER BY game_time_utc
-            ''', (selected_date, current_season))
+            ''', (current_season, selected_date))
 
             rows = cursor.fetchall()
             conn.close()
 
-            print(f'[games] Selected date: {selected_date}, reason: {date_selection_reason}, games: {len(rows)}')
+            print(f'[games] Loaded {len(rows)} games from todays_games table (season: {current_season})')
 
             # Convert to format expected by frontend
             games = []
             for row in rows:
-                # Extract game_type safely (column may not exist in old data)
-                try:
-                    game_type = row['game_type'] if row['game_type'] else 'Unknown'
-                except (KeyError, IndexError):
-                    game_type = 'Unknown'
+                # Convert game time from UTC to MST
+                game_time_mst = None
+                if row['game_time_utc']:
+                    try:
+                        # Parse UTC time
+                        utc_time = datetime.fromisoformat(row['game_time_utc'].replace('Z', '+00:00'))
+                        # Convert to Mountain Time
+                        mst_time = utc_time.astimezone(mt_tz)
+                        # Format as "7:00 PM MT"
+                        game_time_mst = mst_time.strftime('%-I:%M %p MT')
+                    except Exception as e:
+                        print(f'[games] Error converting time for game {row["game_id"]}: {e}')
+                        game_time_mst = row['game_time_utc']
 
                 games.append({
                     'game_id': row['game_id'],
                     'game_date': row['game_date'],
                     'game_status': row['game_status_text'],
+                    'game_time': game_time_mst,  # Add formatted MST time
                     'home_team_id': row['home_team_id'],
                     'home_team_name': row['home_team_name'],
                     'home_team_score': row['home_team_score'] or 0,
                     'away_team_id': row['away_team_id'],
                     'away_team_name': row['away_team_name'],
                     'away_team_score': row['away_team_score'] or 0,
-                    'game_type': game_type,
+                    'game_type': 'Regular Season',  # Default for historical games
                 })
 
-            print(f'[games] Loaded {len(games)} games from database for {selected_date}')
+            print(f'[games] Loaded {len(games)} games from database (season: {current_season})')
 
             # Apply game filtering if enabled (Regular Season + NBA Cup only)
             filter_mode = os.environ.get('GAME_FILTER_MODE', 'DISABLED')
@@ -630,25 +832,32 @@ def get_games():
             else:
                 print(f'[games] FILTER DISABLED (mode: {filter_mode})')
 
+        # Build games list with proper team abbreviations (DATA ONLY MODE)
+        all_teams = get_all_teams()
         games_with_predictions = []
         for game in games:
+            # Get team abbreviations from all_teams lookup
+            home_team_info = next((t for t in all_teams if t['id'] == game['home_team_id']), {})
+            away_team_info = next((t for t in all_teams if t['id'] == game['away_team_id']), {})
+
             games_with_predictions.append({
                 'game_id': game['game_id'],
+                'game_date': game['game_date'],  # Add game_date to response
                 'home_team': {
                     'id': game['home_team_id'],
                     'name': game['home_team_name'],
-                    'abbreviation': game['home_team_name'],
+                    'abbreviation': home_team_info.get('abbreviation', game['home_team_name']),
                     'score': game['home_team_score'],
                 },
                 'away_team': {
                     'id': game['away_team_id'],
                     'name': game['away_team_name'],
-                    'abbreviation': game['away_team_name'],
+                    'abbreviation': away_team_info.get('abbreviation', game['away_team_name']),
                     'score': game['away_team_score'],
                 },
-                'game_time': game['game_status'],
+                'game_time': game.get('game_status') or game.get('game_time') or game['game_date'],  # Show status (live/final), MST time, or date
                 'game_status': game['game_status'],
-                'prediction': None,
+                'prediction': None,  # DATA ONLY MODE
             })
 
         response = {
@@ -756,17 +965,17 @@ def game_detail():
         betting_line_str = request.args.get('betting_line')
         betting_line = float(betting_line_str) if betting_line_str else None
 
-        print(f'[game_detail] Fetching prediction for teams {home_team_id} vs {away_team_id} (betting_line: {betting_line})')
-        prediction, matchup_data = get_cached_prediction(int(home_team_id), int(away_team_id), betting_line, game_id=game_id)
+        print(f'[game_detail] Fetching matchup data for teams {home_team_id} vs {away_team_id}')
+        matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
 
-        if prediction is None or matchup_data is None:
-            print('[game_detail] ERROR: Failed to generate prediction or fetch matchup data')
+        if matchup_data is None:
+            print('[game_detail] ERROR: Failed to fetch matchup data')
             return jsonify({
                 'success': False,
                 'error': 'The NBA API is currently slow or unavailable. Please try again in a moment.'
             }), 500
 
-        print(f'[game_detail] Prediction ready: {prediction.get("recommendation")}')
+        print(f'[game_detail] Matchup data ready (DATA ONLY MODE - no predictions)')
 
         all_teams = get_all_teams()
         home_team_info = next((t for t in all_teams if t['id'] == int(home_team_id)), {})
@@ -779,11 +988,263 @@ def game_detail():
         home_opp = matchup_data['home'].get('opponent') or {}
         away_opp = matchup_data['away'].get('opponent') or {}
 
+        # DATA ONLY MODE: Build matchup data fields needed by frontend (NO PREDICTIONS)
+        # Use FRESH recent_games from NBA API (in matchup_data), not stale database
+
+        # Build factors object (needed for Last5TrendsCard heat check)
+        home_overall_stats = matchup_data['home'].get('stats', {}).get('overall', {})
+        away_overall_stats = matchup_data['away'].get('stats', {}).get('overall', {})
+        home_adv_stats = matchup_data['home'].get('advanced', {})
+        away_adv_stats = matchup_data['away'].get('advanced', {})
+
+        # Helper to build Last 5 trends from database team_game_logs
+        def build_last5_from_database(team_id, team_abbr, season_ppg, season_ortg, season_pace):
+            """Build Last 5 trends structure from database team_game_logs table"""
+            try:
+                import sqlite3
+                import os as os_module
+                db_path = os_module.path.join(os_module.path.dirname(__file__), 'api', 'data', 'nba_data.db')
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                # Query last 5 games for this team from team_game_logs
+                cursor.execute('''
+                    SELECT game_date, matchup, opponent_abbr, team_pts, opp_pts, win_loss,
+                           pace, off_rating, def_rating, turnovers, assists, rebounds,
+                           fg3m, fg3a
+                    FROM team_game_logs
+                    WHERE team_id = ?
+                    ORDER BY game_date DESC
+                    LIMIT 5
+                ''', (team_id,))
+
+                rows = cursor.fetchall()
+
+                if not rows:
+                    conn.close()
+                    print(f"[build_last5_from_database] No games found for team_id {team_id}")
+                    return None
+
+                # Helper function to get opponent stats
+                def get_opponent_stats(opponent_abbr, season='2025-26'):
+                    """Get opponent's season stats and rankings"""
+                    try:
+                        # Get opponent team_id from abbreviation
+                        cursor.execute('''
+                            SELECT team_id FROM nba_teams
+                            WHERE team_abbreviation = ? AND season = ?
+                        ''', (opponent_abbr, season))
+                        opp_row = cursor.fetchone()
+                        if not opp_row:
+                            return None
+
+                        opp_team_id = opp_row['team_id']
+
+                        # Get opponent's season stats and ranks
+                        cursor.execute('''
+                            SELECT off_rtg, off_rtg_rank, def_rtg, def_rtg_rank,
+                                   pace, pace_rank
+                            FROM team_season_stats
+                            WHERE team_id = ? AND season = ? AND split_type = 'overall'
+                        ''', (opp_team_id, season))
+                        stats_row = cursor.fetchone()
+
+                        if stats_row:
+                            off_rank = stats_row['off_rtg_rank'] or 15
+                            def_rank = stats_row['def_rtg_rank'] or 15
+
+                            # Determine strength based on offensive rank
+                            if off_rank <= 10:
+                                strength = 'top'
+                            elif off_rank <= 20:
+                                strength = 'mid'
+                            else:
+                                strength = 'bottom'
+
+                            return {
+                                'tricode': opponent_abbr,
+                                'off_rtg': stats_row['off_rtg'],
+                                'off_rtg_rank': off_rank,
+                                'def_rtg': stats_row['def_rtg'],
+                                'def_rtg_rank': def_rank,
+                                'pace': stats_row['pace'],
+                                'pace_rank': stats_row['pace_rank'] or 15,
+                                'strength': strength
+                            }
+                    except Exception as e:
+                        print(f"[get_opponent_stats] Error for {opponent_abbr}: {e}")
+
+                    return {
+                        'tricode': opponent_abbr,
+                        'strength': 'mid',
+                        'off_rtg_rank': 15,
+                        'def_rtg_rank': 15
+                    }
+
+                # Convert rows to list of dicts
+                games_list = []
+                for row in rows:
+                    three_pt_obj = None
+                    if row['fg3a'] and row['fg3a'] > 0:
+                        three_pt_obj = {
+                            'points': row['fg3m'] * 3,
+                            'made': row['fg3m'],
+                            'attempted': row['fg3a'],
+                            'percentage': round((row['fg3m'] / row['fg3a']) * 100, 1)
+                        }
+
+                    # Get opponent stats and rankings
+                    opponent_data = get_opponent_stats(row['opponent_abbr'])
+
+                    games_list.append({
+                        'matchup': row['matchup'] or '',
+                        'result': row['win_loss'] or 'L',
+                        'team_pts': row['team_pts'] or 0,
+                        'pts': row['team_pts'] or 0,
+                        'opp_pts': row['opp_pts'] or 0,
+                        'pace': row['pace'] or 0,
+                        'off_rtg': row['off_rating'] or 0,
+                        'def_rtg': row['def_rating'] or 0,
+                        'game_date': row['game_date'] or '',
+                        'tov': row['turnovers'] or 0,
+                        'ast': row['assists'] or 0,
+                        'reb': row['rebounds'] or 0,
+                        'three_pt': three_pt_obj,
+                        'opponent': opponent_data
+                    })
+
+                # Calculate averages
+                avg_ppg = sum(g['team_pts'] for g in games_list) / len(games_list)
+                avg_pace = sum(g['pace'] for g in games_list) / len(games_list)
+                avg_off_rtg = sum(g['off_rtg'] for g in games_list) / len(games_list)
+                avg_def_rtg = sum(g['def_rtg'] for g in games_list) / len(games_list)
+
+                # Calculate opponent rank averages
+                opp_off_ranks = [g['opponent'].get('off_rtg_rank') for g in games_list if g['opponent'].get('off_rtg_rank')]
+                opp_def_ranks = [g['opponent'].get('def_rtg_rank') for g in games_list if g['opponent'].get('def_rtg_rank')]
+                avg_opp_off_rank = round(sum(opp_off_ranks) / len(opp_off_ranks), 1) if opp_off_ranks else 15
+                avg_opp_def_rank = round(sum(opp_def_ranks) / len(opp_def_ranks), 1) if opp_def_ranks else 15
+
+                # Close database connection
+                conn.close()
+
+                return {
+                    'team_tricode': team_abbr,
+                    'games': games_list,
+                    'averages': {
+                        'ppg': round(avg_ppg, 1),
+                        'pace': round(avg_pace, 1),
+                        'off_rtg': round(avg_off_rtg, 1),
+                        'def_rtg': round(avg_def_rtg, 1),
+                    },
+                    'season_comparison': {
+                        'ppg_delta': round(avg_ppg - season_ppg, 1),
+                        'pace_delta': round(avg_pace - season_pace, 1),
+                        'off_rtg_delta': round(avg_off_rtg - season_ortg, 1),
+                        'def_rtg_delta': 0.0
+                    },
+                    'opponent_breakdown': {
+                        'avg_opp_off_rank': avg_opp_off_rank,
+                        'avg_opp_def_rank': avg_opp_def_rank
+                    },
+                    'trend_tags': [],
+                    'data_quality': 'excellent' if len(games_list) >= 5 else 'good'
+                }
+
+            except Exception as e:
+                print(f"[build_last5_from_database] ERROR: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+
+        # Simple back-to-back detection
+        def get_simple_rest_status(recent_games):
+            from datetime import datetime, timedelta
+
+            # Default values if no recent games
+            if not recent_games or len(recent_games) == 0:
+                return {
+                    'is_b2b': False, 'days_rest': 3, 'b2b_games': 0,
+                    'b2b_off_delta': 0.0, 'b2b_def_delta': 0.0, 'b2b_pace_delta': 0.0,
+                    'off_adj': 0.0, 'def_adj': 0.0, 'small_sample': True
+                }
+
+            # Get most recent game date (keys are uppercase from db_queries)
+            most_recent_game = recent_games[0]
+            last_game_date_str = most_recent_game.get('GAME_DATE', '')
+
+            if not last_game_date_str:
+                return {
+                    'is_b2b': False, 'days_rest': 3, 'b2b_games': 0,
+                    'b2b_off_delta': 0.0, 'b2b_def_delta': 0.0, 'b2b_pace_delta': 0.0,
+                    'off_adj': 0.0, 'def_adj': 0.0, 'small_sample': True
+                }
+
+            # Parse date (handle both 'YYYY-MM-DD' and 'YYYY-MM-DDTHH:MM:SS' formats)
+            if 'T' in last_game_date_str:
+                last_game_date_str = last_game_date_str.split('T')[0]
+
+            try:
+                last_game_date = datetime.strptime(last_game_date_str, '%Y-%m-%d').date()
+                today = datetime.now().date()
+                days_since_last_game = (today - last_game_date).days
+
+                # Determine if back-to-back (played yesterday)
+                is_b2b = (days_since_last_game == 1)
+
+                print(f'[get_simple_rest_status] Last game: {last_game_date}, Today: {today}, Days since: {days_since_last_game}, is_b2b: {is_b2b}')
+
+                return {
+                    'is_b2b': is_b2b,
+                    'days_rest': days_since_last_game - 1 if days_since_last_game > 0 else 0,
+                    'b2b_games': 0,
+                    'b2b_off_delta': 0.0,
+                    'b2b_def_delta': 0.0,
+                    'b2b_pace_delta': 0.0,
+                    'off_adj': 0.0,
+                    'def_adj': 0.0,
+                    'small_sample': True
+                }
+            except Exception as e:
+                print(f'[get_simple_rest_status] Error calculating rest days: {e}')
+                return {
+                    'is_b2b': False, 'days_rest': 3, 'b2b_games': 0,
+                    'b2b_off_delta': 0.0, 'b2b_def_delta': 0.0, 'b2b_pace_delta': 0.0,
+                    'off_adj': 0.0, 'def_adj': 0.0, 'small_sample': True
+                }
+
+        # Build Last 5 trends from DATABASE team_game_logs using proper function
+        from api.utils.last_5_trends import get_last_5_trends
+        matchup_data_only = {
+            'home_last5_trends': get_last_5_trends(
+                home_team_id,
+                home_team_info.get('abbreviation', 'HOM'),
+                '2025-26'
+            ),
+            'away_last5_trends': get_last_5_trends(
+                away_team_id,
+                away_team_info.get('abbreviation', 'AWY'),
+                '2025-26'
+            ),
+            'back_to_back_debug': {
+                'home': get_simple_rest_status(matchup_data['home'].get('recent_games', [])),
+                'away': get_simple_rest_status(matchup_data['away'].get('recent_games', [])),
+            },
+            'factors': {
+                'home_ppg': round(home_overall_stats.get('PTS', 0), 1),
+                'away_ppg': round(away_overall_stats.get('PTS', 0), 1),
+                'home_pace': round(home_adv_stats.get('PACE', 0), 1),
+                'away_pace': round(away_adv_stats.get('PACE', 0), 1),
+                'game_pace': round((home_adv_stats.get('PACE', 100) + away_adv_stats.get('PACE', 100)) / 2, 1),
+            }
+        }
+
         # Generate or retrieve cached matchup summary (cache-first logic)
         print(f'[game_detail] Generating matchup summary for game {game_id}')
         matchup_summary = get_or_generate_summary(
             game_id=game_id,
-            prediction=prediction,
+            prediction=matchup_data_only,  # Pass minimal data structure
             matchup_data=matchup_data,
             home_team=home_team_info,
             away_team=away_team_info
@@ -863,6 +1324,19 @@ def game_detail():
             away_3p_pct=away_overall.get('FG3_PCT', 0) * 100 if away_overall.get('FG3_PCT') else None
         )
 
+        # Calculate empty possessions data
+        empty_possessions_data = None
+        try:
+            empty_possessions_data = calculate_matchup_empty_possessions(game_id, '2025-26')
+            if empty_possessions_data:
+                print(f'[game_detail] Empty possessions data calculated successfully')
+            else:
+                print(f'[game_detail] Empty possessions data unavailable (insufficient data)')
+        except Exception as e:
+            import traceback
+            print(f'[game_detail] Warning: Failed to calculate empty possessions: {e}')
+            traceback.print_exc()
+
         response = {
             'success': True,
             'home_team': {
@@ -875,9 +1349,10 @@ def game_detail():
                 'name': away_team_info.get('full_name', 'Away Team'),
                 'abbreviation': away_team_info.get('abbreviation', 'AWY'),
             },
-            'prediction': prediction,
+            'prediction': matchup_data_only,  # DATA ONLY MODE: No predictions, just matchup data
             'matchup_summary': matchup_summary,
             'scoring_environment': scoring_environment,
+            'empty_possessions': empty_possessions_data,
             'home_stats': {
                 # Use field names that match frontend expectations
                 'ppg': round(home_overall.get('PTS', 0), 1),
@@ -904,6 +1379,9 @@ def game_detail():
                 'paint_pts_per_game': home_advanced.get('paint_pts_per_game', 0),
                 'ast_pct': home_advanced.get('ast_pct', 0),
                 'tov_pct': home_advanced.get('tov_pct', 0),
+                # NEW: eFG calculation fields (calculated from FGA * FG_PCT)
+                'fgm': round(home_overall.get('FGA', 0) * home_overall.get('FG_PCT', 0), 1),
+                'fg3m': round(home_overall.get('FG3A', 0) * home_overall.get('FG3_PCT', 0), 1),
             },
             'away_stats': {
                 # Use field names that match frontend expectations
@@ -931,6 +1409,9 @@ def game_detail():
                 'paint_pts_per_game': away_advanced.get('paint_pts_per_game', 0),
                 'ast_pct': away_advanced.get('ast_pct', 0),
                 'tov_pct': away_advanced.get('tov_pct', 0),
+                # NEW: eFG calculation fields (calculated from FGA * FG_PCT)
+                'fgm': round(away_overall.get('FGA', 0) * away_overall.get('FG_PCT', 0), 1),
+                'fg3m': round(away_overall.get('FG3A', 0) * away_overall.get('FG3_PCT', 0), 1),
             },
             'home_recent_games': [
                 {
@@ -960,6 +1441,95 @@ def game_detail():
                 }
                 for game in away_recent_games_full
             ],
+        }
+
+        # NEW: Add archetype, volatility, and margin risk data
+        try:
+            from api.utils.team_similarity import get_team_cluster_assignment
+
+            # Get archetype data for both teams
+            home_cluster = get_team_cluster_assignment(home_team_id, season) or {}
+            away_cluster = get_team_cluster_assignment(away_team_id, season) or {}
+
+            # Determine confidence based on sample size (games in cluster)
+            def get_confidence(cluster_data):
+                sample_size = 0
+                # Try different possible keys for sample size
+                if cluster_data:
+                    sample_size = cluster_data.get('games_in_cluster', 0) or cluster_data.get('sample_size', 0)
+
+                if sample_size >= 30:
+                    return 'high'
+                elif sample_size >= 20:
+                    return 'medium'
+                else:
+                    return 'low'
+
+            response['home_archetype'] = {
+                'cluster_name': home_cluster.get('cluster_name', 'Unknown'),
+                'cluster_description': home_cluster.get('cluster_description', ''),
+                'confidence': get_confidence(home_cluster),
+                'sample_size': home_cluster.get('games_in_cluster', 0) or home_cluster.get('sample_size', 0)
+            }
+
+            response['away_archetype'] = {
+                'cluster_name': away_cluster.get('cluster_name', 'Unknown'),
+                'cluster_description': away_cluster.get('cluster_description', ''),
+                'confidence': get_confidence(away_cluster),
+                'sample_size': away_cluster.get('games_in_cluster', 0) or away_cluster.get('sample_size', 0)
+            }
+        except Exception as archetype_error:
+            print(f'[game_detail] Warning: Could not fetch archetype data: {archetype_error}')
+            response['home_archetype'] = {
+                'cluster_name': 'Unknown',
+                'cluster_description': '',
+                'confidence': 'low',
+                'sample_size': 0
+            }
+            response['away_archetype'] = {
+                'cluster_name': 'Unknown',
+                'cluster_description': '',
+                'confidence': 'low',
+                'sample_size': 0
+            }
+
+        # Calculate combined volatility index
+        def calculate_volatility_index(recent_games):
+            """Calculate 0-10 volatility index from game totals variance"""
+            if not recent_games or len(recent_games) < 5:
+                return 5.0  # Default medium volatility
+
+            totals = [
+                (game.get('PTS', 0) + game.get('OPP_PTS', 0))
+                for game in recent_games[:10]
+            ]
+
+            if len(totals) < 5:
+                return 5.0
+
+            avg = sum(totals) / len(totals)
+            variance = sum(abs(t - avg) for t in totals) / len(totals)
+            return min(10.0, max(0.0, (variance / 15) * 10))
+
+        home_vol_index = calculate_volatility_index(home_recent_games_full)
+        away_vol_index = calculate_volatility_index(away_recent_games_full)
+        combined_volatility_index = (home_vol_index + away_vol_index) / 2
+
+        response['combined_volatility_index'] = round(combined_volatility_index, 1)
+        response['volatility_label'] = (
+            'Stable' if combined_volatility_index <= 3 else
+            'Swingy' if combined_volatility_index <= 6 else
+            'Wild'
+        )
+
+        # Calculate margin risk from net rating gap
+        home_net_rtg = round(home_adv.get('NET_RATING', 0), 1)
+        away_net_rtg = round(away_adv.get('NET_RATING', 0), 1)
+        rating_gap = abs(home_net_rtg - away_net_rtg)
+
+        response['margin_risk'] = {
+            'label': 'Blowout Risk' if rating_gap > 8 else 'Competitive',
+            'rating_gap': round(rating_gap, 1)
         }
 
         return jsonify(response)
@@ -2040,6 +2610,132 @@ def game_assists_vs_pace():
         }), 500
 
 
+@app.route('/api/scoring-mix', methods=['GET'])
+def scoring_mix():
+    """
+    Get scoring mix splits for both teams in a game.
+
+    Analyzes how teams generate points from three sources:
+    - 3-Point Field Goals (FG3M * 3)
+    - 2-Point Field Goals ((FGM - FG3M) * 2)
+    - Free Throws (FTM)
+
+    Provides three analysis modes:
+    1. Team: How the team scores their own points
+    2. Opponent Allowed: What scoring mix the team allows opponents
+    3. Game Mix: Combined scoring sources from both teams in games
+
+    Query params:
+        - game_id: NBA game ID (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'data': {
+                'game_id': '0022500234',
+                'home_team': {
+                    'team_id': 1610612738,
+                    'team_abbreviation': 'BOS',
+                    'full_name': 'Boston Celtics',
+                    'season': '2025-26',
+                    'team': {
+                        'last5': {'pct_3pt': 42.0, 'pct_2pt': 43.0, 'pct_ft': 15.0, 'games': 5, 'avg_pts': 115.2},
+                        'season': {'pct_3pt': 40.5, 'pct_2pt': 44.2, 'pct_ft': 15.3, 'games': 30, 'avg_pts': 117.8}
+                    },
+                    'opp_allowed': {
+                        'last5': {...},
+                        'season': {...}
+                    },
+                    'game_mix': {
+                        'last5': {...},
+                        'season': {...}
+                    }
+                },
+                'away_team': { ... }
+            }
+        }
+    """
+    try:
+        game_id = request.args.get('game_id')
+        season = request.args.get('season', '2025-26')
+
+        if not game_id:
+            return jsonify({
+                'success': False,
+                'error': 'game_id parameter is required'
+            }), 400
+
+        print(f'[scoring_mix] Fetching scoring mix for game {game_id}')
+
+        from api.utils.scoring_mix_splits import get_team_scoring_mix
+
+        # Find the game to get team IDs
+        games = get_todays_games(season)
+        game = next((g for g in games if g['game_id'] == game_id), None)
+
+        # If not found in today's games, check historical games table
+        if not game:
+            print(f'[scoring_mix] Game {game_id} not in today\'s games, checking historical games')
+            import os
+            db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT DISTINCT game_id, game_date, home_team_id, away_team_id
+                FROM team_game_logs
+                WHERE game_id = ?
+            ''', (game_id,))
+
+            game_row = cursor.fetchone()
+            conn.close()
+
+            if game_row:
+                game = {
+                    'game_id': game_row['game_id'],
+                    'game_date': game_row['game_date'],
+                    'home_team_id': game_row['home_team_id'],
+                    'away_team_id': game_row['away_team_id']
+                }
+                print(f'[scoring_mix] Found game {game_id} in historical games')
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Game {game_id} not found'
+                }), 404
+
+        print(f'[scoring_mix] Found game: home_team_id={game.get("home_team_id")}, away_team_id={game.get("away_team_id")}')
+
+        # Get scoring mix for both teams
+        home_data = get_team_scoring_mix(game['home_team_id'], season)
+        away_data = get_team_scoring_mix(game['away_team_id'], season)
+
+        if not home_data or not away_data:
+            return jsonify({
+                'success': False,
+                'error': 'Team data not found for one or both teams'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'game_id': game_id,
+                'home_team': home_data,
+                'away_team': away_data
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/team/<int:team_id>/drilldown', methods=['GET'])
 def team_drilldown(team_id):
     """
@@ -2223,12 +2919,16 @@ def get_team_similarity(team_id):
     Query params:
         - season: NBA season (default: '2025-26')
         - limit: Number of similar teams to return (default: 5)
+        - opponent_cluster_id: Optional cluster ID for conditional similarity (e.g., 3)
+        - window_mode: Window mode for conditional similarity (default: 'season')
 
     Returns:
         {
             'success': True,
             'team_id': 1610612753,
             'season': '2025-26',
+            'opponent_cluster_id': 3,  # If conditional similarity used
+            'window_mode': 'season',
             'similar_teams': [
                 {'team_id': ..., 'team_name': ..., 'similarity_score': 85.1, 'rank': 1},
                 ...
@@ -2240,15 +2940,32 @@ def get_team_similarity(team_id):
 
         season = request.args.get('season', '2025-26')
         limit = int(request.args.get('limit', 5))
+        opponent_cluster_id = request.args.get('opponent_cluster_id')
+        window_mode = request.args.get('window_mode', 'season')
 
-        similar_teams = get_team_similarity_ranking(team_id, season, limit)
+        # Convert opponent_cluster_id to int if provided
+        if opponent_cluster_id:
+            opponent_cluster_id = int(opponent_cluster_id)
 
-        return jsonify({
+        similar_teams = get_team_similarity_ranking(
+            team_id, season, limit,
+            opponent_cluster_id=opponent_cluster_id,
+            window_mode=window_mode
+        )
+
+        response = {
             'success': True,
             'team_id': team_id,
             'season': season,
             'similar_teams': similar_teams
-        })
+        }
+
+        # Include conditional params in response if used
+        if opponent_cluster_id:
+            response['opponent_cluster_id'] = opponent_cluster_id
+            response['window_mode'] = window_mode
+
+        return jsonify(response)
 
     except Exception as e:
         import traceback
@@ -2262,7 +2979,7 @@ def get_team_similarity(team_id):
 @app.route('/api/teams/<int:team_id>/cluster', methods=['GET'])
 def get_team_cluster(team_id):
     """
-    Get cluster assignment for a given team
+    Get cluster assignment for a given team (with primary, secondary, and confidence)
 
     Query params:
         - season: NBA season (default: '2025-26')
@@ -2271,7 +2988,23 @@ def get_team_cluster(team_id):
         {
             'success': True,
             'team_id': 1610612753,
-            'cluster': {
+            'season': '2025-26',
+            'primary_cluster': {
+                'cluster_id': 1,
+                'cluster_name': 'Elite Pace Pushers',
+                'cluster_description': '...',
+                'primary_fit_score': 85.0,
+                'distance_to_centroid': 0.123,
+                'confidence_label': 'High',
+                'confidence_score': 92.5
+            },
+            'secondary_cluster': {
+                'cluster_id': 3,
+                'cluster_name': 'Three-Point Hunters',
+                'cluster_description': '...',
+                'secondary_fit_score': 75.0
+            },
+            'cluster': {  # Backward compatibility
                 'cluster_id': 1,
                 'cluster_name': 'Elite Pace Pushers',
                 'cluster_description': '...',
@@ -2280,43 +3013,49 @@ def get_team_cluster(team_id):
         }
     """
     try:
-        from api.utils.db_schema_similarity import get_connection
+        from api.utils.team_similarity import get_team_cluster_assignment
 
         season = request.args.get('season', '2025-26')
+        assignment = get_team_cluster_assignment(team_id, season)
 
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Get team's cluster assignment
-        cursor.execute("""
-            SELECT tca.cluster_id, tca.distance_to_centroid,
-                   tsc.cluster_name, tsc.cluster_description
-            FROM team_cluster_assignments tca
-            JOIN team_similarity_clusters tsc
-                ON tca.cluster_id = tsc.cluster_id AND tca.season = tsc.season
-            WHERE tca.team_id = ? AND tca.season = ?
-        """, (team_id, season))
-
-        row = cursor.fetchone()
-        conn.close()
-
-        if not row:
+        if not assignment:
             return jsonify({
                 'success': False,
                 'error': 'No cluster assignment found for team'
             }), 404
 
-        return jsonify({
+        response = {
             'success': True,
             'team_id': team_id,
             'season': season,
+            'primary_cluster': {
+                'cluster_id': assignment['primary_cluster']['id'],
+                'cluster_name': assignment['primary_cluster']['name'],
+                'cluster_description': assignment['primary_cluster']['description'],
+                'primary_fit_score': assignment['primary_cluster']['fit_score'],
+                'distance_to_centroid': assignment['primary_cluster']['distance_to_centroid'],
+                'confidence_label': assignment['primary_cluster']['confidence_label'],
+                'confidence_score': assignment['primary_cluster']['confidence_score']
+            },
+            # Backward compatibility
             'cluster': {
-                'cluster_id': row[0],
-                'distance_to_centroid': row[1],
-                'cluster_name': row[2],
-                'cluster_description': row[3]
+                'cluster_id': assignment['cluster_id'],
+                'cluster_name': assignment['cluster_name'],
+                'cluster_description': assignment['cluster_description'],
+                'distance_to_centroid': assignment['distance_to_centroid']
             }
-        })
+        }
+
+        # Add secondary cluster if present
+        if assignment['secondary_cluster']:
+            response['secondary_cluster'] = {
+                'cluster_id': assignment['secondary_cluster']['id'],
+                'cluster_name': assignment['secondary_cluster']['name'],
+                'cluster_description': assignment['secondary_cluster']['description'],
+                'secondary_fit_score': assignment['secondary_cluster']['fit_score']
+            }
+
+        return jsonify(response)
 
     except Exception as e:
         import traceback
@@ -2911,12 +3650,9 @@ def upload_result_screenshot(game_id):
                         print(f"[Review] Using FALLBACK values from form: {predicted_total_fallback:.1f if predicted_total_fallback else 'N/A'}")
                     else:
                         print(f"[Review] Fetching prediction with line={sportsbook_line}")
-                        prediction, matchup_data = get_cached_prediction(
-                            home_team_id,
-                            away_team_id,
-                            sportsbook_line,  # Use the EXACT betting line from the UI
-                            game_id=game_id
-                        )
+                        # DATA ONLY MODE: Predictions disabled
+                        prediction = None
+                        matchup_data = None
 
                         if prediction:
                             # OVERRIDE fallback values with fresh prediction from backend
@@ -3379,15 +4115,42 @@ def get_full_matchup_analysis(game_id):
 
         conn.close()
 
-        # Fetch real matchup data using prediction engine
-        print(f"[FullAnalysis] Fetching prediction and matchup data for {away_team_abbr} @ {home_team_abbr}")
-        prediction, matchup_data = get_cached_prediction(int(home_team_id), int(away_team_id), None, game_id=game_id)
+        # Fetch matchup data (DATA ONLY MODE - no predictions)
+        print(f"[FullAnalysis] Fetching matchup data for {away_team_abbr} @ {home_team_abbr}")
+        matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
 
-        if prediction is None or matchup_data is None:
+        if matchup_data is None:
             return jsonify({
                 'success': False,
                 'error': 'Unable to fetch matchup data'
             }), 500
+
+        # Build minimal prediction object using FRESH NBA API data (not stale DB)
+        # Use inline helper (matches game_detail endpoint)
+        def build_last5_inline(games, abbr, ppg, ortg, pace):
+            if not games: return None
+            gl = games[:5]
+            return {
+                'team_tricode': abbr,
+                'games': [{'matchup': g.get('MATCHUP', ''), 'result': g.get('WL', 'L'), 'pts': g.get('PTS', 0), 'opp_pts': g.get('OPP_PTS', 0),
+                          'pace': g.get('PACE', 0), 'off_rtg': g.get('OFF_RATING', 0), 'def_rtg': g.get('DEF_RATING', 0),
+                          'opponent': {'tricode': g.get('MATCHUP', '').split('@')[-1].split('vs.')[-1].strip() if g.get('MATCHUP') else 'UNK', 'strength': 'mid'}} for g in gl],
+                'averages': {'ppg': round(sum(g.get('PTS',0) for g in gl)/len(gl),1), 'pace': round(sum(g.get('PACE',0) for g in gl)/len(gl),1),
+                            'off_rtg': round(sum(g.get('OFF_RATING',0) for g in gl)/len(gl),1), 'def_rtg': round(sum(g.get('DEF_RATING',0) for g in gl)/len(gl),1)},
+                'season_comparison': {'ppg_delta': round(sum(g.get('PTS',0) for g in gl)/len(gl)-ppg,1), 'pace_delta': round(sum(g.get('PACE',0) for g in gl)/len(gl)-pace,1),
+                                     'off_rtg_delta': round(sum(g.get('OFF_RATING',0) for g in gl)/len(gl)-ortg,1), 'def_rtg_delta': 0.0},
+                'opponent_breakdown': {'avg_opp_off_rank': 15, 'avg_opp_def_rank': 15}, 'trend_tags': [], 'data_quality': 'excellent' if len(gl)>=5 else 'good'
+            }
+        prediction = {
+            'home_last5_trends': build_last5_inline(matchup_data['home'].get('recent_games', []), home_team_abbr,
+                                                    matchup_data['home'].get('stats',{}).get('overall',{}).get('PTS',0),
+                                                    matchup_data['home'].get('advanced',{}).get('OFF_RATING',0),
+                                                    matchup_data['home'].get('advanced',{}).get('PACE',0)),
+            'away_last5_trends': build_last5_inline(matchup_data['away'].get('recent_games', []), away_team_abbr,
+                                                    matchup_data['away'].get('stats',{}).get('overall',{}).get('PTS',0),
+                                                    matchup_data['away'].get('advanced',{}).get('OFF_RATING',0),
+                                                    matchup_data['away'].get('advanced',{}).get('PACE',0)),
+        }
 
         # Get advanced stats directly from db_queries
         from api.utils.db_queries import get_team_advanced_stats
@@ -3660,14 +4423,41 @@ def get_full_matchup_summary_writeup(game_id):
 
         print(f"[FullMatchupWriteup] Teams: {away_team_abbr} @ {home_team_abbr}")
 
-        # Get prediction and matchup data (for last 5 games, team form, etc.)
-        prediction, matchup_data = get_cached_prediction(int(home_team_id), int(away_team_id), None, game_id=game_id)
+        # Get matchup data (DATA ONLY MODE - no predictions)
+        matchup_data = get_matchup_data(int(home_team_id), int(away_team_id))
 
-        if prediction is None or matchup_data is None:
+        if matchup_data is None:
             return jsonify({
                 'success': False,
                 'error': 'Unable to fetch matchup data'
             }), 500
+
+        # Build minimal prediction object using FRESH NBA API data (not stale DB)
+        # Use inline helper (matches game_detail endpoint)
+        def build_last5_inline(games, abbr, ppg, ortg, pace):
+            if not games: return None
+            gl = games[:5]
+            return {
+                'team_tricode': abbr,
+                'games': [{'matchup': g.get('MATCHUP', ''), 'result': g.get('WL', 'L'), 'pts': g.get('PTS', 0), 'opp_pts': g.get('OPP_PTS', 0),
+                          'pace': g.get('PACE', 0), 'off_rtg': g.get('OFF_RATING', 0), 'def_rtg': g.get('DEF_RATING', 0),
+                          'opponent': {'tricode': g.get('MATCHUP', '').split('@')[-1].split('vs.')[-1].strip() if g.get('MATCHUP') else 'UNK', 'strength': 'mid'}} for g in gl],
+                'averages': {'ppg': round(sum(g.get('PTS',0) for g in gl)/len(gl),1), 'pace': round(sum(g.get('PACE',0) for g in gl)/len(gl),1),
+                            'off_rtg': round(sum(g.get('OFF_RATING',0) for g in gl)/len(gl),1), 'def_rtg': round(sum(g.get('DEF_RATING',0) for g in gl)/len(gl),1)},
+                'season_comparison': {'ppg_delta': round(sum(g.get('PTS',0) for g in gl)/len(gl)-ppg,1), 'pace_delta': round(sum(g.get('PACE',0) for g in gl)/len(gl)-pace,1),
+                                     'off_rtg_delta': round(sum(g.get('OFF_RATING',0) for g in gl)/len(gl)-ortg,1), 'def_rtg_delta': 0.0},
+                'opponent_breakdown': {'avg_opp_off_rank': 15, 'avg_opp_def_rank': 15}, 'trend_tags': [], 'data_quality': 'excellent' if len(gl)>=5 else 'good'
+            }
+        prediction = {
+            'home_last5_trends': build_last5_inline(matchup_data['home'].get('recent_games', []), home_team_abbr,
+                                                    matchup_data['home'].get('stats',{}).get('overall',{}).get('PTS',0),
+                                                    matchup_data['home'].get('advanced',{}).get('OFF_RATING',0),
+                                                    matchup_data['home'].get('advanced',{}).get('PACE',0)),
+            'away_last5_trends': build_last5_inline(matchup_data['away'].get('recent_games', []), away_team_abbr,
+                                                    matchup_data['away'].get('stats',{}).get('overall',{}).get('PTS',0),
+                                                    matchup_data['away'].get('advanced',{}).get('OFF_RATING',0),
+                                                    matchup_data['away'].get('advanced',{}).get('PACE',0)),
+        }
 
         # 1. Last 5 Games Data
         home_recent = matchup_data['home'].get('recent_games', [])[:5]

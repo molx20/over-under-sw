@@ -2,20 +2,19 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import TeamFormIndex from '../components/TeamFormIndex'
 import MatchupIndicators from '../components/MatchupIndicators'
-import RawStatsTable from '../components/RawStatsTable'
+import EmptyPossessionsGauge from '../components/EmptyPossessionsGauge'
 import VolatilityProfile from '../components/VolatilityProfile'
-import MatchupDNA from '../components/MatchupDNA'
 import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
-import MatchupSimilarityCard from '../components/MatchupSimilarityCard'
 import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
+import ScoringMixPanel from '../components/ScoringMixPanel'
 import MarkdownRenderer from '../components/MarkdownRenderer'
-import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace, useFullMatchupSummaryWriteup } from '../utils/api'
+import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace, useGameScoringMix, useFullMatchupSummaryWriteup } from '../utils/api'
 
 function WarRoom() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('dna') // 'dna' | 'last5' | 'splits' | 'similarity' | 'similar-opponents'
+  const [activeTab, setActiveTab] = useState('last5') // 'last5' | 'splits' | 'similar-opponents' | 'scoring-mix'
   const [showFullSummary, setShowFullSummary] = useState(false)
 
   // Fetch game data
@@ -70,6 +69,12 @@ function WarRoom() {
     isLoading: assistsVsPaceLoading,
   } = useGameAssistsVsPace(gameId, '2025-26')
 
+  // Fetch scoring mix for both teams
+  const {
+    data: scoringMixData,
+    isLoading: scoringMixLoading,
+  } = useGameScoringMix(gameId, '2025-26')
+
   // Fetch full matchup summary writeup
   const {
     data: matchupWriteup,
@@ -79,13 +84,15 @@ function WarRoom() {
   // Show loading state
   if (isLoading && !gameData) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <div className="mt-6 space-y-2">
-            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">Loading War Room...</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Analyzing matchup data and team statistics.</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">This usually takes 10–20 seconds.</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="mobile-container py-8">
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="mt-6 space-y-2">
+              <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">Loading War Room...</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Analyzing matchup data and team statistics.</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">This usually takes 10–20 seconds.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -95,38 +102,41 @@ function WarRoom() {
   // Show error state
   if (isError || !gameData) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <button
-          onClick={() => navigate('/')}
-          className="mb-4 text-primary-600 dark:text-primary-400 hover:underline flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span>Back to Games</span>
-        </button>
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-          <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error Loading Game</h3>
-          <p className="text-red-600 dark:text-red-300 mb-4">{error?.message || 'Game not found'}</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="mobile-container py-8">
           <button
-            onClick={() => refetch()}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            onClick={() => navigate('/')}
+            className="mb-4 min-h-[44px] text-primary-600 dark:text-primary-400 hover:underline flex items-center space-x-2"
           >
-            Try Again
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Back to Games</span>
           </button>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">Error Loading Game</h3>
+            <p className="text-red-600 dark:text-red-300 mb-4">{error?.message || 'Game not found'}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
+  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment, empty_possessions } = gameData
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="mobile-container py-6">
       {/* Back Button */}
       <button
         onClick={() => navigate('/')}
-        className="mb-6 text-primary-600 dark:text-primary-400 hover:underline flex items-center space-x-2"
+        className="mb-6 min-h-[44px] text-primary-600 dark:text-primary-400 hover:underline flex items-center space-x-2"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -135,7 +145,7 @@ function WarRoom() {
       </button>
 
       {/* War Room Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-6 sm:p-8 mb-8 text-white">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl shadow-lg p-6 mb-6 text-white">
         <div className="text-center">
           {/* Tag */}
           <div className="mb-4">
@@ -192,14 +202,11 @@ function WarRoom() {
           awayStats={away_stats}
         />
 
-        {/* Raw Stats Table */}
-        <RawStatsTable
+        {/* Empty Possessions Analysis */}
+        <EmptyPossessionsGauge
           homeTeam={home_team}
           awayTeam={away_team}
-          homeStats={home_stats}
-          awayStats={away_stats}
-          homeRecentGames={home_recent_games}
-          awayRecentGames={away_recent_games}
+          emptyPossessionsData={empty_possessions}
         />
 
         {/* Volatility Profile */}
@@ -230,16 +237,6 @@ function WarRoom() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6">
             <button
-              onClick={() => setActiveTab('dna')}
-              className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                activeTab === 'dna'
-                  ? 'bg-primary-600 text-white shadow-lg'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Matchup DNA
-            </button>
-            <button
               onClick={() => setActiveTab('last5')}
               className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
                 activeTab === 'last5'
@@ -259,18 +256,6 @@ function WarRoom() {
             >
               Advanced Splits
             </button>
-            {prediction?.similarity && (
-              <button
-                onClick={() => setActiveTab('similarity')}
-                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  activeTab === 'similarity'
-                    ? 'bg-primary-600 text-white shadow-lg'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                Similarity
-              </button>
-            )}
             <button
               onClick={() => setActiveTab('similar-opponents')}
               className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
@@ -281,19 +266,21 @@ function WarRoom() {
             >
               Similar Opponents
             </button>
+            <button
+              onClick={() => setActiveTab('scoring-mix')}
+              className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                activeTab === 'scoring-mix'
+                  ? 'bg-primary-600 text-white shadow-lg'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              Scoring Mix
+            </button>
           </div>
 
-          {/* Tab Content */}
+          {/* Tab Content (DATA ONLY MODE) */}
           <div className="mt-6">
-            {activeTab === 'dna' && (
-              <MatchupDNA
-                matchupSummary={matchup_summary}
-                homeTeam={home_team}
-                awayTeam={away_team}
-              />
-            )}
-
-            {activeTab === 'last5' && (
+            {activeTab === 'last5' && prediction && (
               <Last5GamesPanel
                 prediction={prediction}
                 homeTeam={home_team}
@@ -321,16 +308,17 @@ function WarRoom() {
               />
             )}
 
-            {activeTab === 'similarity' && prediction?.similarity && (
-              <MatchupSimilarityCard
-                prediction={prediction}
-                homeTeam={home_team?.abbreviation || 'Home'}
-                awayTeam={away_team?.abbreviation || 'Away'}
-              />
-            )}
-
             {activeTab === 'similar-opponents' && (
               <SimilarOpponentBoxScores gameId={gameId} />
+            )}
+
+            {activeTab === 'scoring-mix' && (
+              <ScoringMixPanel
+                scoringMixData={scoringMixData}
+                homeTeam={home_team}
+                awayTeam={away_team}
+                isLoading={scoringMixLoading}
+              />
             )}
           </div>
         </div>
@@ -339,43 +327,47 @@ function WarRoom() {
 
       {/* Full Matchup Summary Modal */}
       {showFullSummary && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-start justify-center p-4"
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-start justify-center p-2 sm:p-4"
              onClick={() => setShowFullSummary(false)}>
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-6xl w-full my-8"
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full my-4 sm:my-8"
                onClick={(e) => e.stopPropagation()}>
-            {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-4 rounded-t-lg flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white flex items-center">
-                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Full Matchup Summary
-              </h2>
-              <button
-                onClick={() => setShowFullSummary(false)}
-                className="text-white hover:text-gray-200 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            {/* Sticky Header - Compact on mobile */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-primary-600 to-primary-700 px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Full Matchup Summary</span>
+                  <span className="sm:hidden">Matchup Summary</span>
+                </h2>
+                <button
+                  onClick={() => setShowFullSummary(false)}
+                  className="text-white hover:text-gray-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Close modal"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Content - AI Write-up Only */}
-            <div className="px-6 py-8 max-h-[80vh] overflow-y-auto">
+            <div className="px-4 sm:px-6 py-4 sm:py-8 max-h-[75vh] sm:max-h-[80vh] overflow-y-auto">
 
               {/* AI-Generated Matchup Summary Write-up */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 rounded-lg p-6 border border-blue-200 dark:border-gray-700">
-                <div className="flex items-center mb-4">
-                  <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 rounded-lg p-4 sm:p-6 border border-blue-200 dark:border-gray-700">
+                <div className="flex items-center mb-3 sm:mb-4">
+                  <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">AI Matchup Breakdown</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">AI Matchup Breakdown</h3>
                 </div>
                 {writeupLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600 dark:text-gray-400">Generating analysis...</span>
+                    <span className="ml-3 text-sm sm:text-base text-gray-600 dark:text-gray-400">Generating analysis...</span>
                   </div>
                 ) : (
                   <MarkdownRenderer content={matchupWriteup} />
@@ -384,11 +376,11 @@ function WarRoom() {
 
             </div>
 
-            {/* Sticky Footer */}
-            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 px-6 py-4 rounded-b-lg border-t border-gray-200 dark:border-gray-700 flex justify-end">
+            {/* Sticky Footer - Full-width button on mobile */}
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 py-3 sm:py-4 rounded-b-lg border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setShowFullSummary(false)}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                className="w-full sm:w-auto sm:ml-auto sm:block px-6 py-2.5 min-h-[48px] bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium"
               >
                 Close
               </button>
@@ -396,6 +388,7 @@ function WarRoom() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

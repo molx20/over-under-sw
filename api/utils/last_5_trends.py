@@ -85,13 +85,15 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
     season_def_rtg = season_stats['stats']['def_rtg']['value']
     season_pace = season_stats['stats']['pace']['value']
     season_ppg = season_stats['stats']['ppg']['value']
+    season_apg = season_stats['stats']['apg']['value'] if season_stats['stats'].get('apg') and season_stats['stats']['apg']['value'] else 0.0
 
     # Build season averages dict
     season_avg = {
         'pace': round(season_pace, 1),
         'off_rtg': round(season_off_rtg, 1),
         'def_rtg': round(season_def_rtg, 1),
-        'ppg': round(season_ppg, 1)
+        'ppg': round(season_ppg, 1),
+        'apg': round(season_apg, 1)
     }
 
     # Compute deltas (last5 - season)
@@ -99,7 +101,8 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
         'pace': round(averages['pace'] - season_pace, 1),
         'off_rtg': round(averages['off_rtg'] - season_off_rtg, 1),
         'def_rtg': round(averages['def_rtg'] - season_def_rtg, 1),
-        'ppg': round(averages['ppg'] - season_ppg, 1)
+        'ppg': round(averages['ppg'] - season_ppg, 1),
+        'apg': round(averages['apg'] - season_apg, 1)
     }
 
     # Legacy season_comparison for backward compatibility
@@ -107,7 +110,8 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
         'pace_delta': delta_vs_season['pace'],
         'off_rtg_delta': delta_vs_season['off_rtg'],
         'def_rtg_delta': delta_vs_season['def_rtg'],
-        'ppg_delta': delta_vs_season['ppg']
+        'ppg_delta': delta_vs_season['ppg'],
+        'apg_delta': delta_vs_season['apg']
     }
 
     # Analyze opponent strength
@@ -268,7 +272,7 @@ def _compute_averages(games: List[Dict]) -> Dict:
         games: List of enriched game records
 
     Returns:
-        Dict with averages: pace, off_rtg, def_rtg, ppg, opp_ppg
+        Dict with averages: pace, off_rtg, def_rtg, ppg, apg, opp_ppg
     """
     if not games:
         return {
@@ -276,6 +280,7 @@ def _compute_averages(games: List[Dict]) -> Dict:
             'off_rtg': 0.0,
             'def_rtg': 0.0,
             'ppg': 0.0,
+            'apg': 0.0,
             'opp_ppg': 0.0
         }
 
@@ -284,6 +289,7 @@ def _compute_averages(games: List[Dict]) -> Dict:
     off_vals = [g['team_off_rtg'] for g in games if g.get('team_off_rtg')]
     def_vals = [g['team_def_rtg'] for g in games if g.get('team_def_rtg')]
     ppg_vals = [g['team_pts'] for g in games if g.get('team_pts')]
+    apg_vals = [g['ast'] for g in games if g.get('ast') is not None]
     opp_ppg_vals = [g['opp_pts'] for g in games if g.get('opp_pts')]
 
     return {
@@ -291,6 +297,7 @@ def _compute_averages(games: List[Dict]) -> Dict:
         'off_rtg': round(_safe_avg(off_vals), 1),
         'def_rtg': round(_safe_avg(def_vals), 1),
         'ppg': round(_safe_avg(ppg_vals), 1),
+        'apg': round(_safe_avg(apg_vals), 1),
         'opp_ppg': round(_safe_avg(opp_ppg_vals), 1)
     }
 
