@@ -132,12 +132,14 @@ function GamePage() {
 
   const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
 
-  // Calculate decision after gameData loads
-  const { decision, drivers, archetype, volatility, marginRisk } = useMemo(() => {
-    if (!home_stats || !away_stats) {
-      return { decision: null, drivers: null, archetype: null, volatility: null, marginRisk: null }
-    }
+  // Calculate decision values (without useMemo to avoid infinite render with React Query)
+  let decision = null
+  let drivers = null
+  let archetype = null
+  let volatility = null
+  let marginRisk = null
 
+  if (home_stats && away_stats) {
     // Calculate combined FT points
     const homeFT = (home_stats.fta_per_game || 0) * ((home_stats.ft_pct || 0) / 100)
     const awayFT = (away_stats.fta_per_game || 0) * ((away_stats.ft_pct || 0) / 100)
@@ -149,7 +151,7 @@ function GamePage() {
     // Calculate combined eFG% (weighted by FGA)
     const homeFGM = home_stats.fgm || 0
     const homeFG3M = home_stats.fg3m || 0
-    const homeFGA = home_stats.fga || 1 // avoid division by zero
+    const homeFGA = home_stats.fga || 1
     const awayFGM = away_stats.fgm || 0
     const awayFG3M = away_stats.fg3m || 0
     const awayFGA = away_stats.fga || 1
@@ -159,7 +161,7 @@ function GamePage() {
     const combinedEFG = (homeEFG * homeFGA + awayEFG * awayFGA) / (homeFGA + awayFGA)
 
     // Build drivers object
-    const driversObj = {
+    drivers = {
       ftPoints: {
         value: Math.round(ftPoints),
         status: ftPoints >= 38 ? 'green' : ftPoints < 33 ? 'red' : 'yellow',
@@ -177,26 +179,24 @@ function GamePage() {
       }
     }
 
-    // Get archetype data from gameData (transform new format to old format for DecisionCard)
+    // Get archetype data (transform new format to old format for DecisionCard)
     const homeArchetypes = gameData.home_archetypes
-    const archetype = homeArchetypes ? {
+    archetype = homeArchetypes ? {
       cluster_name: homeArchetypes.season_offensive?.name || 'Balanced',
       cluster_description: homeArchetypes.season_offensive?.description || '',
       confidence: 'medium',
       sample_size: 20
     } : {}
 
-    const volatility = {
+    volatility = {
       index: gameData.combined_volatility_index || 5.0,
       label: gameData.volatility_label || 'Medium'
     }
-    const marginRisk = gameData.margin_risk || { label: 'Competitive' }
+    marginRisk = gameData.margin_risk || { label: 'Competitive' }
 
     // Make decision
-    const decisionResult = makeDecision(driversObj, archetype, volatility, marginRisk)
-
-    return { decision: decisionResult, drivers: driversObj, archetype, volatility, marginRisk }
-  }, [gameData, home_stats, away_stats])
+    decision = makeDecision(drivers, archetype, volatility, marginRisk)
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
