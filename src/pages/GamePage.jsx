@@ -133,9 +133,9 @@ function GamePage() {
   const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
 
   // Calculate decision after gameData loads
-  const { decision, drivers } = useMemo(() => {
+  const { decision, drivers, archetype, volatility, marginRisk } = useMemo(() => {
     if (!home_stats || !away_stats) {
-      return { decision: null, drivers: null }
+      return { decision: null, drivers: null, archetype: null, volatility: null, marginRisk: null }
     }
 
     // Calculate combined FT points
@@ -177,8 +177,15 @@ function GamePage() {
       }
     }
 
-    // Get archetype data from gameData (added in backend)
-    const archetype = gameData.home_archetype || {}
+    // Get archetype data from gameData (transform new format to old format for DecisionCard)
+    const homeArchetypes = gameData.home_archetypes
+    const archetype = homeArchetypes ? {
+      cluster_name: homeArchetypes.season_offensive?.name || 'Balanced',
+      cluster_description: homeArchetypes.season_offensive?.description || '',
+      confidence: 'medium',
+      sample_size: 20
+    } : {}
+
     const volatility = {
       index: gameData.combined_volatility_index || 5.0,
       label: gameData.volatility_label || 'Medium'
@@ -188,7 +195,7 @@ function GamePage() {
     // Make decision
     const decisionResult = makeDecision(driversObj, archetype, volatility, marginRisk)
 
-    return { decision: decisionResult, drivers: driversObj }
+    return { decision: decisionResult, drivers: driversObj, archetype, volatility, marginRisk }
   }, [gameData, home_stats, away_stats])
 
   return (
@@ -210,12 +217,9 @@ function GamePage() {
           <DecisionCard
             decision={decision}
             drivers={drivers}
-            archetype={gameData.home_archetype}
-            marginRisk={gameData.margin_risk}
-            volatility={{
-              index: gameData.combined_volatility_index,
-              label: gameData.volatility_label
-            }}
+            archetype={archetype}
+            marginRisk={marginRisk}
+            volatility={volatility}
           />
         </div>
       )}
@@ -376,6 +380,8 @@ function GamePage() {
             turnoverVsPaceLoading={turnoverVsPaceLoading}
             assistsVsDefenseLoading={assistsVsDefenseLoading}
             assistsVsPaceLoading={assistsVsPaceLoading}
+            homeArchetypes={gameData.home_archetypes}
+            awayArchetypes={gameData.away_archetypes}
           />
         </div>
       )}
