@@ -1,12 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import StatsTable from '../components/StatsTable'
 import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
-import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
 import DecisionCard from '../components/DecisionCard'
 import TeamContextTab from '../components/TeamContextTab'
-import ScoringMixPanel from '../components/ScoringMixPanel'
 import { makeDecision } from '../utils/decisionEngine'
 import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace } from '../utils/api'
 
@@ -18,9 +15,6 @@ function GamePage() {
 
   // Tab state for main content sections (DATA ONLY MODE)
   const [activeTab, setActiveTab] = useState('last5') // 'last5' | 'splits' | 'similar-opponents'
-
-  // Stats table collapse state (mobile only)
-  const [statsCollapsed, setStatsCollapsed] = useState(false)
 
   // Use React Query for automatic caching and loading states
   const {
@@ -285,26 +279,6 @@ function GamePage() {
                 Advanced Splits
               </button>
               <button
-                onClick={() => setActiveTab('similar-opponents')}
-                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  activeTab === 'similar-opponents'
-                    ? 'bg-white text-primary-700 shadow-lg'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                Similar Opponents
-              </button>
-              <button
-                onClick={() => setActiveTab('scoring-mix')}
-                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  activeTab === 'scoring-mix'
-                    ? 'bg-white text-primary-700 shadow-lg'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                Scoring Mix
-              </button>
-              <button
                 onClick={() => setActiveTab('team-context')}
                 className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
                   activeTab === 'team-context'
@@ -316,37 +290,6 @@ function GamePage() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Stats Comparison - Collapsible on mobile */}
-      <div className="mb-8">
-        {/* Mobile toggle button */}
-        <button
-          onClick={() => setStatsCollapsed(!statsCollapsed)}
-          className="md:hidden w-full flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-3 text-gray-900 dark:text-white font-semibold"
-        >
-          <span>Team Statistics Comparison</span>
-          <svg
-            className={`w-5 h-5 transition-transform ${statsCollapsed ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {/* Stats table - hidden on mobile when collapsed, always visible on desktop */}
-        <div className={`${statsCollapsed ? 'hidden md:block' : 'block'}`}>
-          <StatsTable
-            homeStats={home_stats}
-            awayStats={away_stats}
-            homeTeam={home_team?.abbreviation || 'Home'}
-            awayTeam={away_team?.abbreviation || 'Away'}
-            homeTeamId={home_team?.id}
-            awayTeamId={away_team?.id}
-          />
         </div>
       </div>
 
@@ -383,20 +326,6 @@ function GamePage() {
             homeArchetypes={gameData.home_archetypes}
             awayArchetypes={gameData.away_archetypes}
           />
-        </div>
-      )}
-
-      {/* Similar Opponents Tab */}
-      {activeTab === 'similar-opponents' && (
-        <div className="mb-6 sm:mb-8">
-          <SimilarOpponentBoxScores gameId={gameId} />
-        </div>
-      )}
-
-      {/* Scoring Mix Tab */}
-      {activeTab === 'scoring-mix' && (
-        <div className="mb-6 sm:mb-8">
-          <ScoringMixPanel gameId={gameId} />
         </div>
       )}
 

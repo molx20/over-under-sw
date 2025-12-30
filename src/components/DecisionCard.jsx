@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import DriverCard from './DriverCard'
 import WhyThisPickPanel from './WhyThisPickPanel'
+import DecisionGlossary from './DecisionGlossary'
 
 function DecisionCard({
   decision,
@@ -17,6 +18,7 @@ function DecisionCard({
   volatility
 }) {
   const [showWhy, setShowWhy] = useState(false)
+  const [showGlossary, setShowGlossary] = useState(false)
 
   // Call badge styling based on decision
   const callStyles = {
@@ -49,7 +51,18 @@ function DecisionCard({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Call Badge (Large Header) */}
-      <div className={`${callStyle.bg} ${callStyle.shadow} p-6 text-center`}>
+      <div className={`${callStyle.bg} ${callStyle.shadow} p-6 text-center relative`}>
+        {/* Glossary button (top-right) */}
+        <button
+          onClick={() => setShowGlossary(true)}
+          className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+          title="View metrics glossary"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
         <div className="flex flex-col items-center gap-2">
           <h2 className={`text-3xl sm:text-4xl font-bold ${callStyle.text}`}>
             {decision.call}
@@ -184,6 +197,12 @@ function DecisionCard({
           reasoning={decision.reasoning}
         />
       </div>
+
+      {/* Decision Glossary Modal */}
+      <DecisionGlossary
+        isOpen={showGlossary}
+        onClose={() => setShowGlossary(false)}
+      />
     </div>
   )
 }
