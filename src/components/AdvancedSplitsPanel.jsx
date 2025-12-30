@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import IdentityTags from './IdentityTags'
+import TeamArchetypes from './TeamArchetypes'
 import ScoringSpitsChart from './ScoringSpitsChart'
 import ScoringVsPaceChart from './ScoringVsPaceChart'
 import ThreePointScoringVsDefenseChart from './ThreePointScoringVsDefenseChart'
@@ -31,7 +31,8 @@ function AdvancedSplitsPanel({
   turnoverVsPaceLoading,
   assistsVsDefenseLoading,
   assistsVsPaceLoading,
-  onShowGlossary
+  homeArchetypes,
+  awayArchetypes
 }) {
   // Toggle states for metric and context
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
@@ -41,6 +42,8 @@ function AdvancedSplitsPanel({
   // DIAGNOSTIC LOGGING
   console.log('[AdvancedSplitsPanel] Current metric:', metric)
   console.log('[AdvancedSplitsPanel] Current context:', context)
+  console.log('[AdvancedSplitsPanel] homeArchetypes:', homeArchetypes)
+  console.log('[AdvancedSplitsPanel] awayArchetypes:', awayArchetypes)
 
   if (metric === 'assists') {
     console.log('[AdvancedSplitsPanel] ASSISTS TAB ACTIVE')
@@ -64,15 +67,6 @@ function AdvancedSplitsPanel({
             Compare team performance across different metrics and contexts
           </p>
         </div>
-        <button
-          onClick={onShowGlossary}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors text-sm font-medium"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="hidden sm:inline">Glossary</span>
-        </button>
       </div>
 
       {/* Metric Toggle (Scoring | 3PT | Turnovers | Assists) */}
@@ -207,43 +201,32 @@ function AdvancedSplitsPanel({
       {/* Identity Tags (only for scoring metric) */}
       {metric === 'scoring' && scoringSplitsData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Away Team Tags */}
-          {scoringSplitsData.away_team && (
+          {console.log('[AdvancedSplitsPanel] RENDERING ARCHETYPES SECTION - metric:', metric, 'scoringSplitsData:', !!scoringSplitsData, 'awayArchetypes:', !!awayArchetypes, 'homeArchetypes:', !!homeArchetypes)}
+          {/* Away Team Archetypes */}
+          {awayArchetypes && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                {scoringSplitsData.away_team.team_abbreviation} Identity
+                {scoringSplitsData?.away_team?.team_abbreviation || 'Away'} Style Archetypes
               </h3>
-              {scoringSplitsData.away_team.identity_tags && scoringSplitsData.away_team.identity_tags.length > 0 ? (
-                <IdentityTags
-                  tags={scoringSplitsData.away_team.identity_tags}
-                  teamAbbr={scoringSplitsData.away_team.team_abbreviation}
-                  showTooltip={true}
-                />
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No distinctive scoring patterns detected (consistent across contexts)
-                </p>
-              )}
+              <TeamArchetypes
+                archetypes={awayArchetypes}
+                teamName={scoringSplitsData?.away_team?.team_abbreviation}
+                showComparison={true}
+              />
             </div>
           )}
 
-          {/* Home Team Tags */}
-          {scoringSplitsData.home_team && (
+          {/* Home Team Archetypes */}
+          {homeArchetypes && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                {scoringSplitsData.home_team.team_abbreviation} Identity
+                {scoringSplitsData?.home_team?.team_abbreviation || 'Home'} Style Archetypes
               </h3>
-              {scoringSplitsData.home_team.identity_tags && scoringSplitsData.home_team.identity_tags.length > 0 ? (
-                <IdentityTags
-                  tags={scoringSplitsData.home_team.identity_tags}
-                  teamAbbr={scoringSplitsData.home_team.team_abbreviation}
-                  showTooltip={true}
-                />
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No distinctive scoring patterns detected (consistent across contexts)
-                </p>
-              )}
+              <TeamArchetypes
+                archetypes={homeArchetypes}
+                teamName={scoringSplitsData?.home_team?.team_abbreviation}
+                showComparison={true}
+              />
             </div>
           )}
         </div>

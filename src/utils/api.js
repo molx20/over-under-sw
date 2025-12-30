@@ -664,3 +664,46 @@ export const useFullMatchupSummaryWriteup = (gameId) => {
     refetchOnWindowFocus: false,
   })
 }
+
+// ============================================================================
+// TEAM ARCHETYPES
+// ============================================================================
+
+/**
+ * Fetch team archetypes
+ */
+export const fetchTeamArchetypes = async (teamId = null, season = '2025-26') => {
+  try {
+    const params = { season }
+    if (teamId) {
+      params.team_id = teamId
+    }
+
+    const response = await api.get('/team-archetypes', { params })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return response.data.archetypes
+  } catch (error) {
+    console.error('[fetchTeamArchetypes] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch team archetypes')
+  }
+}
+
+/**
+ * Hook to fetch team archetypes
+ * Cache key: ['team-archetypes', teamId, season]
+ * Stale time: 1 hour (archetypes don't change frequently)
+ */
+export const useTeamArchetypes = (teamId = null, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['team-archetypes', teamId, season],
+    queryFn: () => fetchTeamArchetypes(teamId, season),
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+}

@@ -1443,55 +1443,99 @@ def game_detail():
             ],
         }
 
-        # NEW: Add archetype, volatility, and margin risk data
+        # NEW: Add offensive and defensive archetypes
         try:
-            from api.utils.team_similarity import get_team_cluster_assignment
+            from api.utils.archetype_classifier import assign_all_team_archetypes, OFFENSIVE_ARCHETYPES, DEFENSIVE_ARCHETYPES
 
-            # Get archetype data for both teams
-            home_cluster = get_team_cluster_assignment(home_team_id, season) or {}
-            away_cluster = get_team_cluster_assignment(away_team_id, season) or {}
+            # Get all archetype assignments
+            season = '2025-26'
+            all_archetypes = assign_all_team_archetypes(season)
 
-            # Determine confidence based on sample size (games in cluster)
-            def get_confidence(cluster_data):
-                sample_size = 0
-                # Try different possible keys for sample size
-                if cluster_data:
-                    sample_size = cluster_data.get('games_in_cluster', 0) or cluster_data.get('sample_size', 0)
+            # Get archetypes for home and away teams
+            home_archetypes = all_archetypes.get(int(home_team_id))
+            away_archetypes = all_archetypes.get(int(away_team_id))
 
-                if sample_size >= 30:
-                    return 'high'
-                elif sample_size >= 20:
-                    return 'medium'
-                else:
-                    return 'low'
+            if home_archetypes:
+                response['home_archetypes'] = {
+                    'season_offensive': {
+                        'id': home_archetypes['season_offensive'],
+                        'name': OFFENSIVE_ARCHETYPES[home_archetypes['season_offensive']]['name'],
+                        'description': OFFENSIVE_ARCHETYPES[home_archetypes['season_offensive']]['description'],
+                        'scoring_profile': OFFENSIVE_ARCHETYPES[home_archetypes['season_offensive']]['scoring_profile']
+                    },
+                    'season_defensive': {
+                        'id': home_archetypes['season_defensive'],
+                        'name': DEFENSIVE_ARCHETYPES[home_archetypes['season_defensive']]['name'],
+                        'description': DEFENSIVE_ARCHETYPES[home_archetypes['season_defensive']]['description'],
+                        'allows': DEFENSIVE_ARCHETYPES[home_archetypes['season_defensive']]['allows'],
+                        'suppresses': DEFENSIVE_ARCHETYPES[home_archetypes['season_defensive']]['suppresses']
+                    },
+                    'last10_offensive': {
+                        'id': home_archetypes['last10_offensive'],
+                        'name': OFFENSIVE_ARCHETYPES[home_archetypes['last10_offensive']]['name'],
+                        'description': OFFENSIVE_ARCHETYPES[home_archetypes['last10_offensive']]['description'],
+                        'scoring_profile': OFFENSIVE_ARCHETYPES[home_archetypes['last10_offensive']]['scoring_profile']
+                    },
+                    'last10_defensive': {
+                        'id': home_archetypes['last10_defensive'],
+                        'name': DEFENSIVE_ARCHETYPES[home_archetypes['last10_defensive']]['name'],
+                        'description': DEFENSIVE_ARCHETYPES[home_archetypes['last10_defensive']]['description'],
+                        'allows': DEFENSIVE_ARCHETYPES[home_archetypes['last10_defensive']]['allows'],
+                        'suppresses': DEFENSIVE_ARCHETYPES[home_archetypes['last10_defensive']]['suppresses']
+                    },
+                    'style_shifts': {
+                        'offensive': home_archetypes['offensive_style_shift'],
+                        'defensive': home_archetypes['defensive_style_shift'],
+                        'offensive_details': home_archetypes['offensive_shift_details'],
+                        'defensive_details': home_archetypes['defensive_shift_details']
+                    }
+                }
 
-            response['home_archetype'] = {
-                'cluster_name': home_cluster.get('cluster_name', 'Unknown'),
-                'cluster_description': home_cluster.get('cluster_description', ''),
-                'confidence': get_confidence(home_cluster),
-                'sample_size': home_cluster.get('games_in_cluster', 0) or home_cluster.get('sample_size', 0)
-            }
+            if away_archetypes:
+                response['away_archetypes'] = {
+                    'season_offensive': {
+                        'id': away_archetypes['season_offensive'],
+                        'name': OFFENSIVE_ARCHETYPES[away_archetypes['season_offensive']]['name'],
+                        'description': OFFENSIVE_ARCHETYPES[away_archetypes['season_offensive']]['description'],
+                        'scoring_profile': OFFENSIVE_ARCHETYPES[away_archetypes['season_offensive']]['scoring_profile']
+                    },
+                    'season_defensive': {
+                        'id': away_archetypes['season_defensive'],
+                        'name': DEFENSIVE_ARCHETYPES[away_archetypes['season_defensive']]['name'],
+                        'description': DEFENSIVE_ARCHETYPES[away_archetypes['season_defensive']]['description'],
+                        'allows': DEFENSIVE_ARCHETYPES[away_archetypes['season_defensive']]['allows'],
+                        'suppresses': DEFENSIVE_ARCHETYPES[away_archetypes['season_defensive']]['suppresses']
+                    },
+                    'last10_offensive': {
+                        'id': away_archetypes['last10_offensive'],
+                        'name': OFFENSIVE_ARCHETYPES[away_archetypes['last10_offensive']]['name'],
+                        'description': OFFENSIVE_ARCHETYPES[away_archetypes['last10_offensive']]['description'],
+                        'scoring_profile': OFFENSIVE_ARCHETYPES[away_archetypes['last10_offensive']]['scoring_profile']
+                    },
+                    'last10_defensive': {
+                        'id': away_archetypes['last10_defensive'],
+                        'name': DEFENSIVE_ARCHETYPES[away_archetypes['last10_defensive']]['name'],
+                        'description': DEFENSIVE_ARCHETYPES[away_archetypes['last10_defensive']]['description'],
+                        'allows': DEFENSIVE_ARCHETYPES[away_archetypes['last10_defensive']]['allows'],
+                        'suppresses': DEFENSIVE_ARCHETYPES[away_archetypes['last10_defensive']]['suppresses']
+                    },
+                    'style_shifts': {
+                        'offensive': away_archetypes['offensive_style_shift'],
+                        'defensive': away_archetypes['defensive_style_shift'],
+                        'offensive_details': away_archetypes['offensive_shift_details'],
+                        'defensive_details': away_archetypes['defensive_shift_details']
+                    }
+                }
 
-            response['away_archetype'] = {
-                'cluster_name': away_cluster.get('cluster_name', 'Unknown'),
-                'cluster_description': away_cluster.get('cluster_description', ''),
-                'confidence': get_confidence(away_cluster),
-                'sample_size': away_cluster.get('games_in_cluster', 0) or away_cluster.get('sample_size', 0)
-            }
+            print('[game_detail] Archetypes added to response')
+
         except Exception as archetype_error:
+            import traceback
             print(f'[game_detail] Warning: Could not fetch archetype data: {archetype_error}')
-            response['home_archetype'] = {
-                'cluster_name': 'Unknown',
-                'cluster_description': '',
-                'confidence': 'low',
-                'sample_size': 0
-            }
-            response['away_archetype'] = {
-                'cluster_name': 'Unknown',
-                'cluster_description': '',
-                'confidence': 'low',
-                'sample_size': 0
-            }
+            traceback.print_exc()
+            # Don't fail the entire request if archetypes fail
+            response['home_archetypes'] = None
+            response['away_archetypes'] = None
 
         # Calculate combined volatility index
         def calculate_volatility_index(recent_games):
@@ -1707,6 +1751,133 @@ def team_stats_comparison():
             'error': str(e)
         }), 500
 
+
+@app.route('/api/team-archetypes', methods=['GET'])
+def get_team_archetypes():
+    """
+    Get offensive and defensive archetypes for teams.
+
+    Query params:
+        - team_id: (optional) NBA team ID - if provided, returns only that team
+        - season: (optional) Season string, default '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'season': '2025-26',
+            'archetypes': {
+                team_id: {
+                    'team_name': str,
+                    'team_abbr': str,
+                    'season_offensive': {
+                        'id': str,
+                        'name': str,
+                        'description': str,
+                        'scoring_profile': str
+                    },
+                    'season_defensive': {...},
+                    'last10_offensive': {...},
+                    'last10_defensive': {...},
+                    'style_shifts': {
+                        'offensive': bool,
+                        'defensive': bool,
+                        'offensive_details': str,
+                        'defensive_details': str
+                    }
+                }
+            }
+        }
+    """
+    from api.utils.archetype_classifier import assign_all_team_archetypes, OFFENSIVE_ARCHETYPES, DEFENSIVE_ARCHETYPES
+    from api.utils.db_queries import get_team_by_id
+
+    try:
+        team_id = request.args.get('team_id', type=int)
+        season = request.args.get('season', '2025-26')
+
+        print(f'[team_archetypes] Fetching archetypes for season {season}' +
+              (f', team {team_id}' if team_id else ' (all teams)'))
+
+        # Get all archetype assignments
+        all_assignments = assign_all_team_archetypes(season)
+
+        # Filter to single team if requested
+        if team_id:
+            if team_id not in all_assignments:
+                return jsonify({
+                    'success': False,
+                    'error': f'No archetype data found for team {team_id}'
+                }), 404
+            all_assignments = {team_id: all_assignments[team_id]}
+
+        # Enrich with team names and archetype details
+        enriched_data = {}
+        for tid, assignment in all_assignments.items():
+            team_info = get_team_by_id(tid)
+
+            # Get archetype details
+            season_off_id = assignment['season_offensive']
+            season_def_id = assignment['season_defensive']
+            last10_off_id = assignment['last10_offensive']
+            last10_def_id = assignment['last10_defensive']
+
+            enriched_data[str(tid)] = {
+                'team_name': team_info['full_name'] if team_info else f'Team {tid}',
+                'team_abbr': team_info['abbreviation'] if team_info else str(tid),
+                'season_offensive': {
+                    'id': season_off_id,
+                    'name': OFFENSIVE_ARCHETYPES[season_off_id]['name'],
+                    'description': OFFENSIVE_ARCHETYPES[season_off_id]['description'],
+                    'scoring_profile': OFFENSIVE_ARCHETYPES[season_off_id]['scoring_profile']
+                },
+                'season_defensive': {
+                    'id': season_def_id,
+                    'name': DEFENSIVE_ARCHETYPES[season_def_id]['name'],
+                    'description': DEFENSIVE_ARCHETYPES[season_def_id]['description'],
+                    'allows': DEFENSIVE_ARCHETYPES[season_def_id]['allows'],
+                    'suppresses': DEFENSIVE_ARCHETYPES[season_def_id]['suppresses']
+                },
+                'last10_offensive': {
+                    'id': last10_off_id,
+                    'name': OFFENSIVE_ARCHETYPES[last10_off_id]['name'],
+                    'description': OFFENSIVE_ARCHETYPES[last10_off_id]['description'],
+                    'scoring_profile': OFFENSIVE_ARCHETYPES[last10_off_id]['scoring_profile']
+                },
+                'last10_defensive': {
+                    'id': last10_def_id,
+                    'name': DEFENSIVE_ARCHETYPES[last10_def_id]['name'],
+                    'description': DEFENSIVE_ARCHETYPES[last10_def_id]['description'],
+                    'allows': DEFENSIVE_ARCHETYPES[last10_def_id]['allows'],
+                    'suppresses': DEFENSIVE_ARCHETYPES[last10_def_id]['suppresses']
+                },
+                'style_shifts': {
+                    'offensive': assignment['offensive_style_shift'],
+                    'defensive': assignment['defensive_style_shift'],
+                    'offensive_details': assignment['offensive_shift_details'],
+                    'defensive_details': assignment['defensive_shift_details']
+                }
+            }
+
+        return jsonify({
+            'success': True,
+            'season': season,
+            'archetypes': enriched_data
+        })
+
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Invalid parameter: {str(e)}'
+        }), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/team-scoring-splits', methods=['GET'])
 def team_scoring_splits():
     """
@@ -1755,7 +1926,6 @@ def team_scoring_splits():
         print(f'[team_scoring_splits] Fetching scoring splits for team {team_id}, season {season}')
 
         from api.utils.scoring_splits import get_team_scoring_splits
-        from api.utils.identity_tags import generate_identity_tags
 
         # Get splits data
         splits_data = get_team_scoring_splits(team_id, season)
@@ -1766,11 +1936,10 @@ def team_scoring_splits():
                 'error': f'Team {team_id} not found or no data available'
             }), 404
 
-        # Generate identity tags
-        tags = generate_identity_tags(splits_data)
-        splits_data['identity_tags'] = tags
+        # Identity tags replaced by archetype system - keeping empty array for API compatibility
+        splits_data['identity_tags'] = []
 
-        print(f'[team_scoring_splits] Generated {len(tags)} tags for {splits_data.get("team_abbreviation")}')
+        print(f'[team_scoring_splits] Fetching complete for {splits_data.get("team_abbreviation")}')
 
         return jsonify({
             'success': True,
@@ -1834,7 +2003,6 @@ def game_scoring_splits():
         from api.utils.scoring_splits import get_team_scoring_splits
         from api.utils.pace_splits import get_team_pace_splits
         from api.utils.pace_projection import calculate_projected_pace
-        from api.utils.identity_tags import generate_identity_tags
         from api.utils.db_queries import get_team_stats_with_ranks
 
         # Find the game to get team IDs
@@ -1887,11 +2055,9 @@ def game_scoring_splits():
         if away_stats:
             away_splits['opponent_def_rank'] = home_stats['stats'].get('def_rtg', {}).get('rank') if home_stats else None
 
-        # Generate identity tags for both teams
-        home_splits['identity_tags'] = generate_identity_tags(home_splits)
-        away_splits['identity_tags'] = generate_identity_tags(away_splits)
-
-        print(f'[game_scoring_splits] Home: {len(home_splits["identity_tags"])} tags, Away: {len(away_splits["identity_tags"])} tags')
+        # Identity tags replaced by archetype system - keeping empty arrays for API compatibility
+        home_splits['identity_tags'] = []
+        away_splits['identity_tags'] = []
         print(f'[game_scoring_splits] Home opponent def rank: {home_splits.get("opponent_def_rank")}, Away opponent def rank: {away_splits.get("opponent_def_rank")}')
 
         return jsonify({

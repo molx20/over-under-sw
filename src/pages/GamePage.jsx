@@ -4,7 +4,6 @@ import StatsTable from '../components/StatsTable'
 import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
 import SimilarOpponentBoxScores from '../components/SimilarOpponentBoxScores'
-import IdentityGlossary from '../components/IdentityGlossary'
 import DecisionCard from '../components/DecisionCard'
 import TeamContextTab from '../components/TeamContextTab'
 import ScoringMixPanel from '../components/ScoringMixPanel'
@@ -16,7 +15,6 @@ function GamePage() {
   const { gameId } = useParams()
   console.log('[GamePage] gameId from useParams:', gameId)
   const navigate = useNavigate()
-  const [showGlossary, setShowGlossary] = useState(false)
 
   // Tab state for main content sections (DATA ONLY MODE)
   const [activeTab, setActiveTab] = useState('last5') // 'last5' | 'splits' | 'similar-opponents'
@@ -378,7 +376,6 @@ function GamePage() {
             turnoverVsPaceLoading={turnoverVsPaceLoading}
             assistsVsDefenseLoading={assistsVsDefenseLoading}
             assistsVsPaceLoading={assistsVsPaceLoading}
-            onShowGlossary={() => setShowGlossary(true)}
           />
         </div>
       )}
@@ -412,11 +409,12 @@ function GamePage() {
         </div>
       )}
 
-      {/* Identity Glossary Modal */}
-      <IdentityGlossary
-        isOpen={showGlossary}
-        onClose={() => setShowGlossary(false)}
-      />
+      {/* Debug watermark - shows commit hash in footer (dev mode only) */}
+      {import.meta.env.MODE !== 'production' && (
+        <div className="fixed bottom-0 right-0 text-xs text-gray-400 dark:text-gray-600 p-2 opacity-50 bg-gray-100 dark:bg-gray-800 rounded-tl">
+          Build: {import.meta.env.VITE_GIT_COMMIT_HASH || 'dev-local'} | {new Date().toISOString().split('T')[0]}
+        </div>
+      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Home from './pages/Home'
-import WarRoom from './pages/WarRoom'
+import GamePage from './pages/GamePage'
 import MatchupSummary from './pages/MatchupSummary'
 
 // LocalStorage keys for persistent settings
@@ -38,7 +38,7 @@ function App() {
           />
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/game/:gameId" element={<WarRoom />} />
+            <Route path="/game/:gameId" element={<GamePage />} />
             <Route path="/game/:gameId/summary" element={<MatchupSummary />} />
           </Routes>
         </div>

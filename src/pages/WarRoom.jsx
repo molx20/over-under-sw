@@ -128,7 +128,7 @@ function WarRoom() {
     )
   }
 
-  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment, empty_possessions } = gameData
+  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment, empty_possessions, home_archetypes, away_archetypes } = gameData
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -304,6 +304,8 @@ function WarRoom() {
                 turnoverVsPaceLoading={turnoverVsPaceLoading}
                 assistsVsDefenseLoading={assistsVsDefenseLoading}
                 assistsVsPaceLoading={assistsVsPaceLoading}
+                homeArchetypes={home_archetypes}
+                awayArchetypes={away_archetypes}
                 onShowGlossary={() => {}}
               />
             )}
