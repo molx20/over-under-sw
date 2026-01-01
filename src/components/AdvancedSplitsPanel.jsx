@@ -280,14 +280,14 @@ function AdvancedSplitsPanel({
           />
         )}
 
-        {metric === 'rebounds' && (
+        {metric === 'rebounds' && scoringSplitsData && (
           <ArchetypeRankingsPanel
             family="rebounds"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
-            homeStats={null}
-            awayStats={null}
+            homeStats={scoringSplitsData?.home_team}
+            awayStats={scoringSplitsData?.away_team}
             context="defense"
           />
         )}
