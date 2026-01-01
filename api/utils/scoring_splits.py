@@ -126,6 +126,8 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             SELECT
                 offensive_rebounds,
                 defensive_rebounds,
+                opp_offensive_rebounds,
+                opp_defensive_rebounds,
                 is_home,
                 game_date
             FROM team_game_logs
@@ -134,6 +136,8 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
                 AND game_type IN ('Regular Season', 'NBA Cup')
                 AND offensive_rebounds IS NOT NULL
                 AND defensive_rebounds IS NOT NULL
+                AND opp_offensive_rebounds IS NOT NULL
+                AND opp_defensive_rebounds IS NOT NULL
             ORDER BY game_date DESC
         ''', (team_id, season))
 
@@ -179,6 +183,45 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
         team_info['season_avg_dreb_away'] = round(sum(away_drebs) / len(away_drebs), 1) if away_drebs else 0
         team_info['last10_avg_dreb_home'] = round(sum(last10_home_drebs) / len(last10_home_drebs), 1) if last10_home_drebs else 0
         team_info['last10_avg_dreb_away'] = round(sum(last10_away_drebs) / len(last10_away_drebs), 1) if last10_away_drebs else 0
+
+        # DEFENSIVE: Opponent rebounds (rebounds allowed)
+        all_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games]
+        all_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games]
+        last10_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games[:10]]
+        last10_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games[:10]]
+
+        # Home/Away splits for opponent rebounds
+        home_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games if g['is_home'] == 1]
+        away_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games if g['is_home'] == 0]
+        home_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games if g['is_home'] == 1]
+        away_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games if g['is_home'] == 0]
+
+        last10_home_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 1]
+        last10_away_opp_orebs = [g['opp_offensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 0]
+        last10_home_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 1]
+        last10_away_opp_drebs = [g['opp_defensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 0]
+
+        # Opponent offensive rebounds - season
+        team_info['overall_avg_opp_offensive_rebounds'] = round(sum(all_opp_orebs) / len(all_opp_orebs), 1) if all_opp_orebs else 0
+        team_info['season_avg_opp_oreb'] = team_info['overall_avg_opp_offensive_rebounds']
+        team_info['last10_avg_opp_oreb'] = round(sum(last10_opp_orebs) / len(last10_opp_orebs), 1) if last10_opp_orebs else 0
+
+        # Opponent offensive rebounds - home/away
+        team_info['season_avg_opp_oreb_home'] = round(sum(home_opp_orebs) / len(home_opp_orebs), 1) if home_opp_orebs else 0
+        team_info['season_avg_opp_oreb_away'] = round(sum(away_opp_orebs) / len(away_opp_orebs), 1) if away_opp_orebs else 0
+        team_info['last10_avg_opp_oreb_home'] = round(sum(last10_home_opp_orebs) / len(last10_home_opp_orebs), 1) if last10_home_opp_orebs else 0
+        team_info['last10_avg_opp_oreb_away'] = round(sum(last10_away_opp_orebs) / len(last10_away_opp_orebs), 1) if last10_away_opp_orebs else 0
+
+        # Opponent defensive rebounds - season
+        team_info['overall_avg_opp_defensive_rebounds'] = round(sum(all_opp_drebs) / len(all_opp_drebs), 1) if all_opp_drebs else 0
+        team_info['season_avg_opp_dreb'] = team_info['overall_avg_opp_defensive_rebounds']
+        team_info['last10_avg_opp_dreb'] = round(sum(last10_opp_drebs) / len(last10_opp_drebs), 1) if last10_opp_drebs else 0
+
+        # Opponent defensive rebounds - home/away
+        team_info['season_avg_opp_dreb_home'] = round(sum(home_opp_drebs) / len(home_opp_drebs), 1) if home_opp_drebs else 0
+        team_info['season_avg_opp_dreb_away'] = round(sum(away_opp_drebs) / len(away_opp_drebs), 1) if away_opp_drebs else 0
+        team_info['last10_avg_opp_dreb_home'] = round(sum(last10_home_opp_drebs) / len(last10_home_opp_drebs), 1) if last10_home_opp_drebs else 0
+        team_info['last10_avg_opp_dreb_away'] = round(sum(last10_away_opp_drebs) / len(last10_away_opp_drebs), 1) if last10_away_opp_drebs else 0
 
         # Step 2: Fetch game logs with opponent defensive rankings
         # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)

@@ -146,11 +146,13 @@ def get_team_assists_vs_pace(team_id: int, season: str = '2025-26') -> Optional[
                 game_date,
                 is_home,
                 assists as team_assists,
+                opp_assists,
                 pace
             FROM team_game_logs
             WHERE team_id = ?
                 AND season = ?
                 AND assists IS NOT NULL
+                AND opp_assists IS NOT NULL
                 AND pace IS NOT NULL
                 AND pace > 0
                 AND game_type IN ('Regular Season', 'NBA Cup')
@@ -180,6 +182,27 @@ def get_team_assists_vs_pace(team_id: int, season: str = '2025-26') -> Optional[
 
         # Update field aliases
         team_info['overall_avg_assists'] = team_info['season_avg_ast']
+
+        # DEFENSIVE: Opponent assists (assists allowed)
+        all_opp_asts = [g['opp_assists'] for g in games if g['opp_assists'] is not None]
+        last10_opp_asts = [g['opp_assists'] for g in games[:10] if g['opp_assists'] is not None]
+
+        home_opp_asts = [g['opp_assists'] for g in games if g['opp_assists'] is not None and g['is_home'] == 1]
+        away_opp_asts = [g['opp_assists'] for g in games if g['opp_assists'] is not None and g['is_home'] == 0]
+        last10_home_opp_asts = [g['opp_assists'] for g in games[:10] if g['opp_assists'] is not None and g['is_home'] == 1]
+        last10_away_opp_asts = [g['opp_assists'] for g in games[:10] if g['opp_assists'] is not None and g['is_home'] == 0]
+
+        team_info['season_avg_opp_ast'] = round(sum(all_opp_asts) / len(all_opp_asts), 1) if all_opp_asts else 0
+        team_info['last10_avg_opp_ast'] = round(sum(last10_opp_asts) / len(last10_opp_asts), 1) if last10_opp_asts else 0
+
+        # Home/Away splits for defensive
+        team_info['season_avg_opp_ast_home'] = round(sum(home_opp_asts) / len(home_opp_asts), 1) if home_opp_asts else 0
+        team_info['season_avg_opp_ast_away'] = round(sum(away_opp_asts) / len(away_opp_asts), 1) if away_opp_asts else 0
+        team_info['last10_avg_opp_ast_home'] = round(sum(last10_home_opp_asts) / len(last10_home_opp_asts), 1) if last10_home_opp_asts else 0
+        team_info['last10_avg_opp_ast_away'] = round(sum(last10_away_opp_asts) / len(last10_away_opp_asts), 1) if last10_away_opp_asts else 0
+
+        # Defensive field aliases
+        team_info['overall_avg_opp_assists'] = team_info['season_avg_opp_ast']
 
         # Step 3: Group games by pace tier and location
         splits = {

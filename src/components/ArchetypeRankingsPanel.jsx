@@ -145,7 +145,7 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
   } else if (family === 'threes') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
-    // 3PT Makes with home/away splits
+    // OFFENSIVE: 3PT Makes with home/away splits
     if (window === 'last10') {
       stats.threesPG = statsData[`last10_avg_fg3m${locationSuffix}`]
                     || statsData.last10_avg_fg3m
@@ -159,7 +159,7 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                     || 0
     }
 
-    // 3PT Percentage with home/away splits
+    // OFFENSIVE: 3PT Percentage with home/away splits
     if (window === 'last10') {
       stats.threePct = statsData[`last10_avg_fg3_pct${locationSuffix}`]
                     || statsData.last10_avg_fg3_pct
@@ -171,6 +171,32 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                     || statsData.season_avg_fg3_pct
                     || statsData.avg_fg3_pct
                     || 0
+    }
+
+    // DEFENSIVE: Opponent 3PT Makes (3PM allowed)
+    if (window === 'last10') {
+      stats.threesPG_def = statsData[`last10_avg_opp_fg3m${locationSuffix}`]
+                        || statsData.last10_avg_opp_fg3m
+                        || statsData.overall_avg_opp_fg3m
+                        || 0
+    } else {
+      stats.threesPG_def = statsData[`season_avg_opp_fg3m${locationSuffix}`]
+                        || statsData.overall_avg_opp_fg3m
+                        || statsData.season_avg_opp_fg3m
+                        || 0
+    }
+
+    // DEFENSIVE: Opponent 3PT Percentage (3P% allowed)
+    if (window === 'last10') {
+      stats.threePct_def = statsData[`last10_avg_opp_fg3_pct${locationSuffix}`]
+                        || statsData.last10_avg_opp_fg3_pct
+                        || statsData.overall_avg_opp_fg3_pct
+                        || 0
+    } else {
+      stats.threePct_def = statsData[`season_avg_opp_fg3_pct${locationSuffix}`]
+                        || statsData.overall_avg_opp_fg3_pct
+                        || statsData.season_avg_opp_fg3_pct
+                        || 0
     }
   } else if (family === 'turnovers') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
@@ -213,7 +239,7 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
   } else if (family === 'assists') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
-    // Assists with home/away splits
+    // OFFENSIVE: Assists with home/away splits
     if (window === 'last10') {
       stats.apg = statsData[`last10_avg_ast${locationSuffix}`]
                || statsData.last10_avg_ast
@@ -226,10 +252,23 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                || statsData.avg_assists
                || 0
     }
+
+    // DEFENSIVE: Opponent Assists (assists allowed)
+    if (window === 'last10') {
+      stats.apg_def = statsData[`last10_avg_opp_ast${locationSuffix}`]
+                   || statsData.last10_avg_opp_ast
+                   || statsData.overall_avg_opp_assists
+                   || 0
+    } else {
+      stats.apg_def = statsData[`season_avg_opp_ast${locationSuffix}`]
+                   || statsData.overall_avg_opp_assists
+                   || statsData.season_avg_opp_ast
+                   || 0
+    }
   } else if (family === 'rebounds') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
-    // Offensive Rebounds with home/away splits
+    // OFFENSIVE: Team Offensive Rebounds with home/away splits
     if (window === 'last10') {
       stats.orpg = statsData[`last10_avg_oreb${locationSuffix}`]
                 || statsData.last10_avg_oreb
@@ -243,7 +282,7 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                 || 0
     }
 
-    // Defensive Rebounds with home/away splits
+    // OFFENSIVE: Team Defensive Rebounds with home/away splits
     if (window === 'last10') {
       stats.drpg = statsData[`last10_avg_dreb${locationSuffix}`]
                 || statsData.last10_avg_dreb
@@ -263,7 +302,33 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
              || statsData.avg_rebounds
              || 0
 
-    console.log('[ArchetypeRankingsPanel] Extracted rebounds:', { orpg: stats.orpg, drpg: stats.drpg, rpg: stats.rpg })
+    // DEFENSIVE: Opponent Offensive Rebounds (offensive rebounds allowed)
+    if (window === 'last10') {
+      stats.orpg_def = statsData[`last10_avg_opp_oreb${locationSuffix}`]
+                    || statsData.last10_avg_opp_oreb
+                    || statsData.overall_avg_opp_offensive_rebounds
+                    || 0
+    } else {
+      stats.orpg_def = statsData[`season_avg_opp_oreb${locationSuffix}`]
+                    || statsData.overall_avg_opp_offensive_rebounds
+                    || statsData.season_avg_opp_oreb
+                    || 0
+    }
+
+    // DEFENSIVE: Opponent Defensive Rebounds (defensive rebounds allowed)
+    if (window === 'last10') {
+      stats.drpg_def = statsData[`last10_avg_opp_dreb${locationSuffix}`]
+                    || statsData.last10_avg_opp_dreb
+                    || statsData.overall_avg_opp_defensive_rebounds
+                    || 0
+    } else {
+      stats.drpg_def = statsData[`season_avg_opp_dreb${locationSuffix}`]
+                    || statsData.overall_avg_opp_defensive_rebounds
+                    || statsData.season_avg_opp_dreb
+                    || 0
+    }
+
+    console.log('[ArchetypeRankingsPanel] Extracted rebounds:', { orpg: stats.orpg, drpg: stats.drpg, rpg: stats.rpg, orpg_def: stats.orpg_def, drpg_def: stats.drpg_def })
   }
 
   return stats
@@ -615,15 +680,24 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
       const ppgValue = type === 'defensive' ? stats.ppg_def : stats.ppg
       return `${ppgValue.toFixed(1)} PPG`
     } else if (family === 'threes') {
-      return `${stats.threesPG.toFixed(1)} 3PM | ${(stats.threePct * 100).toFixed(1)}%`
+      // OFFENSIVE: 3PM made | DEFENSIVE: 3PM allowed
+      const threesPGValue = type === 'defensive' ? stats.threesPG_def : stats.threesPG
+      const threePctValue = type === 'defensive' ? stats.threePct_def : stats.threePct
+      return `${threesPGValue.toFixed(1)} 3PM | ${threePctValue.toFixed(1)}%`
     } else if (family === 'turnovers') {
       // OFFENSIVE: Turnovers committed | DEFENSIVE: Turnovers forced
       const tovValue = type === 'defensive' ? stats.tovPG_def : stats.tovPG
       return `${tovValue.toFixed(1)} TOV/G`
     } else if (family === 'assists') {
-      return `${stats.apg.toFixed(1)} APG`
+      // OFFENSIVE: Assists made | DEFENSIVE: Assists allowed
+      const apgValue = type === 'defensive' ? stats.apg_def : stats.apg
+      return `${apgValue.toFixed(1)} APG`
     } else if (family === 'rebounds') {
-      return `${stats.rpg.toFixed(1)} RPG (${stats.orpg.toFixed(1)} O / ${stats.drpg.toFixed(1)} D)`
+      // OFFENSIVE: Rebounds grabbed | DEFENSIVE: Rebounds allowed
+      const orpgValue = type === 'defensive' ? stats.orpg_def : stats.orpg
+      const drpgValue = type === 'defensive' ? stats.drpg_def : stats.drpg
+      const rpgValue = orpgValue + drpgValue
+      return `${rpgValue.toFixed(1)} RPG (${orpgValue.toFixed(1)} O / ${drpgValue.toFixed(1)} D)`
     }
 
     return null
