@@ -962,6 +962,14 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
     # Step 1: Calculate features for all teams
     all_features = calculate_all_team_features(season)
 
+    # DEBUG: Log what families were computed
+    logger.info(f"[DEBUG assign_all_team_archetypes] all_features keys: {list(all_features.keys())}")
+    logger.info(f"[DEBUG assign_all_team_archetypes] threes_offensive teams: {len(all_features.get('threes_offensive', {}))}")
+    logger.info(f"[DEBUG assign_all_team_archetypes] threes_defensive teams: {len(all_features.get('threes_defensive', {}))}")
+    logger.info(f"[DEBUG assign_all_team_archetypes] assists_offensive teams: {len(all_features.get('assists_offensive', {}))}")
+    logger.info(f"[DEBUG assign_all_team_archetypes] rebounds_offensive teams: {len(all_features.get('rebounds_offensive', {}))}")
+    logger.info(f"[DEBUG assign_all_team_archetypes] turnovers_offensive teams: {len(all_features.get('turnovers_offensive', {}))}")
+
     # Step 2: Standardize features for SCORING archetypes (existing)
     season_offensive_std = standardize_features(
         {tid: data['season'] for tid, data in all_features['offensive'].items()},
@@ -1197,7 +1205,9 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
             }
 
         # ===== THREES ARCHETYPES =====
+        logger.debug(f"[DEBUG] Checking threes for team {team_id}: in season_std={team_id in season_threes_off_std}, in last10_std={team_id in last10_threes_off_std}")
         if team_id in season_threes_off_std and team_id in last10_threes_off_std:
+            logger.info(f"[DEBUG] ✓ Adding threes archetypes for team {team_id}")
             season_threes_off_id = assign_threes_offensive_archetype(season_threes_off_std[team_id])
             last10_threes_off_id = assign_threes_offensive_archetype(last10_threes_off_std[team_id])
             season_threes_def_id = assign_threes_defensive_archetype(season_threes_def_std[team_id])
@@ -1248,6 +1258,8 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
                     'defensive_details': f"STYLE SHIFT: {THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id]['name']} → {THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id]['name']}" if threes_def_shift else ''
                 }
             }
+        else:
+            logger.warning(f"[DEBUG] ✗ SKIPPING threes for team {team_id} - missing standardized features")
 
         # ===== TURNOVERS ARCHETYPES =====
         if team_id in season_turnovers_off_std and team_id in last10_turnovers_off_std:
