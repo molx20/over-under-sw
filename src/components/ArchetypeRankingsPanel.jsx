@@ -86,8 +86,9 @@ const ARCHETYPE_DEFINITIONS = {
 
 /**
  * Extract stats from the splits data based on metric family
+ * @param {boolean} isHomeTeam - Whether this team is playing at home (use _home stats) or away (use _away stats)
  */
-function extractStats(statsData, family, context, window = 'season') {
+function extractStats(statsData, family, context, window = 'season', isHomeTeam = true) {
   if (!statsData) {
     console.warn('[ArchetypeRankingsPanel] No stats data provided for family:', family)
     return null
@@ -121,32 +122,39 @@ function extractStats(statsData, family, context, window = 'season') {
                   || statsData.avg_fg3_pct
                   || 0
   } else if (family === 'turnovers') {
-    // OFFENSIVE: Turnovers committed by the team
+    const locationSuffix = isHomeTeam ? '_home' : '_away'
+
+    // OFFENSIVE: Turnovers committed by the team (split by home/away)
     if (window === 'last10') {
-      stats.tovPG = statsData.last10_avg_turnovers
+      stats.tovPG = statsData[`last10_avg_turnovers${locationSuffix}`]
+                 || statsData.last10_avg_turnovers
                  || statsData.last10_avg_tov
                  || 0
     } else {
-      stats.tovPG = statsData.overall_avg_turnovers
+      stats.tovPG = statsData[`season_avg_turnovers${locationSuffix}`]
+                 || statsData.overall_avg_turnovers
                  || statsData.season_avg_turnovers
                  || statsData.season_avg_tov
                  || statsData.avg_turnovers
                  || 0
     }
 
-    // DEFENSIVE: Turnovers forced (opponent turnovers)
+    // DEFENSIVE: Turnovers forced (opponent turnovers, split by home/away)
     if (window === 'last10') {
-      stats.tovPG_def = statsData.last10_avg_opp_turnovers
+      stats.tovPG_def = statsData[`last10_avg_opp_turnovers${locationSuffix}`]
+                     || statsData.last10_avg_opp_turnovers
                      || statsData.last10_avg_opp_tov
                      || 0
     } else {
-      stats.tovPG_def = statsData.overall_avg_opp_turnovers
+      stats.tovPG_def = statsData[`season_avg_opp_turnovers${locationSuffix}`]
+                     || statsData.overall_avg_opp_turnovers
                      || statsData.season_avg_opp_turnovers
                      || statsData.season_avg_opp_tov
                      || 0
     }
 
     console.log('[ArchetypeRankingsPanel] Extracted turnovers:', {
+      isHomeTeam,
       offensive_tovPG: stats.tovPG,
       defensive_tovPG: stats.tovPG_def,
       window
@@ -302,8 +310,9 @@ function ArchetypeRankingsPanel({
   }
 
   // Extract actual stats (pass window to get correct season/last10 values)
-  const homeStatValues = extractStats(homeStats, family, context, window)
-  const awayStatValues = extractStats(awayStats, family, context, window)
+  // Pass isHomeTeam parameter to get home/away location-specific stats
+  const homeStatValues = extractStats(homeStats, family, context, window, true)
+  const awayStatValues = extractStats(awayStats, family, context, window, false)
 
   return (
     <div className="space-y-8">

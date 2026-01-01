@@ -177,11 +177,23 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
         }
 
         # Calculate season avg and last10 avg turnovers (OFFENSIVE - turnovers committed)
+        # Split by home/away
         all_tovs = [g['team_turnovers'] for g in games if g['team_turnovers'] is not None]
         last10_tovs = [g['team_turnovers'] for g in games[:10] if g['team_turnovers'] is not None]
 
+        home_tovs = [g['team_turnovers'] for g in games if g['team_turnovers'] is not None and g['is_home'] == 1]
+        away_tovs = [g['team_turnovers'] for g in games if g['team_turnovers'] is not None and g['is_home'] == 0]
+        last10_home_tovs = [g['team_turnovers'] for g in games[:10] if g['team_turnovers'] is not None and g['is_home'] == 1]
+        last10_away_tovs = [g['team_turnovers'] for g in games[:10] if g['team_turnovers'] is not None and g['is_home'] == 0]
+
         team_info['season_avg_turnovers'] = round(sum(all_tovs) / len(all_tovs), 1) if all_tovs else 0
         team_info['last10_avg_turnovers'] = round(sum(last10_tovs) / len(last10_tovs), 1) if last10_tovs else 0
+
+        # Home/Away splits
+        team_info['season_avg_turnovers_home'] = round(sum(home_tovs) / len(home_tovs), 1) if home_tovs else 0
+        team_info['season_avg_turnovers_away'] = round(sum(away_tovs) / len(away_tovs), 1) if away_tovs else 0
+        team_info['last10_avg_turnovers_home'] = round(sum(last10_home_tovs) / len(last10_home_tovs), 1) if last10_home_tovs else 0
+        team_info['last10_avg_turnovers_away'] = round(sum(last10_away_tovs) / len(last10_away_tovs), 1) if last10_away_tovs else 0
 
         # Update all field aliases for both season and last10
         team_info['overall_avg_turnovers'] = team_info['season_avg_turnovers']
@@ -192,10 +204,11 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
         team_info['last10_avg_tov'] = team_info['last10_avg_turnovers']
 
         # DEFENSIVE STATS: Calculate opponent turnovers (turnovers FORCED)
-        # Need to query opp_turnovers separately
+        # Need to query opp_turnovers separately with is_home for splits
         cursor.execute('''
             SELECT
-                opp_turnovers
+                opp_turnovers,
+                is_home
             FROM team_game_logs
             WHERE team_id = ?
                 AND season = ?
@@ -208,8 +221,19 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
         all_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games if g['opp_turnovers'] is not None]
         last10_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games[:10] if g['opp_turnovers'] is not None]
 
+        home_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games if g['opp_turnovers'] is not None and g['is_home'] == 1]
+        away_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games if g['opp_turnovers'] is not None and g['is_home'] == 0]
+        last10_home_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games[:10] if g['opp_turnovers'] is not None and g['is_home'] == 1]
+        last10_away_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games[:10] if g['opp_turnovers'] is not None and g['is_home'] == 0]
+
         team_info['season_avg_opp_turnovers'] = round(sum(all_opp_tovs) / len(all_opp_tovs), 1) if all_opp_tovs else 0
         team_info['last10_avg_opp_turnovers'] = round(sum(last10_opp_tovs) / len(last10_opp_tovs), 1) if last10_opp_tovs else 0
+
+        # Home/Away splits for defensive
+        team_info['season_avg_opp_turnovers_home'] = round(sum(home_opp_tovs) / len(home_opp_tovs), 1) if home_opp_tovs else 0
+        team_info['season_avg_opp_turnovers_away'] = round(sum(away_opp_tovs) / len(away_opp_tovs), 1) if away_opp_tovs else 0
+        team_info['last10_avg_opp_turnovers_home'] = round(sum(last10_home_opp_tovs) / len(last10_home_opp_tovs), 1) if last10_home_opp_tovs else 0
+        team_info['last10_avg_opp_turnovers_away'] = round(sum(last10_away_opp_tovs) / len(last10_away_opp_tovs), 1) if last10_away_opp_tovs else 0
 
         # Add defensive field aliases
         team_info['overall_avg_opp_turnovers'] = team_info['season_avg_opp_turnovers']
