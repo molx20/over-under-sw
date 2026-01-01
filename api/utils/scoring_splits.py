@@ -77,13 +77,15 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
     cursor = conn.cursor()
 
     try:
-        # Step 1: Get team info and season average PPG
+        # Step 1: Get team info and season average PPG, rebounds, turnovers
         cursor.execute('''
             SELECT
                 t.team_id,
                 t.team_abbreviation,
                 t.full_name,
-                tss.ppg as season_avg_ppg
+                tss.ppg as season_avg_ppg,
+                tss.rebounds,
+                tss.turnovers
             FROM nba_teams t
             LEFT JOIN team_season_stats tss
                 ON t.team_id = tss.team_id
@@ -107,8 +109,39 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             'season_avg_ppg': team_row['season_avg_ppg'],
             # SAFE MODE ADDITION: Field aliases for frontend compatibility (no frontend changes needed)
             'overall_avg_points': team_row['season_avg_ppg'],  # Frontend expects this field name
-            'season_avg_pts': team_row['season_avg_ppg']       # Alternative frontend field name
+            'season_avg_pts': team_row['season_avg_ppg'],      # Alternative frontend field name
+            # SAFE MODE ADDITION: Turnovers field aliases
+            'overall_avg_turnovers': team_row['turnovers'],    # Frontend expects TOV/G
+            'season_avg_tov': team_row['turnovers'],           # Alternative field name
+            'avg_turnovers': team_row['turnovers'],            # Alternative field name
+            # SAFE MODE ADDITION: Rebounds field aliases
+            'overall_avg_rebounds': team_row['rebounds'],      # Frontend expects RPG
+            'season_avg_reb': team_row['rebounds'],            # Alternative field name
+            'avg_rebounds': team_row['rebounds']                # Alternative field name
         }
+
+        # SAFE MODE ADDITION: Calculate offensive/defensive rebounds from game logs
+        # (team_season_stats doesn't have these broken down)
+        cursor.execute('''
+            SELECT
+                AVG(offensive_rebounds) as avg_oreb,
+                AVG(defensive_rebounds) as avg_dreb
+            FROM team_game_logs
+            WHERE team_id = ?
+                AND season = ?
+                AND game_type IN ('Regular Season', 'NBA Cup')
+                AND offensive_rebounds IS NOT NULL
+                AND defensive_rebounds IS NOT NULL
+        ''', (team_id, season))
+
+        reb_row = cursor.fetchone()
+        if reb_row:
+            team_info['overall_avg_offensive_rebounds'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
+            team_info['season_avg_oreb'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
+            team_info['avg_offensive_rebounds'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
+            team_info['overall_avg_defensive_rebounds'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
+            team_info['season_avg_dreb'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
+            team_info['avg_defensive_rebounds'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
 
         # Step 2: Fetch game logs with opponent defensive rankings
         # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)
