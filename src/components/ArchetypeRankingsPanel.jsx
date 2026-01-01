@@ -102,7 +102,7 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
   if (family === 'scoring') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
-    // PPG with home/away splits
+    // OFFENSIVE: PPG scored by team (with home/away splits)
     if (window === 'last10') {
       stats.ppg = statsData[`last10_avg_ppg${locationSuffix}`]
                || statsData.last10_avg_ppg
@@ -118,7 +118,26 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                || 0
     }
 
-    console.log('[ArchetypeRankingsPanel] Extracted PPG:', stats.ppg, 'from statsData')
+    // DEFENSIVE: PPG allowed (opponent points, with home/away splits)
+    if (window === 'last10') {
+      stats.ppg_def = statsData[`last10_avg_opp_ppg${locationSuffix}`]
+                   || statsData.last10_avg_opp_ppg
+                   || statsData.overall_avg_opp_points
+                   || 0
+    } else {
+      stats.ppg_def = statsData[`season_avg_opp_ppg${locationSuffix}`]
+                   || statsData.overall_avg_opp_points
+                   || statsData.season_avg_opp_ppg
+                   || statsData.season_avg_opp_pts
+                   || 0
+    }
+
+    console.log('[ArchetypeRankingsPanel] Extracted PPG:', {
+      isHomeTeam,
+      offensive_ppg: stats.ppg,
+      defensive_ppg: stats.ppg_def,
+      window
+    })
 
     if (stats.ppg === 0) {
       console.error('[ArchetypeRankingsPanel] PPG is 0! statsData:', statsData)
@@ -592,7 +611,9 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
     if (!stats) return null
 
     if (family === 'scoring') {
-      return `${stats.ppg.toFixed(1)} PPG`
+      // OFFENSIVE: Points scored | DEFENSIVE: Points allowed
+      const ppgValue = type === 'defensive' ? stats.ppg_def : stats.ppg
+      return `${ppgValue.toFixed(1)} PPG`
     } else if (family === 'threes') {
       return `${stats.threesPG.toFixed(1)} 3PM | ${(stats.threePct * 100).toFixed(1)}%`
     } else if (family === 'turnovers') {

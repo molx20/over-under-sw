@@ -186,6 +186,7 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             SELECT
                 tgl.is_home,
                 tgl.team_pts,
+                tgl.opp_pts,
                 tss_opp.def_rtg_rank
             FROM team_game_logs tgl
             LEFT JOIN team_season_stats tss_opp
@@ -195,13 +196,14 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             WHERE tgl.team_id = ?
                 AND tgl.season = ?
                 AND tgl.team_pts IS NOT NULL
+                AND tgl.opp_pts IS NOT NULL
                 AND tgl.game_type IN ('Regular Season', 'NBA Cup')
             ORDER BY tgl.game_date DESC
         ''', (team_id, season))
 
         game_logs = cursor.fetchall()
 
-        # Step 2.5: Calculate season and last10 home/away splits for PPG
+        # Step 2.5: Calculate season and last10 home/away splits for PPG (OFFENSIVE)
         all_pts = [g['team_pts'] for g in game_logs if g['team_pts'] is not None]
         last10_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None]
 
@@ -210,19 +212,39 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
         last10_home_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None and g['is_home'] == 1]
         last10_away_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None and g['is_home'] == 0]
 
-        # Update season_avg_ppg from actual game logs (more accurate than team_season_stats)
+        # OFFENSIVE: Points scored by team
         team_info['season_avg_ppg'] = round(sum(all_pts) / len(all_pts), 1) if all_pts else 0
         team_info['last10_avg_ppg'] = round(sum(last10_pts) / len(last10_pts), 1) if last10_pts else 0
 
-        # Home/Away splits for PPG
+        # Home/Away splits for offensive PPG
         team_info['season_avg_ppg_home'] = round(sum(home_pts) / len(home_pts), 1) if home_pts else 0
         team_info['season_avg_ppg_away'] = round(sum(away_pts) / len(away_pts), 1) if away_pts else 0
         team_info['last10_avg_ppg_home'] = round(sum(last10_home_pts) / len(last10_home_pts), 1) if last10_home_pts else 0
         team_info['last10_avg_ppg_away'] = round(sum(last10_away_pts) / len(last10_away_pts), 1) if last10_away_pts else 0
 
+        # DEFENSIVE: Points allowed (opponent points)
+        all_opp_pts = [g['opp_pts'] for g in game_logs if g['opp_pts'] is not None]
+        last10_opp_pts = [g['opp_pts'] for g in game_logs[:10] if g['opp_pts'] is not None]
+
+        home_opp_pts = [g['opp_pts'] for g in game_logs if g['opp_pts'] is not None and g['is_home'] == 1]
+        away_opp_pts = [g['opp_pts'] for g in game_logs if g['opp_pts'] is not None and g['is_home'] == 0]
+        last10_home_opp_pts = [g['opp_pts'] for g in game_logs[:10] if g['opp_pts'] is not None and g['is_home'] == 1]
+        last10_away_opp_pts = [g['opp_pts'] for g in game_logs[:10] if g['opp_pts'] is not None and g['is_home'] == 0]
+
+        team_info['season_avg_opp_ppg'] = round(sum(all_opp_pts) / len(all_opp_pts), 1) if all_opp_pts else 0
+        team_info['last10_avg_opp_ppg'] = round(sum(last10_opp_pts) / len(last10_opp_pts), 1) if last10_opp_pts else 0
+
+        # Home/Away splits for defensive PPG (points allowed)
+        team_info['season_avg_opp_ppg_home'] = round(sum(home_opp_pts) / len(home_opp_pts), 1) if home_opp_pts else 0
+        team_info['season_avg_opp_ppg_away'] = round(sum(away_opp_pts) / len(away_opp_pts), 1) if away_opp_pts else 0
+        team_info['last10_avg_opp_ppg_home'] = round(sum(last10_home_opp_pts) / len(last10_home_opp_pts), 1) if last10_home_opp_pts else 0
+        team_info['last10_avg_opp_ppg_away'] = round(sum(last10_away_opp_pts) / len(last10_away_opp_pts), 1) if last10_away_opp_pts else 0
+
         # Update all field aliases
         team_info['overall_avg_points'] = team_info['season_avg_ppg']
         team_info['season_avg_pts'] = team_info['season_avg_ppg']
+        team_info['overall_avg_opp_points'] = team_info['season_avg_opp_ppg']
+        team_info['season_avg_opp_pts'] = team_info['season_avg_opp_ppg']
 
         # Step 3: Aggregate games by tier and location
         # Initialize buckets: {tier: {home: [pts], away: [pts]}}
