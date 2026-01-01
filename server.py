@@ -1801,6 +1801,16 @@ def get_team_archetypes():
         # Get all archetype assignments
         all_assignments = assign_all_team_archetypes(season)
 
+        # DEBUG: Log what families are in the assignments
+        if all_assignments:
+            sample_team_id = list(all_assignments.keys())[0]
+            sample_keys = list(all_assignments[sample_team_id].keys())
+            print(f'[DEBUG team_archetypes] Sample team {sample_team_id} has keys: {sample_keys}')
+            if 'threes' in all_assignments[sample_team_id]:
+                print(f'[DEBUG team_archetypes] ✓ threes data exists: {list(all_assignments[sample_team_id]["threes"].keys())}')
+            else:
+                print(f'[DEBUG team_archetypes] ✗ threes data MISSING')
+
         # Filter to single team if requested
         if team_id:
             if team_id not in all_assignments:
@@ -1868,6 +1878,15 @@ def get_team_archetypes():
                 'threes': assignment.get('threes', {}),
                 'turnovers': assignment.get('turnovers', {})
             }
+
+        # DEBUG: Log response structure
+        if enriched_data:
+            sample_response_id = list(enriched_data.keys())[0]
+            sample_response = enriched_data[sample_response_id]
+            print(f'[DEBUG team_archetypes] Response keys for team {sample_response_id}: {list(sample_response.keys())}')
+            print(f'[DEBUG team_archetypes] threes in response: {"threes" in sample_response}')
+            if 'threes' in sample_response:
+                print(f'[DEBUG team_archetypes] threes content: {sample_response["threes"]}')
 
         return jsonify({
             'success': True,

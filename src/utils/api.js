@@ -685,7 +685,23 @@ export const fetchTeamArchetypes = async (teamId = null, season = '2025-26') => 
       throw new Error(response.data?.error || 'Invalid response from server')
     }
 
-    return response.data.archetypes
+    // DEBUG: Log API response structure
+    const archetypes = response.data.archetypes
+    if (archetypes) {
+      const sampleTeamId = Object.keys(archetypes)[0]
+      const sampleTeam = archetypes[sampleTeamId]
+      console.log('[DEBUG fetchTeamArchetypes] Sample team ID:', sampleTeamId)
+      console.log('[DEBUG fetchTeamArchetypes] Sample team keys:', Object.keys(sampleTeam))
+      console.log('[DEBUG fetchTeamArchetypes] Has threes?', 'threes' in sampleTeam)
+      if ('threes' in sampleTeam) {
+        console.log('[DEBUG fetchTeamArchetypes] threes content:', sampleTeam.threes)
+        console.log('[DEBUG fetchTeamArchetypes] threes keys:', Object.keys(sampleTeam.threes))
+      } else {
+        console.error('[DEBUG fetchTeamArchetypes] ✗ threes MISSING from API response!')
+      }
+    }
+
+    return archetypes
   } catch (error) {
     console.error('[fetchTeamArchetypes] Error:', error)
     throw new Error(error.response?.data?.error || error.message || 'Failed to fetch team archetypes')
