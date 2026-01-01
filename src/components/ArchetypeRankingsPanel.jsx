@@ -122,9 +122,12 @@ function extractStats(statsData, family, context) {
                   || 0
   } else if (family === 'turnovers') {
     stats.tovPG = statsData.overall_avg_turnovers
+               || statsData.season_avg_turnovers  // Fixed: was season_avg_tov
                || statsData.season_avg_tov
                || statsData.avg_turnovers
                || 0
+
+    console.log('[ArchetypeRankingsPanel] Extracted turnovers:', { tovPG: stats.tovPG })
   } else if (family === 'assists') {
     stats.apg = statsData.overall_avg_assists
              || statsData.season_avg_ast

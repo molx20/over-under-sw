@@ -134,7 +134,11 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
             'team_abbreviation': team_row['team_abbreviation'],
             'full_name': team_row['full_name'],
             'season': season,
-            'season_avg_turnovers': team_row['season_avg_turnovers'] or 0
+            'season_avg_turnovers': team_row['season_avg_turnovers'] or 0,
+            # SAFE MODE ADDITION: Field aliases for frontend compatibility (no frontend changes needed)
+            'overall_avg_turnovers': team_row['season_avg_turnovers'] or 0,  # Frontend expects this field name
+            'season_avg_tov': team_row['season_avg_turnovers'] or 0,          # Alternative field name
+            'avg_turnovers': team_row['season_avg_turnovers'] or 0            # Alternative field name
         }
 
         # Step 2: Get all games with pace data
