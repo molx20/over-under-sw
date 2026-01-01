@@ -131,7 +131,35 @@ function AdvancedSplitsPanel({
         </div>
       </div>
 
-      {/* Time Window Toggle (Season | Last 10) */}
+      {/* Context Toggle (Defense Tiers | Pace Buckets) - Only for non-Rebounds */}
+      {metric !== 'rebounds' && (
+        <div className="mb-3">
+          <div className="inline-flex w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden">
+            <button
+              onClick={() => setContext('defense')}
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors border-r border-gray-300 dark:border-gray-600 ${
+                context === 'defense'
+                  ? 'bg-gray-700 dark:bg-gray-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Defense Tiers
+            </button>
+            <button
+              onClick={() => setContext('pace')}
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+                context === 'pace'
+                  ? 'bg-gray-700 dark:bg-gray-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Pace Buckets
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Time Window Toggle (Season | Last 10) - Only for Archetypes */}
       <div className="mb-6">
         <div className="inline-flex w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden">
           <button
@@ -202,7 +230,7 @@ function AdvancedSplitsPanel({
         )}
       </div>
 
-      {/* Archetype Rankings Panel - Replaces ALL bar graphs */}
+      {/* Archetype Context Panel - Shows archetype info above stats */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         {metric === 'scoring' && (
           <ArchetypeRankingsPanel
@@ -250,8 +278,7 @@ function AdvancedSplitsPanel({
         )}
       </div>
 
-      {/* Dynamic Chart Rendering - DISABLED (Replaced by ArchetypeRankingsPanel) */}
-      {false && (
+      {/* Dynamic Chart Rendering - ACTUAL STATS BARS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Scoring + Defense */}
         {metric === 'scoring' && context === 'defense' && scoringSplitsData && (
@@ -349,11 +376,8 @@ function AdvancedSplitsPanel({
           </>
         )}
       </div>
-      )}
 
-      {/* Loading States - DISABLED (No longer needed with ArchetypeRankingsPanel) */}
-      {false && (
-      <>
+      {/* Loading States */}
       {metric === 'scoring' && splitsLoading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
@@ -395,8 +419,6 @@ function AdvancedSplitsPanel({
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
           <p>Loading assists vs pace...</p>
         </div>
-      )}
-      </>
       )}
     </div>
   )

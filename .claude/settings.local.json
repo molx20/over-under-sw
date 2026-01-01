@@ -96,7 +96,9 @@
       "Bash(xargs cat:*)",
       "Bash(python total_drivers_analysis.py:*)",
       "Bash(PORT=5001 python3:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(timeout 5 python3:*)",
+      "Bash(/tasks)"
     ],
     "deny": [],
     "ask": []

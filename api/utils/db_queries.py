@@ -310,6 +310,9 @@ def get_team_stats_with_ranks(team_id: int, season: str = '2025-26') -> Optional
             'fta': {'value': row['fta'] if 'fta' in row.keys() else None, 'rank': None},
             'turnovers': {'value': row['turnovers'] if 'turnovers' in row.keys() else None, 'rank': None},
             'fg3a': {'value': row['fg3a'] if 'fg3a' in row.keys() else None, 'rank': None},
+            # Add stats for variance indicators in BoxScoreModal
+            'efg_pct': {'value': row['efg_pct'] if 'efg_pct' in row.keys() else None, 'rank': None},
+            'ft_ppg': {'value': row['ft_ppg'] if 'ft_ppg' in row.keys() else None, 'rank': None},
         }
     }
 
@@ -375,8 +378,11 @@ def get_team_last_n_games(team_id: int, n: int = 5, season: str = '2025-26') -> 
             'AST': row['assists'],
             'TOV': row['turnovers'],
             'FGM': row['fgm'],  # Fixed: column is 'fgm' not 'fg_made'
+            'FGA': row['fga'],
             'FG3A': row['fg3a'],
             'FG3M': row['fg3m'],
+            'FTM': row['ftm'],
+            'FTA': row['fta'],
             'PTS_PAINT': row['points_in_paint'],
             'OPP_PTS_PAINT': row['opp_points_in_paint'],
             'PTS_FB': row['fast_break_points'],

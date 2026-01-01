@@ -86,6 +86,22 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
     season_pace = season_stats['stats']['pace']['value']
     season_ppg = season_stats['stats']['ppg']['value']
     season_apg = season_stats['stats']['apg']['value'] if season_stats['stats'].get('apg') and season_stats['stats']['apg']['value'] else 0.0
+    season_efg = season_stats['stats']['efg_pct']['value'] if season_stats['stats'].get('efg_pct') and season_stats['stats']['efg_pct']['value'] else 0.0
+    season_ft_ppg = season_stats['stats']['ft_ppg']['value'] if season_stats['stats'].get('ft_ppg') and season_stats['stats']['ft_ppg']['value'] else 0.0
+    season_tov = season_stats['stats']['turnovers']['value'] if season_stats['stats'].get('turnovers') and season_stats['stats']['turnovers']['value'] else 0.0
+
+    # Get season average paint points from game logs
+    from api.utils.db_queries import _get_db_connection
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT AVG(points_in_paint) as avg_pitp
+        FROM team_game_logs
+        WHERE team_id = ? AND season = ?
+    """, (team_id, season))
+    pitp_result = cursor.fetchone()
+    conn.close()
+    season_paint_points = round(pitp_result[0], 1) if pitp_result and pitp_result[0] else 0.0
 
     # Build season averages dict
     season_avg = {
@@ -93,7 +109,11 @@ def get_last_5_trends(team_id: int, team_tricode: str, season: str = '2025-26') 
         'off_rtg': round(season_off_rtg, 1),
         'def_rtg': round(season_def_rtg, 1),
         'ppg': round(season_ppg, 1),
-        'apg': round(season_apg, 1)
+        'apg': round(season_apg, 1),
+        'efg': round(season_efg, 1),
+        'ft_points': round(season_ft_ppg, 1),
+        'paint_points': season_paint_points,
+        'tov': round(season_tov, 1)
     }
 
     # Compute deltas (last5 - season)
@@ -182,9 +202,18 @@ def _enrich_game_with_opponent(game: Dict, season: str) -> Optional[Dict]:
         # Get opponent's season stats
         opponent_stats = get_team_stats_with_ranks(opponent_id, season)
 
-        # Extract 3PT data for calculation
+        # Extract shooting data for calculations
+        fgm = game.get('FGM', 0)
+        fga = game.get('FGA', 0)
         fg3m = game.get('FG3M', 0)
         fg3a = game.get('FG3A', 0)
+        ftm = game.get('FTM', 0)
+        pts_paint = game.get('PTS_PAINT', 0)
+
+        # Calculate eFG%: (FGM + 0.5 * 3PM) / FGA * 100
+        efg_pct = 0
+        if fga > 0:
+            efg_pct = round(((fgm + 0.5 * fg3m) / fga) * 100, 1)
 
         # Calculate 3PT scoring object
         three_pt_points = fg3m * 3
@@ -212,6 +241,9 @@ def _enrich_game_with_opponent(game: Dict, season: str) -> Optional[Dict]:
             'team_def_rtg': game.get('DEF_RATING', 0),
             # Detailed box score stats
             'pace': game.get('PACE', 0),
+            'efg_pct': efg_pct,
+            'ft_points': ftm,
+            'paint_points': pts_paint,
             'three_pt': three_pt_obj,
             'tov': game.get('TOV', 0),
             'ast': game.get('AST', 0),
@@ -272,7 +304,7 @@ def _compute_averages(games: List[Dict]) -> Dict:
         games: List of enriched game records
 
     Returns:
-        Dict with averages: pace, off_rtg, def_rtg, ppg, apg, opp_ppg
+        Dict with averages: pace, off_rtg, def_rtg, ppg, apg, opp_ppg, efg, ft_points, paint_points, tov
     """
     if not games:
         return {
@@ -281,7 +313,11 @@ def _compute_averages(games: List[Dict]) -> Dict:
             'def_rtg': 0.0,
             'ppg': 0.0,
             'apg': 0.0,
-            'opp_ppg': 0.0
+            'opp_ppg': 0.0,
+            'efg': 0.0,
+            'ft_points': 0.0,
+            'paint_points': 0.0,
+            'tov': 0.0
         }
 
     # Extract valid values (filter out None/0)
@@ -291,6 +327,10 @@ def _compute_averages(games: List[Dict]) -> Dict:
     ppg_vals = [g['team_pts'] for g in games if g.get('team_pts')]
     apg_vals = [g['ast'] for g in games if g.get('ast') is not None]
     opp_ppg_vals = [g['opp_pts'] for g in games if g.get('opp_pts')]
+    efg_vals = [g['efg_pct'] for g in games if g.get('efg_pct') is not None]
+    ft_points_vals = [g['ft_points'] for g in games if g.get('ft_points') is not None]
+    paint_points_vals = [g['paint_points'] for g in games if g.get('paint_points') is not None]
+    tov_vals = [g['tov'] for g in games if g.get('tov') is not None]
 
     return {
         'pace': round(_safe_avg(pace_vals), 1),
@@ -298,7 +338,11 @@ def _compute_averages(games: List[Dict]) -> Dict:
         'def_rtg': round(_safe_avg(def_vals), 1),
         'ppg': round(_safe_avg(ppg_vals), 1),
         'apg': round(_safe_avg(apg_vals), 1),
-        'opp_ppg': round(_safe_avg(opp_ppg_vals), 1)
+        'opp_ppg': round(_safe_avg(opp_ppg_vals), 1),
+        'efg': round(_safe_avg(efg_vals), 1),
+        'ft_points': round(_safe_avg(ft_points_vals), 1),
+        'paint_points': round(_safe_avg(paint_points_vals), 1),
+        'tov': round(_safe_avg(tov_vals), 1)
     }
 
 

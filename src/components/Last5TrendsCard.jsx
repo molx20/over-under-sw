@@ -235,6 +235,14 @@ function Last5TrendsCard({ teamAbbr, trends, side, prediction, seasonPPG }) {
         onClose={handleCloseModal}
         game={selectedGame}
         teamAbbr={teamAbbr}
+        summary={season_avg ? {
+          ppg: season_avg.ppg,
+          efg: season_avg.efg,
+          ft_points: season_avg.ft_points,
+          paint_points: season_avg.paint_points,
+          ast: season_avg.ast,
+          tov: season_avg.tov
+        } : null}
       />
     </div>
   )

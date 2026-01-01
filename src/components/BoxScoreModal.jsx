@@ -3,10 +3,10 @@
  *
  * Modal popup that displays detailed game box score when clicking on opponent chips
  */
-function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
+function BoxScoreModal({ isOpen, onClose, game, teamAbbr, summary = null }) {
   if (!isOpen || !game) return null
 
-  const opponentTricode = game.opponent?.tricode || 'UNK'
+  const opponentTricode = game.opponent?.tricode || game.opp_abbr || 'UNK'
   const oppPts = game.opp_pts || 0
   const teamPts = game.team_pts || 0
   const totalPts = teamPts + oppPts
@@ -22,6 +22,43 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
   const turnovers = Number(game.tov) || 0
   const assists = Number(game.ast) || 0
   const rebounds = Number(game.reb) || 0
+
+  // Calculate additional stats for variance
+  const efgPct = game.efg_pct || 0
+  const ftPoints = game.ft_points || game.ftm || 0
+  const paintPoints = game.paint_points || 0
+
+  // Calculate variances from summary averages (if available)
+  const ptsVariance = summary ? teamPts - (summary.ppg || 0) : null
+  const efgVariance = summary ? efgPct - (summary.efg || 0) : null
+  const ftVariance = summary ? ftPoints - (summary.ft_points || 0) : null
+  const paintVariance = summary ? paintPoints - (summary.paint_points || 0) : null
+  const astVariance = summary ? assists - (summary.ast || 0) : null
+  const tovVariance = summary ? turnovers - (summary.tov || 0) : null
+
+  // Helper to render stat with variance
+  const renderStatWithVariance = (value, variance, suffix = '') => {
+    if (variance === null || variance === undefined) {
+      return <>{value}{suffix}</>
+    }
+
+    const varianceColor = variance > 0
+      ? 'text-green-600 dark:text-green-400'
+      : variance < 0
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-gray-500 dark:text-gray-400'
+
+    const varianceSign = variance > 0 ? '+' : ''
+
+    return (
+      <>
+        {value}{suffix}{' '}
+        <span className={varianceColor}>
+          ({varianceSign}{variance.toFixed(1)})
+        </span>
+      </>
+    )
+  }
 
   // Determine result color
   const isWin = teamPts > oppPts
@@ -80,6 +117,11 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
               <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                 {teamAbbr} {teamPts} - {oppPts} {opponentTricode}
               </div>
+              {ptsVariance !== null && (
+                <div className="text-sm font-medium mb-1">
+                  {renderStatWithVariance('', ptsVariance, ' pts vs avg')}
+                </div>
+              )}
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 Total: {totalPts}
               </div>
@@ -88,14 +130,32 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
             {/* Key Stats Grid */}
             <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">eFG%</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {renderStatWithVariance(efgPct.toFixed(1), efgVariance, '%')}
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">FT Points</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {renderStatWithVariance(ftPoints, ftVariance)}
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Paint Points</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {renderStatWithVariance(paintPoints, paintVariance)}
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Pace</div>
-                <div className="text-xl font-bold text-gray-900 dark:text-white">{pace.toFixed(1)}</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">{pace.toFixed(1)}</div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">3PT Points</div>
                 {threePt ? (
                   <>
-                    <div className="text-xl font-bold text-gray-900 dark:text-white">{threePt.points || 0} PTS</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">{threePt.points || 0} PTS</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       ({threePt.made || 0}/{threePt.attempted || 0} · {
                         threePt.percentage != null
@@ -106,22 +166,26 @@ function BoxScoreModal({ isOpen, onClose, game, teamAbbr }) {
                   </>
                 ) : (
                   <>
-                    <div className="text-xl font-bold text-gray-900 dark:text-white">—</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">—</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">No 3PT data</div>
                   </>
                 )}
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">TO</div>
-                <div className="text-xl font-bold text-gray-900 dark:text-white">{turnovers}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Assists</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {renderStatWithVariance(assists, astVariance)}
+                </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Assists</div>
-                <div className="text-xl font-bold text-gray-900 dark:text-white">{assists}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">TO</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {renderStatWithVariance(turnovers, tovVariance)}
+                </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Reb</div>
-                <div className="text-xl font-bold text-gray-900 dark:text-white">{rebounds}</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">{rebounds}</div>
               </div>
             </div>
 

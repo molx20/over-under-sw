@@ -692,6 +692,32 @@ export const fetchTeamArchetypes = async (teamId = null, season = '2025-26') => 
   }
 }
 
+export const fetchArchetypeGames = async (teamId, archetypeType, archetypeId, window, season = '2025-26') => {
+  try {
+    const params = {
+      team_id: teamId,
+      archetype_type: archetypeType,
+      archetype_id: archetypeId,
+      window: window,
+      season: season
+    }
+
+    const response = await api.get('/team-archetype-games', { params })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return {
+      games: response.data.games || [],
+      stats: response.data.stats || {}
+    }
+  } catch (error) {
+    console.error('[fetchArchetypeGames] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch archetype games')
+  }
+}
+
 /**
  * Hook to fetch team archetypes
  * Cache key: ['team-archetypes', teamId, season]
@@ -705,5 +731,71 @@ export const useTeamArchetypes = (teamId = null, season = '2025-26') => {
     cacheTime: 7_200_000,     // Keep in memory for 2 hours
     retry: 1,
     refetchOnWindowFocus: false,
+  })
+}
+
+export const useArchetypeGames = (teamId, archetypeType, archetypeId, window, season = '2025-26', enabled = true) => {
+  return useQuery({
+    queryKey: ['archetype-games', teamId, archetypeType, archetypeId, window, season],
+    queryFn: () => fetchArchetypeGames(teamId, archetypeType, archetypeId, window, season),
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+    enabled: enabled && !!teamId && !!archetypeType && !!archetypeId && !!window
+  })
+}
+
+// ============================================
+// Games vs Archetype (Opponent Archetype)
+// ============================================
+
+/**
+ * Fetch games where a team played AGAINST opponents with a specific archetype
+ */
+export const fetchTeamVsArchetypeGames = async (teamId, archetypeType, archetypeId, window, season = '2025-26') => {
+  try {
+    const params = {
+      team_id: teamId,
+      archetype_type: archetypeType,
+      archetype_id: archetypeId,
+      window: window,
+      season: season
+    }
+
+    const response = await api.get('/team-vs-archetype-games', { params })
+
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error || 'Invalid response from server')
+    }
+
+    return {
+      summary: response.data.summary || {},
+      games: response.data.games || [],
+      team_abbr: response.data.team_abbr,
+      archetype_type: response.data.archetype_type,
+      archetype_id: response.data.archetype_id,
+      window: response.data.window
+    }
+  } catch (error) {
+    console.error('[fetchTeamVsArchetypeGames] Error:', error)
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch games vs archetype')
+  }
+}
+
+/**
+ * Hook to fetch games where a team played vs opponents with specific archetype
+ * Cache key: ['team-vs-archetype-games', teamId, archetypeType, archetypeId, window, season]
+ * Stale time: 1 hour
+ */
+export const useTeamVsArchetypeGames = (teamId, archetypeType, archetypeId, window, season = '2025-26', enabled = true) => {
+  return useQuery({
+    queryKey: ['team-vs-archetype-games', teamId, archetypeType, archetypeId, window, season],
+    queryFn: () => fetchTeamVsArchetypeGames(teamId, archetypeType, archetypeId, window, season),
+    staleTime: 3_600_000,     // Fresh for 1 hour
+    cacheTime: 7_200_000,     // Keep in memory for 2 hours
+    retry: 1,
+    refetchOnWindowFocus: false,
+    enabled: enabled && !!teamId && !!archetypeType && !!archetypeId && !!window
   })
 }

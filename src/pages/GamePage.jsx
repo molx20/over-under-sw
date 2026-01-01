@@ -13,6 +13,9 @@ function GamePage() {
   console.log('[GamePage] gameId from useParams:', gameId)
   const navigate = useNavigate()
 
+  // Check for debug mode via URL parameter (?debug=1)
+  const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1'
+
   // Tab state for main content sections (DATA ONLY MODE)
   const [activeTab, setActiveTab] = useState('last5') // 'last5' | 'splits' | 'similar-opponents'
 
@@ -125,6 +128,19 @@ function GamePage() {
   }
 
   const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
+
+  // 🚨 CRITICAL DEBUG - Print archetype JSON to console
+  console.log('═══════════════════════════════════════════════════════')
+  console.log('🔍 ARCHETYPE DATA VERIFICATION (Step 2 of 3)')
+  console.log('═══════════════════════════════════════════════════════')
+  console.log('Game:', `${away_team?.abbreviation} @ ${home_team?.abbreviation}`)
+  console.log('Build Hash: 4c5d2d9')
+  console.log('Data Fetched:', new Date().toLocaleTimeString())
+  console.log('\n📊 HOME ARCHETYPES:')
+  console.log(JSON.stringify(gameData.home_archetypes, null, 2))
+  console.log('\n📊 AWAY ARCHETYPES:')
+  console.log(JSON.stringify(gameData.away_archetypes, null, 2))
+  console.log('═══════════════════════════════════════════════════════\n')
 
   // Calculate decision values (without useMemo to avoid infinite render with React Query)
   let decision = null
@@ -344,10 +360,66 @@ function GamePage() {
         </div>
       )}
 
-      {/* Debug watermark - shows commit hash in footer (dev mode only) */}
-      {import.meta.env.MODE !== 'production' && (
-        <div className="fixed bottom-0 right-0 text-xs text-gray-400 dark:text-gray-600 p-2 opacity-50 bg-gray-100 dark:bg-gray-800 rounded-tl">
-          Build: {import.meta.env.VITE_GIT_COMMIT_HASH || 'dev-local'} | {new Date().toISOString().split('T')[0]}
+      {/* Debug Panel - CRITICAL FOR DIAGNOSING STALE UI (only with ?debug=1) */}
+      {import.meta.env.MODE !== 'production' && isDebugMode && (
+        <div className="fixed bottom-0 right-0 text-xs bg-gray-900 text-white p-3 rounded-tl-lg shadow-lg max-w-md border border-gray-700 z-50">
+          <div className="font-bold text-yellow-400 mb-2">🔍 DEBUG PANEL</div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Build Hash:</span>
+              <span className="font-mono text-green-400">4c5d2d9</span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">Build Time:</span>
+              <span className="font-mono text-green-400">{new Date().toISOString().split('T')[0]}</span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400">API Base:</span>
+              <span className="font-mono text-green-400 truncate">
+                {import.meta.env.VITE_API_URL || 'http://localhost:5001'}
+              </span>
+            </div>
+
+            {gameData && (
+              <>
+                <div className="border-t border-gray-700 my-2"></div>
+                <div className="font-semibold text-blue-400">Archetype Data:</div>
+
+                {gameData.home_archetypes ? (
+                  <>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-400">Home Season OFF:</span>
+                      <span className="font-mono text-green-400 text-[10px]">
+                        {gameData.home_archetypes.season_offensive?.id || 'NULL'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-400">Home Last10 OFF:</span>
+                      <span className="font-mono text-yellow-400 text-[10px]">
+                        {gameData.home_archetypes.last10_offensive?.id || 'NULL'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-400">Style Shift:</span>
+                      <span className={`font-bold ${gameData.home_archetypes.style_shifts?.offensive ? 'text-red-400' : 'text-gray-500'}`}>
+                        {gameData.home_archetypes.style_shifts?.offensive ? 'YES' : 'NO'}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-red-400 font-bold">⚠️ NO ARCHETYPE DATA</div>
+                )}
+
+                <div className="border-t border-gray-700 my-2"></div>
+                <div className="text-[10px] text-gray-500">
+                  Data fetched: {new Date().toLocaleTimeString()}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
