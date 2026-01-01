@@ -244,7 +244,7 @@ function AdvancedSplitsPanel({
           />
         )}
 
-        {metric === 'threePt' && (context === 'defense' ? threePtSplitsData : threePtVsPaceData) && (
+        {metric === 'threePt' && homeArchetypes && awayArchetypes && (
           <ArchetypeRankingsPanel
             family="threes"
             homeArchetypes={homeArchetypes}
@@ -256,7 +256,7 @@ function AdvancedSplitsPanel({
           />
         )}
 
-        {metric === 'turnovers' && (context === 'defense' ? turnoverVsDefenseData : turnoverVsPaceData) && (
+        {metric === 'turnovers' && homeArchetypes && awayArchetypes && (
           <ArchetypeRankingsPanel
             family="turnovers"
             homeArchetypes={homeArchetypes}
@@ -268,7 +268,7 @@ function AdvancedSplitsPanel({
           />
         )}
 
-        {metric === 'assists' && (context === 'defense' ? assistsVsDefenseData : assistsVsPaceData) && (
+        {metric === 'assists' && homeArchetypes && awayArchetypes && (
           <ArchetypeRankingsPanel
             family="assists"
             homeArchetypes={homeArchetypes}
@@ -280,7 +280,7 @@ function AdvancedSplitsPanel({
           />
         )}
 
-        {metric === 'rebounds' && scoringSplitsData && (
+        {metric === 'rebounds' && homeArchetypes && awayArchetypes && (
           <ArchetypeRankingsPanel
             family="rebounds"
             homeArchetypes={homeArchetypes}
