@@ -52,19 +52,14 @@ CORS(app)
 # ============================================================================
 # SCIPY STARTUP HEALTH CHECK
 # ============================================================================
-# Verify scipy is installed and log version for debugging
+# Check if scipy is available (optional - falls back to math.erf if not)
 try:
     import scipy
     print(f"[server] ✓ scipy {scipy.__version__} successfully loaded")
-    print(f"[server] ✓ Archetype percentile calculations enabled")
-except ImportError as e:
-    error_msg = (
-        "CRITICAL STARTUP FAILURE: scipy is not installed. "
-        "Archetype calculations require scipy>=1.13.1. "
-        "Please rebuild Docker container with scipy dependencies."
-    )
-    print(f"[server] ✗ {error_msg}")
-    raise RuntimeError(error_msg) from e
+    print(f"[server] ✓ Using scipy.stats.norm.cdf for archetype percentiles")
+except ImportError:
+    print(f"[server] ⚠ scipy not available - using math.erf fallback (100% accurate)")
+    print(f"[server] ℹ Archetype percentile calculations will use pure Python implementation")
 
 # Enable performance logging middleware
 create_timing_middleware(app)

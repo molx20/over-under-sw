@@ -20,8 +20,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies REQUIRED for scipy compilation
-# scipy is a MANDATORY dependency for archetype percentile calculations
+# Install system dependencies for scipy compilation (optional optimization)
+# scipy improves performance but app works without it using math.erf fallback
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -33,12 +33,11 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY requirements.txt .
 
-# Install Python dependencies - scipy is REQUIRED (app will crash without it)
-# Build tools installed above are necessary for scipy wheel compilation
+# Install Python dependencies
+# scipy is OPTIONAL - app will use math.erf fallback if scipy installation fails
 RUN pip install --no-cache-dir -r requirements.txt && \
     echo "=== Python Dependencies Installed ===" && \
-    pip show scipy && \
-    echo "✓ scipy successfully installed" || (echo "✗ CRITICAL: scipy installation failed" && exit 1)
+    (pip show scipy && echo "✓ scipy installed - using optimized percentile calculations" || echo "⚠ scipy not installed - using math.erf fallback (100% accurate)")
 
 # Copy application code
 COPY . .
