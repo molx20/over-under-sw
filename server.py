@@ -2067,6 +2067,197 @@ def team_vs_archetype_games():
         }), 500
 
 
+@app.route('/api/archetype_match_games', methods=['GET'])
+def archetype_match_games():
+    """
+    Get games where a team played AGAINST opponents with a specific archetype,
+    FILTERED BY HOME/AWAY ROLE.
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - category: archetype category - 'scoring', 'assists', 'rebounds', 'threes', 'turnovers' (required)
+        - side: 'offensive' or 'defensive' (required)
+        - label: archetype label/id string (required)
+        - window: 'season' or 'last10' (required)
+        - role: 'home' or 'away' (required) - filter games by team's role
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'team_id': 1610612753,
+            'team_abbr': 'ORL',
+            'category': 'threes',
+            'side': 'defensive',
+            'label': 'perimeter_lockdown',
+            'window': 'last10',
+            'role': 'home',
+            'games': [
+                {
+                    'game_id': '0022500123',
+                    'game_date': '2025-11-15',
+                    'matchup': 'ORL vs. BOS',
+                    'wl': 'W',
+                    'team_pts': 112,
+                    'opp_pts': 108,
+                    'opponent': {
+                        'tricode': 'BOS',
+                        'team_id': 1610612738
+                    }
+                }
+            ]
+        }
+    """
+    try:
+        print('[archetype_match_games] Request received')
+
+        team_id = request.args.get('team_id', type=int)
+        category = request.args.get('category')
+        side = request.args.get('side')
+        label = request.args.get('label')
+        window = request.args.get('window')
+        role = request.args.get('role')
+        season = request.args.get('season', '2025-26')
+
+        print(f'[archetype_match_games] Params: team_id={team_id}, category={category}, side={side}, label={label}, window={window}, role={role}')
+
+        # Validate required params
+        if not team_id:
+            return jsonify({'success': False, 'error': 'team_id is required'}), 400
+        if not category or category not in ['scoring', 'assists', 'rebounds', 'threes', 'turnovers']:
+            return jsonify({'success': False, 'error': 'category must be scoring, assists, rebounds, threes, or turnovers'}), 400
+        if not side or side not in ['offensive', 'defensive']:
+            return jsonify({'success': False, 'error': 'side must be offensive or defensive'}), 400
+        if not label:
+            return jsonify({'success': False, 'error': 'label is required'}), 400
+        if not window or window not in ['season', 'last10']:
+            return jsonify({'success': False, 'error': 'window must be season or last10'}), 400
+        if not role or role not in ['home', 'away']:
+            return jsonify({'success': False, 'error': 'role must be home or away'}), 400
+
+        # Get DB connection
+        import sqlite3
+        import os
+        from api.utils.archetype_classifier import assign_all_team_archetypes
+
+        db_path = os.path.join(os.path.dirname(__file__), 'api/data/nba_data.db')
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get team abbreviation
+        cursor.execute("SELECT team_abbreviation FROM nba_teams WHERE team_id = ?", (team_id,))
+        team_result = cursor.fetchone()
+        if not team_result:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': f'Team {team_id} not found'
+            }), 404
+
+        team_abbr = team_result['team_abbreviation']
+
+        # Get all team archetypes for the season
+        all_archetypes = assign_all_team_archetypes(season)
+
+        # Build opponent archetype lookup map based on category
+        opponent_archetypes = {}
+
+        if category == 'scoring':
+            # Legacy scoring archetypes use old structure
+            for tid, assignment in all_archetypes.items():
+                if window == 'season':
+                    key = 'season_offensive' if side == 'offensive' else 'season_defensive'
+                else:  # last10
+                    key = 'last10_offensive' if side == 'offensive' else 'last10_defensive'
+                opponent_archetypes[tid] = assignment.get(key)
+        else:
+            # New archetype families (assists, rebounds, threes, turnovers)
+            for tid, assignment in all_archetypes.items():
+                family_data = assignment.get(category, {})
+                if family_data:
+                    side_data = family_data.get(side, {})
+                    if side_data:
+                        window_data = side_data.get(window, {})
+                        if window_data:
+                            opponent_archetypes[tid] = window_data.get('id')
+
+        # Query games filtered by role (home/away)
+        is_home = 1 if role == 'home' else 0
+
+        query = """
+            SELECT
+                tgl.game_id,
+                tgl.game_date,
+                tgl.matchup,
+                tgl.win_loss as wl,
+                tgl.team_pts,
+                tgl.opp_pts,
+                tgl.is_home,
+                tgl.opponent_abbr as opp_abbr,
+                nt.team_id as opp_team_id
+            FROM team_game_logs tgl
+            LEFT JOIN nba_teams nt ON tgl.opponent_abbr = nt.team_abbreviation
+            WHERE tgl.team_id = ?
+            AND tgl.season = ?
+            AND tgl.is_home = ?
+            AND tgl.game_date >= '2025-10-21'
+            ORDER BY tgl.game_date DESC
+        """
+        cursor.execute(query, (team_id, season, is_home))
+
+        matching_games = []
+        for row in cursor.fetchall():
+            opp_team_id = row['opp_team_id']
+
+            # Check if opponent has the matching archetype
+            if opp_team_id and opp_team_id in opponent_archetypes:
+                opp_archetype = opponent_archetypes[opp_team_id]
+                if opp_archetype == label:
+                    matching_games.append({
+                        'game_id': row['game_id'],
+                        'game_date': row['game_date'],
+                        'matchup': row['matchup'],
+                        'wl': row['wl'],
+                        'team_pts': row['team_pts'] or 0,
+                        'opp_pts': row['opp_pts'] or 0,
+                        'total': (row['team_pts'] or 0) + (row['opp_pts'] or 0),
+                        'is_home': row['is_home'],
+                        'opponent': {
+                            'tricode': row['opp_abbr'],
+                            'team_id': opp_team_id,
+                            'archetype': opp_archetype
+                        }
+                    })
+
+        conn.close()
+
+        print(f'[archetype_match_games] Found {len(matching_games)} matching games for {team_abbr} ({role}) vs {label}')
+
+        return jsonify({
+            'success': True,
+            'team_id': team_id,
+            'team_abbr': team_abbr,
+            'category': category,
+            'side': side,
+            'label': label,
+            'window': window,
+            'role': role,
+            'season': season,
+            'games_count': len(matching_games),
+            'games': matching_games
+        })
+
+    except Exception as e:
+        print(f"[archetype_match_games] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/team-scoring-splits', methods=['GET'])
 def team_scoring_splits():
     """
