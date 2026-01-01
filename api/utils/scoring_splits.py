@@ -104,7 +104,10 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             'team_abbreviation': team_row['team_abbreviation'],
             'full_name': team_row['full_name'],
             'season': season,
-            'season_avg_ppg': team_row['season_avg_ppg']
+            'season_avg_ppg': team_row['season_avg_ppg'],
+            # SAFE MODE ADDITION: Field aliases for frontend compatibility (no frontend changes needed)
+            'overall_avg_points': team_row['season_avg_ppg'],  # Frontend expects this field name
+            'season_avg_pts': team_row['season_avg_ppg']       # Alternative frontend field name
         }
 
         # Step 2: Fetch game logs with opponent defensive rankings

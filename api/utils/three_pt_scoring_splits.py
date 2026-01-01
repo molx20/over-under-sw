@@ -88,7 +88,9 @@ def get_team_three_pt_scoring_splits(team_id: int, season: str = '2025-26') -> O
                 t.team_id,
                 t.team_abbreviation,
                 t.full_name,
-                tss.three_pt_ppg as season_avg_three_pt_ppg
+                tss.three_pt_ppg as season_avg_three_pt_ppg,
+                tss.fg3m,
+                tss.fg3_pct
             FROM nba_teams t
             LEFT JOIN team_season_stats tss
                 ON t.team_id = tss.team_id
@@ -109,7 +111,12 @@ def get_team_three_pt_scoring_splits(team_id: int, season: str = '2025-26') -> O
             'team_abbreviation': team_row['team_abbreviation'],
             'full_name': team_row['full_name'],
             'season': season,
-            'season_avg_three_pt_ppg': team_row['season_avg_three_pt_ppg']
+            'season_avg_three_pt_ppg': team_row['season_avg_three_pt_ppg'],
+            # SAFE MODE ADDITION: Field aliases for frontend compatibility (no frontend changes needed)
+            'overall_avg_fg3m': team_row['fg3m'],           # Frontend expects 3PM per game
+            'season_avg_fg3m': team_row['fg3m'],            # Alternative field name
+            'overall_avg_fg3_pct': team_row['fg3_pct'],     # Frontend expects 3P%
+            'season_avg_fg3_pct': team_row['fg3_pct']       # Alternative field name
         }
 
         # Step 2: Fetch game logs with opponent 3PT defensive rankings

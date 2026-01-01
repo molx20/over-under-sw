@@ -138,7 +138,10 @@ def get_team_assists_splits(team_id: int, season: str = '2025-26') -> Optional[D
             'team_abbreviation': team_row['team_abbreviation'],
             'full_name': team_row['full_name'],
             'season': season,
-            'season_avg_ast': team_row['season_avg_ast']
+            'season_avg_ast': team_row['season_avg_ast'],
+            # SAFE MODE ADDITION: Field aliases for frontend compatibility (no frontend changes needed)
+            'overall_avg_assists': team_row['season_avg_ast'],  # Frontend expects assists per game
+            'avg_assists': team_row['season_avg_ast']            # Alternative field name
         }
 
         # Step 2: Fetch game logs with opponent assists allowed rankings
