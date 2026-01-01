@@ -20,24 +20,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for scipy compilation (optional optimization)
-# scipy improves performance but app works without it using math.erf fallback
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    gfortran \
-    libopenblas-dev \
-    liblapack-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy Python requirements
 COPY requirements.txt .
 
 # Install Python dependencies
-# scipy is OPTIONAL - app will use math.erf fallback if scipy installation fails
+# Note: Using pure Python math.erf for percentile calculations (no scipy)
 RUN pip install --no-cache-dir -r requirements.txt && \
-    echo "=== Python Dependencies Installed ===" && \
-    (pip show scipy && echo "✓ scipy installed - using optimized percentile calculations" || echo "⚠ scipy not installed - using math.erf fallback (100% accurate)")
+    echo "=== Python Dependencies Installed ==="
 
 # Copy application code
 COPY . .

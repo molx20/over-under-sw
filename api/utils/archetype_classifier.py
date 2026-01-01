@@ -20,37 +20,10 @@ import math
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# PERCENTILE CALCULATION - scipy with pure Python fallback
+# PERCENTILE CALCULATION - Pure Python using math.erf
 # ============================================================================
 
-_SCIPY_AVAILABLE = False
-try:
-    from scipy.stats import norm as _scipy_norm
-    _SCIPY_AVAILABLE = True
-    logger.info("[ARCHETYPE_CLASSIFIER] ✓ scipy.stats available - using norm.cdf for percentiles")
-except ImportError:
-    logger.warning("[ARCHETYPE_CLASSIFIER] ⚠ scipy NOT available - using math.erf fallback (100% accurate)")
-    _scipy_norm = None
-
-
-def _percentile_fallback(z_score: float) -> float:
-    """
-    Pure Python percentile calculation using math.erf (NO scipy required).
-
-    Uses the error function to compute the cumulative distribution function (CDF)
-    of the standard normal distribution. This is mathematically equivalent to
-    scipy.stats.norm.cdf() and produces identical results.
-
-    Formula: CDF(z) = 0.5 * (1 + erf(z / sqrt(2)))
-
-    Args:
-        z_score: Standardized value (z-score)
-
-    Returns:
-        Percentile (0-100)
-    """
-    cdf = 0.5 * (1.0 + math.erf(z_score / math.sqrt(2.0)))
-    return round(cdf * 100, 1)
+logger.info("[ARCHETYPE_CLASSIFIER] Using math.erf for percentile calculations (no scipy)")
 
 
 def _safe_zscore(x: float, mean: float, std: float) -> float:
@@ -896,10 +869,12 @@ def assign_turnovers_defensive_archetype(standardized_features: Dict) -> str:
 
 def calculate_percentile(z_score: float) -> float:
     """
-    Convert z-score to percentile (0-100).
+    Convert z-score to percentile (0-100) using math.erf.
 
-    Prefers scipy.stats.norm.cdf if available, falls back to math.erf if not.
-    Both methods produce identical results.
+    Uses the error function to compute the cumulative distribution function (CDF)
+    of the standard normal distribution.
+
+    Formula: CDF(z) = 0.5 * (1 + erf(z / sqrt(2)))
 
     Args:
         z_score: Standardized feature value
@@ -907,10 +882,8 @@ def calculate_percentile(z_score: float) -> float:
     Returns:
         Percentile value between 0 and 100
     """
-    if _SCIPY_AVAILABLE and _scipy_norm is not None:
-        return round(_scipy_norm.cdf(z_score) * 100, 1)
-    else:
-        return _percentile_fallback(z_score)
+    cdf = 0.5 * (1.0 + math.erf(z_score / math.sqrt(2.0)))
+    return round(cdf * 100, 1)
 
 
 # ============================================================================

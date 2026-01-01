@@ -49,18 +49,6 @@ except Exception as e:
 app = Flask(__name__, static_folder='dist', static_url_path='')
 CORS(app)
 
-# ============================================================================
-# SCIPY STARTUP HEALTH CHECK
-# ============================================================================
-# Check if scipy is available (optional - falls back to math.erf if not)
-try:
-    import scipy
-    print(f"[server] ✓ scipy {scipy.__version__} successfully loaded")
-    print(f"[server] ✓ Using scipy.stats.norm.cdf for archetype percentiles")
-except ImportError:
-    print(f"[server] ⚠ scipy not available - using math.erf fallback (100% accurate)")
-    print(f"[server] ℹ Archetype percentile calculations will use pure Python implementation")
-
 # Enable performance logging middleware
 create_timing_middleware(app)
 
