@@ -1824,6 +1824,7 @@ def get_team_archetypes():
             enriched_data[str(tid)] = {
                 'team_name': team_info['full_name'] if team_info else f'Team {tid}',
                 'team_abbr': team_info['abbreviation'] if team_info else str(tid),
+                # EXISTING scoring archetypes (backward compatible)
                 'season_offensive': {
                     'id': season_off_id,
                     'name': OFFENSIVE_ARCHETYPES[season_off_id]['name'],
@@ -1855,7 +1856,17 @@ def get_team_archetypes():
                     'defensive': assignment['defensive_style_shift'],
                     'offensive_details': assignment['offensive_shift_details'],
                     'defensive_details': assignment['defensive_shift_details']
-                }
+                },
+                # NEW scoring archetype percentiles
+                'season_offensive_percentile': assignment.get('season_offensive_percentile', 50.0),
+                'last10_offensive_percentile': assignment.get('last10_offensive_percentile', 50.0),
+                'season_defensive_percentile': assignment.get('season_defensive_percentile', 50.0),
+                'last10_defensive_percentile': assignment.get('last10_defensive_percentile', 50.0),
+                # NEW archetype families (already enriched in assign_all_team_archetypes)
+                'assists': assignment.get('assists', {}),
+                'rebounds': assignment.get('rebounds', {}),
+                'threes': assignment.get('threes', {}),
+                'turnovers': assignment.get('turnovers', {})
             }
 
         return jsonify({
@@ -1870,6 +1881,144 @@ def get_team_archetypes():
             'error': f'Invalid parameter: {str(e)}'
         }), 400
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/team-archetype-games', methods=['GET'])
+def team_archetype_games():
+    """
+    Get games where a team played with a specific archetype.
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - archetype_type: 'offensive' or 'defensive' (required)
+        - archetype_id: archetype ID string (required)
+        - window: 'season' or 'last10' (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'team_id': 1610612749,
+            'archetype_type': 'offensive',
+            'archetype_id': 'perimeter_spacing_offense',
+            'window': 'season',
+            'games': [...],
+            'stats': {...}
+        }
+    """
+    try:
+        from api.utils.archetype_games import get_team_archetype_games, get_archetype_aggregated_stats
+
+        team_id = request.args.get('team_id', type=int)
+        archetype_type = request.args.get('archetype_type')
+        archetype_id = request.args.get('archetype_id')
+        window = request.args.get('window')
+        season = request.args.get('season', '2025-26')
+
+        # Validate required params
+        if not team_id:
+            return jsonify({'success': False, 'error': 'team_id is required'}), 400
+        if not archetype_type or archetype_type not in ['offensive', 'defensive']:
+            return jsonify({'success': False, 'error': 'archetype_type must be offensive or defensive'}), 400
+        if not archetype_id:
+            return jsonify({'success': False, 'error': 'archetype_id is required'}), 400
+        if not window or window not in ['season', 'last10']:
+            return jsonify({'success': False, 'error': 'window must be season or last10'}), 400
+
+        # Fetch games
+        games = get_team_archetype_games(team_id, archetype_type, archetype_id, window, season)
+
+        # Calculate aggregated stats
+        stats = get_archetype_aggregated_stats(games, archetype_type)
+
+        return jsonify({
+            'success': True,
+            'team_id': team_id,
+            'archetype_type': archetype_type,
+            'archetype_id': archetype_id,
+            'window': window,
+            'season': season,
+            'games': games,
+            'stats': stats
+        })
+
+    except Exception as e:
+        print(f"Error in team_archetype_games: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/team-vs-archetype-games', methods=['GET'])
+def team_vs_archetype_games():
+    """
+    Get games where a team played AGAINST opponents with a specific archetype.
+
+    Query params:
+        - team_id: NBA team ID (required)
+        - archetype_type: 'offensive' or 'defensive' (required)
+        - archetype_id: archetype ID string (required)
+        - window: 'season' or 'last10' (required)
+        - season: Season string, defaults to '2025-26'
+
+    Returns:
+        {
+            'success': True,
+            'team_id': 1610612753,
+            'team_abbr': 'ORL',
+            'archetype_type': 'defensive',
+            'archetype_id': 'perimeter_lockdown',
+            'window': 'last10',
+            'summary': {
+                'games_count': 5,
+                'ppg': 112.4,
+                'efg': 54.2,
+                'ft_points': 18.6,
+                'paint_points': 48.2,
+                'wins': 3,
+                'win_pct': 60.0
+            },
+            'games': [...]
+        }
+    """
+    try:
+        from api.utils.archetype_vs_games import get_team_vs_archetype_games
+
+        team_id = request.args.get('team_id', type=int)
+        archetype_type = request.args.get('archetype_type')
+        archetype_id = request.args.get('archetype_id')
+        window = request.args.get('window')
+        season = request.args.get('season', '2025-26')
+
+        # Validate required params
+        if not team_id:
+            return jsonify({'success': False, 'error': 'team_id is required'}), 400
+        if not archetype_type or archetype_type not in ['offensive', 'defensive']:
+            return jsonify({'success': False, 'error': 'archetype_type must be offensive or defensive'}), 400
+        if not archetype_id:
+            return jsonify({'success': False, 'error': 'archetype_id is required'}), 400
+        if not window or window not in ['season', 'last10']:
+            return jsonify({'success': False, 'error': 'window must be season or last10'}), 400
+
+        # Fetch games vs archetype
+        result = get_team_vs_archetype_games(team_id, archetype_type, archetype_id, window, season)
+
+        return jsonify({
+            'success': True,
+            **result
+        })
+
+    except Exception as e:
+        print(f"Error in team_vs_archetype_games: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({

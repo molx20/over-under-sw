@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import TeamArchetypes from './TeamArchetypes'
+import ArchetypeRankingsPanel from './ArchetypeRankingsPanel'
 import ScoringSpitsChart from './ScoringSpitsChart'
 import ScoringVsPaceChart from './ScoringVsPaceChart'
 import ThreePointScoringVsDefenseChart from './ThreePointScoringVsDefenseChart'
@@ -9,6 +10,7 @@ import TurnoverVsPaceChart from './TurnoverVsPaceChart'
 import AssistsVsDefenseChart from './AssistsVsDefenseChart'
 import AssistsVsPaceChart from './AssistsVsPaceChart'
 import { EXPLANATION_TEXT } from '../utils/explanationText'
+import { useTeamArchetypes } from '../utils/api'
 
 /**
  * AdvancedSplitsPanel Component
@@ -34,10 +36,14 @@ function AdvancedSplitsPanel({
   homeArchetypes,
   awayArchetypes
 }) {
-  // Toggle states for metric and context
-  const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists'
+  // Toggle states for metric, context, and window
+  const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists' | 'rebounds'
   const [context, setContext] = useState('defense') // 'defense' | 'pace'
+  const [window, setWindow] = useState('season') // 'season' | 'last10'
   const [showExplanation, setShowExplanation] = useState(false) // Collapsed by default on mobile
+
+  // Fetch ALL teams' archetypes for similar teams display
+  const { data: allTeamsArchetypes } = useTeamArchetypes(null, '2025-26')
 
   // DIAGNOSTIC LOGGING
   console.log('[AdvancedSplitsPanel] Current metric:', metric)
@@ -69,7 +75,7 @@ function AdvancedSplitsPanel({
         </div>
       </div>
 
-      {/* Metric Toggle (Scoring | 3PT | Turnovers | Assists) */}
+      {/* Metric Toggle (Scoring | 3PT | Turnovers | Assists | Rebounds) */}
       <div className="mb-3">
         <div className="inline-flex w-full sm:w-auto rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
           <button
@@ -104,7 +110,7 @@ function AdvancedSplitsPanel({
           </button>
           <button
             onClick={() => setMetric('assists')}
-            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors ${
+            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors border-r border-gray-300 dark:border-gray-600 ${
               metric === 'assists'
                 ? 'bg-primary-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -112,31 +118,41 @@ function AdvancedSplitsPanel({
           >
             Assists
           </button>
+          <button
+            onClick={() => setMetric('rebounds')}
+            className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 text-sm sm:text-base font-medium transition-colors ${
+              metric === 'rebounds'
+                ? 'bg-primary-600 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Rebounds
+          </button>
         </div>
       </div>
 
-      {/* Context Toggle (Defense Tiers | Pace Buckets) */}
+      {/* Time Window Toggle (Season | Last 10) */}
       <div className="mb-6">
         <div className="inline-flex w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden">
           <button
-            onClick={() => setContext('defense')}
-            className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors border-r border-gray-300 dark:border-gray-600 ${
-              context === 'defense'
-                ? 'bg-gray-700 dark:bg-gray-600 text-white'
+            onClick={() => setWindow('season')}
+            className={`flex-1 sm:flex-none px-6 sm:px-8 py-2 text-sm font-medium transition-colors border-r border-gray-300 dark:border-gray-600 ${
+              window === 'season'
+                ? 'bg-primary-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            Defense Tiers
+            Season
           </button>
           <button
-            onClick={() => setContext('pace')}
-            className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-              context === 'pace'
-                ? 'bg-gray-700 dark:bg-gray-600 text-white'
+            onClick={() => setWindow('last10')}
+            className={`flex-1 sm:flex-none px-6 sm:px-8 py-2 text-sm font-medium transition-colors ${
+              window === 'last10'
+                ? 'bg-primary-600 text-white'
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            Pace Buckets
+            Last 10
           </button>
         </div>
       </div>
@@ -152,14 +168,7 @@ function AdvancedSplitsPanel({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-              {metric === 'scoring' && context === 'defense' && 'About Scoring vs Defense Tiers'}
-              {metric === 'scoring' && context === 'pace' && 'About Scoring vs Game Speed'}
-              {metric === 'threePt' && context === 'defense' && 'About 3-Point Shooting vs Defense'}
-              {metric === 'threePt' && context === 'pace' && 'About 3-Point Shooting vs Game Speed'}
-              {metric === 'turnovers' && context === 'defense' && 'About Turnovers vs Defense Pressure'}
-              {metric === 'turnovers' && context === 'pace' && 'About Turnovers vs Game Speed'}
-              {metric === 'assists' && context === 'defense' && 'About Assists vs Ball-Movement Defense'}
-              {metric === 'assists' && context === 'pace' && 'About Assists vs Game Speed'}
+              About {metric === 'scoring' && 'Scoring'}{metric === 'threePt' && 'Three-Point'}{metric === 'turnovers' && 'Turnover'}{metric === 'assists' && 'Assists'}{metric === 'rebounds' && 'Rebounding'} Archetypes
             </span>
           </div>
           <svg
@@ -177,62 +186,72 @@ function AdvancedSplitsPanel({
         {showExplanation && (
           <div className="px-4 pb-4 pt-2 border-t border-blue-200 dark:border-blue-700">
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              {metric === 'scoring' && EXPLANATION_TEXT.scoring.description}
-              {metric === 'threePt' && EXPLANATION_TEXT.threePt.description}
-              {metric === 'turnovers' && EXPLANATION_TEXT.turnovers.description}
-              {metric === 'assists' && EXPLANATION_TEXT.assists?.description}
+              Archetypes classify teams based on their {metric === 'scoring' && 'offensive and defensive scoring patterns'}
+              {metric === 'threePt' && 'three-point shooting tendencies and volume'}
+              {metric === 'turnovers' && 'ball security and defensive pressure'}
+              {metric === 'assists' && 'playmaking and ball movement'}
+              {metric === 'rebounds' && 'rebounding effort and second-chance opportunities'}.
+              Each team is assigned to one of four archetypes for both offense and defense based on their performance metrics.
             </p>
-            {context === 'defense' && (
-              <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                {metric === 'assists'
-                  ? EXPLANATION_TEXT.ballMovementTiers.description
-                  : EXPLANATION_TEXT.defenseTiers.description}
-              </p>
-            )}
-            {context === 'pace' && (
-              <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                {EXPLANATION_TEXT.paceBuckets.description}
-              </p>
-            )}
+            <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
+              <strong>Percentile rankings</strong> show how each team compares to the league average (50th percentile).
+              Higher percentiles indicate stronger performance in that archetype's defining characteristics.
+              Toggle between <strong>Season</strong> (full season stats) and <strong>Last 10</strong> (recent form) to identify style shifts.
+            </p>
           </div>
         )}
       </div>
 
-      {/* Identity Tags (only for scoring metric) */}
-      {metric === 'scoring' && scoringSplitsData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {console.log('[AdvancedSplitsPanel] RENDERING ARCHETYPES SECTION - metric:', metric, 'scoringSplitsData:', !!scoringSplitsData, 'awayArchetypes:', !!awayArchetypes, 'homeArchetypes:', !!homeArchetypes)}
-          {/* Away Team Archetypes */}
-          {awayArchetypes && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                {scoringSplitsData?.away_team?.team_abbreviation || 'Away'} Style Archetypes
-              </h3>
-              <TeamArchetypes
-                archetypes={awayArchetypes}
-                teamName={scoringSplitsData?.away_team?.team_abbreviation}
-                showComparison={true}
-              />
-            </div>
-          )}
+      {/* Archetype Rankings Panel - Replaces ALL bar graphs */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        {metric === 'scoring' && (
+          <ArchetypeRankingsPanel
+            family="scoring"
+            homeArchetypes={homeArchetypes}
+            awayArchetypes={awayArchetypes}
+            window={window}
+          />
+        )}
 
-          {/* Home Team Archetypes */}
-          {homeArchetypes && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                {scoringSplitsData?.home_team?.team_abbreviation || 'Home'} Style Archetypes
-              </h3>
-              <TeamArchetypes
-                archetypes={homeArchetypes}
-                teamName={scoringSplitsData?.home_team?.team_abbreviation}
-                showComparison={true}
-              />
-            </div>
-          )}
-        </div>
-      )}
+        {metric === 'threePt' && (
+          <ArchetypeRankingsPanel
+            family="threes"
+            homeArchetypes={homeArchetypes}
+            awayArchetypes={awayArchetypes}
+            window={window}
+          />
+        )}
 
-      {/* Dynamic Chart Rendering */}
+        {metric === 'turnovers' && (
+          <ArchetypeRankingsPanel
+            family="turnovers"
+            homeArchetypes={homeArchetypes}
+            awayArchetypes={awayArchetypes}
+            window={window}
+          />
+        )}
+
+        {metric === 'assists' && (
+          <ArchetypeRankingsPanel
+            family="assists"
+            homeArchetypes={homeArchetypes}
+            awayArchetypes={awayArchetypes}
+            window={window}
+          />
+        )}
+
+        {metric === 'rebounds' && (
+          <ArchetypeRankingsPanel
+            family="rebounds"
+            homeArchetypes={homeArchetypes}
+            awayArchetypes={awayArchetypes}
+            window={window}
+          />
+        )}
+      </div>
+
+      {/* Dynamic Chart Rendering - DISABLED (Replaced by ArchetypeRankingsPanel) */}
+      {false && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Scoring + Defense */}
         {metric === 'scoring' && context === 'defense' && scoringSplitsData && (
@@ -330,8 +349,11 @@ function AdvancedSplitsPanel({
           </>
         )}
       </div>
+      )}
 
-      {/* Loading States */}
+      {/* Loading States - DISABLED (No longer needed with ArchetypeRankingsPanel) */}
+      {false && (
+      <>
       {metric === 'scoring' && splitsLoading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
@@ -373,6 +395,8 @@ function AdvancedSplitsPanel({
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
           <p>Loading assists vs pace...</p>
         </div>
+      )}
+      </>
       )}
     </div>
   )

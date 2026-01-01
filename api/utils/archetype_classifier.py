@@ -19,9 +19,33 @@ import statistics
 logger = logging.getLogger(__name__)
 
 try:
-    from api.utils.archetype_features import calculate_all_team_features, OFFENSIVE_FEATURE_NAMES, DEFENSIVE_FEATURE_NAMES
+    from api.utils.archetype_features import (
+        calculate_all_team_features,
+        OFFENSIVE_FEATURE_NAMES,
+        DEFENSIVE_FEATURE_NAMES,
+        ASSISTS_FEATURE_NAMES,
+        ASSISTS_DEFENSIVE_FEATURE_NAMES,
+        REBOUNDS_FEATURE_NAMES,
+        REBOUNDS_DEFENSIVE_FEATURE_NAMES,
+        THREES_FEATURE_NAMES,
+        THREES_DEFENSIVE_FEATURE_NAMES,
+        TURNOVERS_FEATURE_NAMES,
+        TURNOVERS_DEFENSIVE_FEATURE_NAMES
+    )
 except ImportError:
-    from archetype_features import calculate_all_team_features, OFFENSIVE_FEATURE_NAMES, DEFENSIVE_FEATURE_NAMES
+    from archetype_features import (
+        calculate_all_team_features,
+        OFFENSIVE_FEATURE_NAMES,
+        DEFENSIVE_FEATURE_NAMES,
+        ASSISTS_FEATURE_NAMES,
+        ASSISTS_DEFENSIVE_FEATURE_NAMES,
+        REBOUNDS_FEATURE_NAMES,
+        REBOUNDS_DEFENSIVE_FEATURE_NAMES,
+        THREES_FEATURE_NAMES,
+        THREES_DEFENSIVE_FEATURE_NAMES,
+        TURNOVERS_FEATURE_NAMES,
+        TURNOVERS_DEFENSIVE_FEATURE_NAMES
+    )
 
 # ============================================================================
 # ARCHETYPE DEFINITIONS
@@ -164,6 +188,365 @@ DEFENSIVE_ARCHETYPE_ORDER = [
     'balanced_disciplined'
 ]
 
+
+# ============================================================================
+# NEW ARCHETYPE FAMILIES - ASSISTS
+# ============================================================================
+
+ASSISTS_OFFENSIVE_ARCHETYPES = {
+    'ball_movement_maestro': {
+        'name': 'Ball Movement Maestro',
+        'rules': {
+            'assist_rate': ('>', 0.8),
+            'assists_per_100': ('>', 0.5)
+        },
+        'description': 'Elite ball movement with exceptional passing frequency. Team-oriented offense with high assist rate.',
+        'profile': 'High assist rate, ball-sharing, team-first offense'
+    },
+
+    'high_volume_playmaking': {
+        'name': 'High Volume Playmaking',
+        'rules': {
+            'assists': ('>', 0.6),
+            'assist_rate': ('between', 0.2, 0.8),
+        },
+        'description': 'High volume of assists with solid rate. Generates plenty of scoring opportunities through passing.',
+        'profile': 'High assist volume, good playmaking'
+    },
+
+    'iso_driven_low_assist': {
+        'name': 'ISO Driven Low-Assist',
+        'rules': {
+            'assist_rate': ('<', -0.8),
+            'assists': ('<', -0.5),
+        },
+        'description': 'Isolation-heavy offense with minimal passing. Relies on individual creation over ball movement.',
+        'profile': 'Low assists, ISO-heavy, individual creation'
+    },
+
+    'balanced_sharing': {
+        'name': 'Balanced Sharing',
+        'rules': {},  # Fallback - matches everything
+        'description': 'Balanced approach to ball movement. Neither high nor low assist tendencies.',
+        'profile': 'Moderate assists, balanced playmaking'
+    }
+}
+
+ASSISTS_DEFENSIVE_ARCHETYPES = {
+    'assist_denial_elite': {
+        'name': 'Assist Denial Elite',
+        'rules': {
+            'opp_assist_rate': ('<', -0.8),
+            'opp_assists': ('<', -0.6),
+        },
+        'description': 'Forces opponents into isolation. Excellent at denying ball movement and disrupting passing lanes.',
+        'allows': 'ISO plays',
+        'suppresses': 'Ball movement, assist opportunities'
+    },
+
+    'rotation_scrambler': {
+        'name': 'Rotation Scrambler',
+        'rules': {
+            'opp_assist_rate': ('<', -0.4),
+            'opp_assists': ('between', -0.6, 0.2),
+        },
+        'description': 'Solid rotations that disrupt passing angles. Makes opponents work harder for assists.',
+        'allows': 'Some ball movement',
+        'suppresses': 'Easy passing lanes'
+    },
+
+    'ball_movement_vulnerable': {
+        'name': 'Ball Movement Vulnerable',
+        'rules': {
+            'opp_assist_rate': ('>', 0.6),
+            'opp_assists': ('>', 0.4),
+        },
+        'description': 'Vulnerable to ball movement. Allows opponents to find open shooters and cutters easily.',
+        'allows': 'High assist opportunities',
+        'suppresses': 'Nothing specific'
+    },
+
+    'average_assist_defense': {
+        'name': 'Average Assist Defense',
+        'rules': {},  # Fallback
+        'description': 'Standard defense against ball movement. No extreme tendencies in assist prevention.',
+        'allows': 'Average ball movement',
+        'suppresses': 'Nothing specific'
+    }
+}
+
+ASSISTS_OFFENSIVE_ORDER = ['ball_movement_maestro', 'high_volume_playmaking', 'iso_driven_low_assist', 'balanced_sharing']
+ASSISTS_DEFENSIVE_ORDER = ['assist_denial_elite', 'rotation_scrambler', 'ball_movement_vulnerable', 'average_assist_defense']
+
+
+# ============================================================================
+# NEW ARCHETYPE FAMILIES - REBOUNDS
+# ============================================================================
+
+REBOUNDS_OFFENSIVE_ARCHETYPES = {
+    'crash_the_glass_elite': {
+        'name': 'Crash the Glass Elite',
+        'rules': {
+            'offensive_rebounds': ('>', 1.0),
+            'second_chance_points': ('>', 0.5),
+        },
+        'description': 'Dominant offensive rebounding creates extra possessions. Elite at second-chance opportunities.',
+        'profile': 'High OREB, second-chance scoring, possession extension'
+    },
+
+    'selective_crasher': {
+        'name': 'Selective Crasher',
+        'rules': {
+            'offensive_rebounds': ('between', 0.3, 1.0),
+            'second_chance_points': ('between', 0.0, 0.5),
+        },
+        'description': 'Good offensive rebounding with selective crashing. Creates some extra possessions.',
+        'profile': 'Above average OREB, balanced approach'
+    },
+
+    'transition_focused': {
+        'name': 'Transition Focused',
+        'rules': {
+            'offensive_rebounds': ('<', -0.8),
+        },
+        'description': 'Prioritizes transition over offensive rebounding. Gets back on defense quickly.',
+        'profile': 'Low OREB, transition first'
+    },
+
+    'balanced_rebounding': {
+        'name': 'Balanced Rebounding',
+        'rules': {},  # Fallback
+        'description': 'Balanced approach to offensive rebounding. Neither aggressive nor passive.',
+        'profile': 'Moderate OREB, balanced strategy'
+    }
+}
+
+REBOUNDS_DEFENSIVE_ARCHETYPES = {
+    'glass_protector_elite': {
+        'name': 'Glass Protector Elite',
+        'rules': {
+            'opp_defensive_rebounds': ('>', 1.0),  # Team gets many DREBs
+            'opp_offensive_rebounds': ('<', -0.8),  # Opponent gets few OREBs
+        },
+        'description': 'Dominant defensive rebounding prevents second chances. Elite box-out fundamentals.',
+        'allows': 'Minimal second chances',
+        'suppresses': 'Opponent offensive rebounds, putbacks'
+    },
+
+    'solid_boxing_out': {
+        'name': 'Solid Boxing Out',
+        'rules': {
+            'opp_defensive_rebounds': ('between', 0.3, 1.0),
+            'opp_offensive_rebounds': ('between', -0.8, 0.0),
+        },
+        'description': 'Good defensive rebounding with solid fundamentals. Limits second-chance opportunities.',
+        'allows': 'Some second chances',
+        'suppresses': 'Excessive offensive rebounds'
+    },
+
+    'vulnerable_to_crashes': {
+        'name': 'Vulnerable to Crashes',
+        'rules': {
+            'opp_defensive_rebounds': ('<', -0.6),
+            'opp_offensive_rebounds': ('>', 0.6),
+        },
+        'description': 'Vulnerable to offensive rebounds. Allows too many second-chance opportunities.',
+        'allows': 'High opponent OREB',
+        'suppresses': 'Nothing specific'
+    },
+
+    'average_rebounding': {
+        'name': 'Average Rebounding',
+        'rules': {},  # Fallback
+        'description': 'Average defensive rebounding. No extreme tendencies.',
+        'allows': 'Average second chances',
+        'suppresses': 'Nothing specific'
+    }
+}
+
+REBOUNDS_OFFENSIVE_ORDER = ['crash_the_glass_elite', 'selective_crasher', 'transition_focused', 'balanced_rebounding']
+REBOUNDS_DEFENSIVE_ORDER = ['glass_protector_elite', 'solid_boxing_out', 'vulnerable_to_crashes', 'average_rebounding']
+
+
+# ============================================================================
+# NEW ARCHETYPE FAMILIES - THREES
+# ============================================================================
+
+THREES_OFFENSIVE_ARCHETYPES = {
+    'volume_three_bomber': {
+        'name': 'Volume Three Bomber',
+        'rules': {
+            'three_pa_rate': ('>', 0.8),
+            'fg3a': ('>', 0.6),
+        },
+        'description': 'Elite three-point shooting volume. Lives beyond the arc with high attempt rate.',
+        'profile': 'High 3PA volume, perimeter-heavy, spacing offense'
+    },
+
+    'efficient_selective_shooter': {
+        'name': 'Efficient Selective Shooter',
+        'rules': {
+            'fg3_pct': ('>', 0.8),
+            'three_pa_rate': ('between', 0.2, 0.8),
+        },
+        'description': 'Selective but efficient three-point shooting. Quality over quantity approach.',
+        'profile': 'High 3P%, selective shooting, efficient'
+    },
+
+    'three_avoidant': {
+        'name': 'Three Avoidant',
+        'rules': {
+            'three_pa_rate': ('<', -0.8),
+            'fg3a': ('<', -0.6),
+        },
+        'description': 'Avoids three-point shooting. Prefers midrange and paint scoring.',
+        'profile': 'Low 3PA, inside-focused, traditional scoring'
+    },
+
+    'balanced_shooting': {
+        'name': 'Balanced Shooting',
+        'rules': {},  # Fallback
+        'description': 'Balanced three-point approach. Moderate volume and efficiency.',
+        'profile': 'Average 3PT shooting, balanced offense'
+    }
+}
+
+THREES_DEFENSIVE_ARCHETYPES = {
+    'three_point_shutdown': {
+        'name': 'Three-Point Shutdown',
+        'rules': {
+            'opp_fg3_pct': ('<', -0.8),
+            'opp_three_pa_rate': ('<', -0.4),
+        },
+        'description': 'Elite three-point defense. Limits both volume and efficiency from deep.',
+        'allows': 'Inside scoring',
+        'suppresses': 'Three-point volume and efficiency'
+    },
+
+    'perimeter_contest_strong': {
+        'name': 'Perimeter Contest Strong',
+        'rules': {
+            'opp_fg3_pct': ('<', -0.5),
+            'opp_three_pa_rate': ('between', -0.4, 0.4),
+        },
+        'description': 'Strong perimeter contests make threes difficult. Limits efficiency more than volume.',
+        'allows': 'Three-point attempts',
+        'suppresses': 'Three-point efficiency'
+    },
+
+    'three_point_vulnerable': {
+        'name': 'Three-Point Vulnerable',
+        'rules': {
+            'opp_fg3_pct': ('>', 0.6),
+            'opp_three_pa_rate': ('>', 0.4),
+        },
+        'description': 'Vulnerable to three-point shooting. Allows both high volume and efficiency.',
+        'allows': 'High 3PA volume and efficiency',
+        'suppresses': 'Nothing specific'
+    },
+
+    'average_perimeter_defense': {
+        'name': 'Average Perimeter Defense',
+        'rules': {},  # Fallback
+        'description': 'Average three-point defense. No extreme tendencies.',
+        'allows': 'Average three-point shooting',
+        'suppresses': 'Nothing specific'
+    }
+}
+
+THREES_OFFENSIVE_ORDER = ['volume_three_bomber', 'efficient_selective_shooter', 'three_avoidant', 'balanced_shooting']
+THREES_DEFENSIVE_ORDER = ['three_point_shutdown', 'perimeter_contest_strong', 'three_point_vulnerable', 'average_perimeter_defense']
+
+
+# ============================================================================
+# NEW ARCHETYPE FAMILIES - TURNOVERS
+# ============================================================================
+
+TURNOVERS_OFFENSIVE_ARCHETYPES = {
+    'ball_security_elite': {
+        'name': 'Ball Security Elite',
+        'rules': {
+            'turnover_rate': ('<', -1.0),
+            'turnovers': ('<', -0.8),
+        },
+        'description': 'Elite ball security with minimal turnovers. Takes care of the ball exceptionally well.',
+        'profile': 'Low turnovers, ball security, careful play'
+    },
+
+    'solid_ball_handler': {
+        'name': 'Solid Ball Handler',
+        'rules': {
+            'turnover_rate': ('between', -1.0, -0.3),
+            'turnovers': ('between', -0.8, 0.0),
+        },
+        'description': 'Good ball security with below-average turnover rate. Solid fundamental ball handling.',
+        'profile': 'Below average turnovers, solid handling'
+    },
+
+    'turnover_prone_aggressive': {
+        'name': 'Turnover Prone Aggressive',
+        'rules': {
+            'turnover_rate': ('>', 0.6),
+            'turnovers': ('>', 0.5),
+        },
+        'description': 'Aggressive style leads to turnovers. High-risk, high-reward approach.',
+        'profile': 'High turnovers, aggressive play, risky'
+    },
+
+    'average_ball_security': {
+        'name': 'Average Ball Security',
+        'rules': {},  # Fallback
+        'description': 'Average ball security. Moderate turnover tendencies.',
+        'profile': 'Average turnovers, balanced approach'
+    }
+}
+
+TURNOVERS_DEFENSIVE_ARCHETYPES = {
+    'turnover_forcing_havoc': {
+        'name': 'Turnover Forcing Havoc',
+        'rules': {
+            'opp_turnovers': ('>', 1.0),
+            'opp_steals': ('>', 0.8),
+        },
+        'description': 'Creates chaos and forces turnovers. Aggressive, disruptive defensive pressure.',
+        'allows': 'High pace, possessions',
+        'suppresses': 'Clean possessions, ball security'
+    },
+
+    'pressure_defense': {
+        'name': 'Pressure Defense',
+        'rules': {
+            'opp_turnovers': ('between', 0.4, 1.0),
+            'opp_steals': ('between', 0.3, 0.8),
+        },
+        'description': 'Applies solid pressure that creates some turnovers. Active hands and good positioning.',
+        'allows': 'Some possessions',
+        'suppresses': 'Easy ball movement'
+    },
+
+    'passive_turnover_defense': {
+        'name': 'Passive Turnover Defense',
+        'rules': {
+            'opp_turnovers': ('<', -0.8),
+            'opp_steals': ('<', -0.6),
+        },
+        'description': 'Passive approach that doesn\'t force turnovers. Allows opponents to execute cleanly.',
+        'allows': 'Clean possessions',
+        'suppresses': 'Nothing specific'
+    },
+
+    'average_pressure': {
+        'name': 'Average Pressure',
+        'rules': {},  # Fallback
+        'description': 'Average defensive pressure. Moderate turnover forcing.',
+        'allows': 'Average ball security',
+        'suppresses': 'Nothing specific'
+    }
+}
+
+TURNOVERS_OFFENSIVE_ORDER = ['ball_security_elite', 'solid_ball_handler', 'turnover_prone_aggressive', 'average_ball_security']
+TURNOVERS_DEFENSIVE_ORDER = ['turnover_forcing_havoc', 'pressure_defense', 'passive_turnover_defense', 'average_pressure']
+
 # ============================================================================
 # FEATURE STANDARDIZATION
 # ============================================================================
@@ -176,12 +559,28 @@ def standardize_features(all_team_features: Dict, feature_type: str) -> Dict:
 
     Args:
         all_team_features: Dict of team_id -> features
-        feature_type: 'offensive' or 'defensive'
+        feature_type: 'offensive', 'defensive', 'assists_offensive', 'assists_defensive',
+                     'rebounds_offensive', 'rebounds_defensive', 'threes_offensive',
+                     'threes_defensive', 'turnovers_offensive', 'turnovers_defensive'
 
     Returns:
         Dict of team_id -> standardized_features
     """
-    feature_names = OFFENSIVE_FEATURE_NAMES if feature_type == 'offensive' else DEFENSIVE_FEATURE_NAMES
+    # Map feature type to feature names
+    feature_name_map = {
+        'offensive': OFFENSIVE_FEATURE_NAMES,
+        'defensive': DEFENSIVE_FEATURE_NAMES,
+        'assists_offensive': ASSISTS_FEATURE_NAMES,
+        'assists_defensive': ASSISTS_DEFENSIVE_FEATURE_NAMES,
+        'rebounds_offensive': REBOUNDS_FEATURE_NAMES,
+        'rebounds_defensive': REBOUNDS_DEFENSIVE_FEATURE_NAMES,
+        'threes_offensive': THREES_FEATURE_NAMES,
+        'threes_defensive': THREES_DEFENSIVE_FEATURE_NAMES,
+        'turnovers_offensive': TURNOVERS_FEATURE_NAMES,
+        'turnovers_defensive': TURNOVERS_DEFENSIVE_FEATURE_NAMES
+    }
+
+    feature_names = feature_name_map.get(feature_type, OFFENSIVE_FEATURE_NAMES)
 
     # Collect all values for each feature across all teams
     feature_values = {name: [] for name in feature_names}
@@ -341,6 +740,110 @@ def assign_defensive_archetype(standardized_features: Dict) -> str:
 
 
 # ============================================================================
+# NEW ARCHETYPE FAMILIES - CLASSIFICATION FUNCTIONS
+# ============================================================================
+
+def assign_assists_offensive_archetype(standardized_features: Dict) -> str:
+    """Assign assists offensive archetype using rule matching."""
+    for archetype_id in ASSISTS_OFFENSIVE_ORDER:
+        archetype_def = ASSISTS_OFFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched assists offensive archetype: {archetype_id}")
+            return archetype_id
+    return 'balanced_sharing'  # Fallback
+
+
+def assign_assists_defensive_archetype(standardized_features: Dict) -> str:
+    """Assign assists defensive archetype using rule matching."""
+    for archetype_id in ASSISTS_DEFENSIVE_ORDER:
+        archetype_def = ASSISTS_DEFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched assists defensive archetype: {archetype_id}")
+            return archetype_id
+    return 'average_assist_defense'  # Fallback
+
+
+def assign_rebounds_offensive_archetype(standardized_features: Dict) -> str:
+    """Assign rebounds offensive archetype using rule matching."""
+    for archetype_id in REBOUNDS_OFFENSIVE_ORDER:
+        archetype_def = REBOUNDS_OFFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched rebounds offensive archetype: {archetype_id}")
+            return archetype_id
+    return 'balanced_rebounding'  # Fallback
+
+
+def assign_rebounds_defensive_archetype(standardized_features: Dict) -> str:
+    """Assign rebounds defensive archetype using rule matching."""
+    for archetype_id in REBOUNDS_DEFENSIVE_ORDER:
+        archetype_def = REBOUNDS_DEFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched rebounds defensive archetype: {archetype_id}")
+            return archetype_id
+    return 'average_rebounding'  # Fallback
+
+
+def assign_threes_offensive_archetype(standardized_features: Dict) -> str:
+    """Assign threes offensive archetype using rule matching."""
+    for archetype_id in THREES_OFFENSIVE_ORDER:
+        archetype_def = THREES_OFFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched threes offensive archetype: {archetype_id}")
+            return archetype_id
+    return 'balanced_shooting'  # Fallback
+
+
+def assign_threes_defensive_archetype(standardized_features: Dict) -> str:
+    """Assign threes defensive archetype using rule matching."""
+    for archetype_id in THREES_DEFENSIVE_ORDER:
+        archetype_def = THREES_DEFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched threes defensive archetype: {archetype_id}")
+            return archetype_id
+    return 'average_perimeter_defense'  # Fallback
+
+
+def assign_turnovers_offensive_archetype(standardized_features: Dict) -> str:
+    """Assign turnovers offensive archetype using rule matching."""
+    for archetype_id in TURNOVERS_OFFENSIVE_ORDER:
+        archetype_def = TURNOVERS_OFFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched turnovers offensive archetype: {archetype_id}")
+            return archetype_id
+    return 'average_ball_security'  # Fallback
+
+
+def assign_turnovers_defensive_archetype(standardized_features: Dict) -> str:
+    """Assign turnovers defensive archetype using rule matching."""
+    for archetype_id in TURNOVERS_DEFENSIVE_ORDER:
+        archetype_def = TURNOVERS_DEFENSIVE_ARCHETYPES[archetype_id]
+        if _check_all_rules(standardized_features, archetype_def['rules']):
+            logger.debug(f"Matched turnovers defensive archetype: {archetype_id}")
+            return archetype_id
+    return 'average_pressure'  # Fallback
+
+
+# ============================================================================
+# PERCENTILE CALCULATION
+# ============================================================================
+
+def calculate_percentile(z_score: float) -> float:
+    """
+    Convert z-score to percentile (0-100).
+
+    Uses normal distribution CDF approximation.
+
+    Args:
+        z_score: Standardized feature value
+
+    Returns:
+        Percentile value between 0 and 100
+    """
+    from scipy.stats import norm
+    return round(norm.cdf(z_score) * 100, 1)
+
+
+# ============================================================================
 # STYLE SHIFT DETECTION
 # ============================================================================
 
@@ -374,24 +877,40 @@ def detect_style_shift(season_archetype: str, last10_archetype: str,
 def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
     """
     Assign archetypes to all teams for both season and last 10 games.
+    Includes all 5 archetype families: scoring, assists, rebounds, threes, turnovers.
 
     Process:
     1. Calculate features for all teams (season + last 10)
     2. Standardize features separately for each window
     3. Assign archetypes using rules
-    4. Detect style shifts
+    4. Calculate percentiles
+    5. Detect style shifts
 
     Returns:
         {
             team_id: {
+                # EXISTING scoring archetypes (backward compatible)
                 'season_offensive': archetype_id,
                 'season_defensive': archetype_id,
                 'last10_offensive': archetype_id,
                 'last10_defensive': archetype_id,
                 'offensive_style_shift': bool,
                 'defensive_style_shift': bool,
-                'offensive_shift_details': str (if shifted),
-                'defensive_shift_details': str (if shifted)
+                'offensive_shift_details': str,
+                'defensive_shift_details': str,
+
+                # NEW archetype families
+                'assists': {
+                    'offensive': {
+                        'season': {'id', 'name', 'description', 'profile', 'percentile', 'z_score'},
+                        'last10': {...}
+                    },
+                    'defensive': {...},
+                    'style_shifts': {...}
+                },
+                'rebounds': {...},
+                'threes': {...},
+                'turnovers': {...}
             }
         }
     """
@@ -400,7 +919,7 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
     # Step 1: Calculate features for all teams
     all_features = calculate_all_team_features(season)
 
-    # Step 2: Standardize features for each window
+    # Step 2: Standardize features for SCORING archetypes (existing)
     season_offensive_std = standardize_features(
         {tid: data['season'] for tid, data in all_features['offensive'].items()},
         'offensive'
@@ -409,7 +928,6 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
         {tid: data['last_10'] for tid, data in all_features['offensive'].items()},
         'offensive'
     )
-
     season_defensive_std = standardize_features(
         {tid: data['season'] for tid, data in all_features['defensive'].items()},
         'defensive'
@@ -419,23 +937,102 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
         'defensive'
     )
 
-    # Step 3 & 4: Assign archetypes and detect shifts
+    # Step 2b: Standardize features for NEW archetype families
+    # Assists
+    season_assists_off_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['assists_offensive'].items()},
+        'assists_offensive'
+    ) if 'assists_offensive' in all_features else {}
+    last10_assists_off_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['assists_offensive'].items()},
+        'assists_offensive'
+    ) if 'assists_offensive' in all_features else {}
+    season_assists_def_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['assists_defensive'].items()},
+        'assists_defensive'
+    ) if 'assists_defensive' in all_features else {}
+    last10_assists_def_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['assists_defensive'].items()},
+        'assists_defensive'
+    ) if 'assists_defensive' in all_features else {}
+
+    # Rebounds
+    season_rebounds_off_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['rebounds_offensive'].items()},
+        'rebounds_offensive'
+    ) if 'rebounds_offensive' in all_features else {}
+    last10_rebounds_off_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['rebounds_offensive'].items()},
+        'rebounds_offensive'
+    ) if 'rebounds_offensive' in all_features else {}
+    season_rebounds_def_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['rebounds_defensive'].items()},
+        'rebounds_defensive'
+    ) if 'rebounds_defensive' in all_features else {}
+    last10_rebounds_def_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['rebounds_defensive'].items()},
+        'rebounds_defensive'
+    ) if 'rebounds_defensive' in all_features else {}
+
+    # Threes
+    season_threes_off_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['threes_offensive'].items()},
+        'threes_offensive'
+    ) if 'threes_offensive' in all_features else {}
+    last10_threes_off_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['threes_offensive'].items()},
+        'threes_offensive'
+    ) if 'threes_offensive' in all_features else {}
+    season_threes_def_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['threes_defensive'].items()},
+        'threes_defensive'
+    ) if 'threes_defensive' in all_features else {}
+    last10_threes_def_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['threes_defensive'].items()},
+        'threes_defensive'
+    ) if 'threes_defensive' in all_features else {}
+
+    # Turnovers
+    season_turnovers_off_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['turnovers_offensive'].items()},
+        'turnovers_offensive'
+    ) if 'turnovers_offensive' in all_features else {}
+    last10_turnovers_off_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['turnovers_offensive'].items()},
+        'turnovers_offensive'
+    ) if 'turnovers_offensive' in all_features else {}
+    season_turnovers_def_std = standardize_features(
+        {tid: data['season'] for tid, data in all_features['turnovers_defensive'].items()},
+        'turnovers_defensive'
+    ) if 'turnovers_defensive' in all_features else {}
+    last10_turnovers_def_std = standardize_features(
+        {tid: data['last_10'] for tid, data in all_features['turnovers_defensive'].items()},
+        'turnovers_defensive'
+    ) if 'turnovers_defensive' in all_features else {}
+
+    # Step 3 & 4: Assign archetypes and calculate percentiles
     assignments = {}
 
     team_ids = set(all_features['offensive'].keys()) & set(all_features['defensive'].keys())
 
     for team_id in team_ids:
-        # Assign offensive archetypes
+        # ===== SCORING ARCHETYPES (existing, backward compatible) =====
         season_off = assign_offensive_archetype(season_offensive_std[team_id])
         last10_off = assign_offensive_archetype(last10_offensive_std[team_id])
         off_shift, off_shift_details = detect_style_shift(season_off, last10_off, 'offensive')
 
-        # Assign defensive archetypes
         season_def = assign_defensive_archetype(season_defensive_std[team_id])
         last10_def = assign_defensive_archetype(last10_defensive_std[team_id])
         def_shift, def_shift_details = detect_style_shift(season_def, last10_def, 'defensive')
 
+        # Calculate percentiles for scoring archetypes (use max z-score)
+        season_off_percentile = calculate_percentile(max([abs(v) for v in season_offensive_std[team_id].values() if isinstance(v, (int, float))], default=0))
+        last10_off_percentile = calculate_percentile(max([abs(v) for v in last10_offensive_std[team_id].values() if isinstance(v, (int, float))], default=0))
+        season_def_percentile = calculate_percentile(max([abs(v) for v in season_defensive_std[team_id].values() if isinstance(v, (int, float))], default=0))
+        last10_def_percentile = calculate_percentile(max([abs(v) for v in last10_defensive_std[team_id].values() if isinstance(v, (int, float))], default=0))
+
         assignments[team_id] = {
+            # Backward compatible scoring archetype fields
             'season_offensive': season_off,
             'season_defensive': season_def,
             'last10_offensive': last10_off,
@@ -443,8 +1040,224 @@ def assign_all_team_archetypes(season: str = '2025-26') -> Dict:
             'offensive_style_shift': off_shift,
             'defensive_style_shift': def_shift,
             'offensive_shift_details': off_shift_details,
-            'defensive_shift_details': def_shift_details
+            'defensive_shift_details': def_shift_details,
+            'season_offensive_percentile': season_off_percentile,
+            'last10_offensive_percentile': last10_off_percentile,
+            'season_defensive_percentile': season_def_percentile,
+            'last10_defensive_percentile': last10_def_percentile,
         }
+
+        # ===== ASSISTS ARCHETYPES =====
+        if team_id in season_assists_off_std and team_id in last10_assists_off_std:
+            season_assists_off_id = assign_assists_offensive_archetype(season_assists_off_std[team_id])
+            last10_assists_off_id = assign_assists_offensive_archetype(last10_assists_off_std[team_id])
+            season_assists_def_id = assign_assists_defensive_archetype(season_assists_def_std[team_id])
+            last10_assists_def_id = assign_assists_defensive_archetype(last10_assists_def_std[team_id])
+
+            assists_off_shift = season_assists_off_id != last10_assists_off_id
+            assists_def_shift = season_assists_def_id != last10_assists_def_id
+
+            assignments[team_id]['assists'] = {
+                'offensive': {
+                    'season': {
+                        'id': season_assists_off_id,
+                        'name': ASSISTS_OFFENSIVE_ARCHETYPES[season_assists_off_id]['name'],
+                        'description': ASSISTS_OFFENSIVE_ARCHETYPES[season_assists_off_id]['description'],
+                        'profile': ASSISTS_OFFENSIVE_ARCHETYPES[season_assists_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in season_assists_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_assists_off_id,
+                        'name': ASSISTS_OFFENSIVE_ARCHETYPES[last10_assists_off_id]['name'],
+                        'description': ASSISTS_OFFENSIVE_ARCHETYPES[last10_assists_off_id]['description'],
+                        'profile': ASSISTS_OFFENSIVE_ARCHETYPES[last10_assists_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_assists_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'defensive': {
+                    'season': {
+                        'id': season_assists_def_id,
+                        'name': ASSISTS_DEFENSIVE_ARCHETYPES[season_assists_def_id]['name'],
+                        'description': ASSISTS_DEFENSIVE_ARCHETYPES[season_assists_def_id]['description'],
+                        'allows': ASSISTS_DEFENSIVE_ARCHETYPES[season_assists_def_id].get('allows', ''),
+                        'suppresses': ASSISTS_DEFENSIVE_ARCHETYPES[season_assists_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in season_assists_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_assists_def_id,
+                        'name': ASSISTS_DEFENSIVE_ARCHETYPES[last10_assists_def_id]['name'],
+                        'description': ASSISTS_DEFENSIVE_ARCHETYPES[last10_assists_def_id]['description'],
+                        'allows': ASSISTS_DEFENSIVE_ARCHETYPES[last10_assists_def_id].get('allows', ''),
+                        'suppresses': ASSISTS_DEFENSIVE_ARCHETYPES[last10_assists_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_assists_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'style_shifts': {
+                    'offensive': assists_off_shift,
+                    'defensive': assists_def_shift,
+                    'offensive_details': f"STYLE SHIFT: {ASSISTS_OFFENSIVE_ARCHETYPES[season_assists_off_id]['name']} → {ASSISTS_OFFENSIVE_ARCHETYPES[last10_assists_off_id]['name']}" if assists_off_shift else '',
+                    'defensive_details': f"STYLE SHIFT: {ASSISTS_DEFENSIVE_ARCHETYPES[season_assists_def_id]['name']} → {ASSISTS_DEFENSIVE_ARCHETYPES[last10_assists_def_id]['name']}" if assists_def_shift else ''
+                }
+            }
+
+        # ===== REBOUNDS ARCHETYPES =====
+        if team_id in season_rebounds_off_std and team_id in last10_rebounds_off_std:
+            season_rebounds_off_id = assign_rebounds_offensive_archetype(season_rebounds_off_std[team_id])
+            last10_rebounds_off_id = assign_rebounds_offensive_archetype(last10_rebounds_off_std[team_id])
+            season_rebounds_def_id = assign_rebounds_defensive_archetype(season_rebounds_def_std[team_id])
+            last10_rebounds_def_id = assign_rebounds_defensive_archetype(last10_rebounds_def_std[team_id])
+
+            rebounds_off_shift = season_rebounds_off_id != last10_rebounds_off_id
+            rebounds_def_shift = season_rebounds_def_id != last10_rebounds_def_id
+
+            assignments[team_id]['rebounds'] = {
+                'offensive': {
+                    'season': {
+                        'id': season_rebounds_off_id,
+                        'name': REBOUNDS_OFFENSIVE_ARCHETYPES[season_rebounds_off_id]['name'],
+                        'description': REBOUNDS_OFFENSIVE_ARCHETYPES[season_rebounds_off_id]['description'],
+                        'profile': REBOUNDS_OFFENSIVE_ARCHETYPES[season_rebounds_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in season_rebounds_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_rebounds_off_id,
+                        'name': REBOUNDS_OFFENSIVE_ARCHETYPES[last10_rebounds_off_id]['name'],
+                        'description': REBOUNDS_OFFENSIVE_ARCHETYPES[last10_rebounds_off_id]['description'],
+                        'profile': REBOUNDS_OFFENSIVE_ARCHETYPES[last10_rebounds_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_rebounds_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'defensive': {
+                    'season': {
+                        'id': season_rebounds_def_id,
+                        'name': REBOUNDS_DEFENSIVE_ARCHETYPES[season_rebounds_def_id]['name'],
+                        'description': REBOUNDS_DEFENSIVE_ARCHETYPES[season_rebounds_def_id]['description'],
+                        'allows': REBOUNDS_DEFENSIVE_ARCHETYPES[season_rebounds_def_id].get('allows', ''),
+                        'suppresses': REBOUNDS_DEFENSIVE_ARCHETYPES[season_rebounds_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in season_rebounds_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_rebounds_def_id,
+                        'name': REBOUNDS_DEFENSIVE_ARCHETYPES[last10_rebounds_def_id]['name'],
+                        'description': REBOUNDS_DEFENSIVE_ARCHETYPES[last10_rebounds_def_id]['description'],
+                        'allows': REBOUNDS_DEFENSIVE_ARCHETYPES[last10_rebounds_def_id].get('allows', ''),
+                        'suppresses': REBOUNDS_DEFENSIVE_ARCHETYPES[last10_rebounds_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_rebounds_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'style_shifts': {
+                    'offensive': rebounds_off_shift,
+                    'defensive': rebounds_def_shift,
+                    'offensive_details': f"STYLE SHIFT: {REBOUNDS_OFFENSIVE_ARCHETYPES[season_rebounds_off_id]['name']} → {REBOUNDS_OFFENSIVE_ARCHETYPES[last10_rebounds_off_id]['name']}" if rebounds_off_shift else '',
+                    'defensive_details': f"STYLE SHIFT: {REBOUNDS_DEFENSIVE_ARCHETYPES[season_rebounds_def_id]['name']} → {REBOUNDS_DEFENSIVE_ARCHETYPES[last10_rebounds_def_id]['name']}" if rebounds_def_shift else ''
+                }
+            }
+
+        # ===== THREES ARCHETYPES =====
+        if team_id in season_threes_off_std and team_id in last10_threes_off_std:
+            season_threes_off_id = assign_threes_offensive_archetype(season_threes_off_std[team_id])
+            last10_threes_off_id = assign_threes_offensive_archetype(last10_threes_off_std[team_id])
+            season_threes_def_id = assign_threes_defensive_archetype(season_threes_def_std[team_id])
+            last10_threes_def_id = assign_threes_defensive_archetype(last10_threes_def_std[team_id])
+
+            threes_off_shift = season_threes_off_id != last10_threes_off_id
+            threes_def_shift = season_threes_def_id != last10_threes_def_id
+
+            assignments[team_id]['threes'] = {
+                'offensive': {
+                    'season': {
+                        'id': season_threes_off_id,
+                        'name': THREES_OFFENSIVE_ARCHETYPES[season_threes_off_id]['name'],
+                        'description': THREES_OFFENSIVE_ARCHETYPES[season_threes_off_id]['description'],
+                        'profile': THREES_OFFENSIVE_ARCHETYPES[season_threes_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in season_threes_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_threes_off_id,
+                        'name': THREES_OFFENSIVE_ARCHETYPES[last10_threes_off_id]['name'],
+                        'description': THREES_OFFENSIVE_ARCHETYPES[last10_threes_off_id]['description'],
+                        'profile': THREES_OFFENSIVE_ARCHETYPES[last10_threes_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_threes_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'defensive': {
+                    'season': {
+                        'id': season_threes_def_id,
+                        'name': THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id]['name'],
+                        'description': THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id]['description'],
+                        'allows': THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id].get('allows', ''),
+                        'suppresses': THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in season_threes_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_threes_def_id,
+                        'name': THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id]['name'],
+                        'description': THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id]['description'],
+                        'allows': THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id].get('allows', ''),
+                        'suppresses': THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_threes_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'style_shifts': {
+                    'offensive': threes_off_shift,
+                    'defensive': threes_def_shift,
+                    'offensive_details': f"STYLE SHIFT: {THREES_OFFENSIVE_ARCHETYPES[season_threes_off_id]['name']} → {THREES_OFFENSIVE_ARCHETYPES[last10_threes_off_id]['name']}" if threes_off_shift else '',
+                    'defensive_details': f"STYLE SHIFT: {THREES_DEFENSIVE_ARCHETYPES[season_threes_def_id]['name']} → {THREES_DEFENSIVE_ARCHETYPES[last10_threes_def_id]['name']}" if threes_def_shift else ''
+                }
+            }
+
+        # ===== TURNOVERS ARCHETYPES =====
+        if team_id in season_turnovers_off_std and team_id in last10_turnovers_off_std:
+            season_turnovers_off_id = assign_turnovers_offensive_archetype(season_turnovers_off_std[team_id])
+            last10_turnovers_off_id = assign_turnovers_offensive_archetype(last10_turnovers_off_std[team_id])
+            season_turnovers_def_id = assign_turnovers_defensive_archetype(season_turnovers_def_std[team_id])
+            last10_turnovers_def_id = assign_turnovers_defensive_archetype(last10_turnovers_def_std[team_id])
+
+            turnovers_off_shift = season_turnovers_off_id != last10_turnovers_off_id
+            turnovers_def_shift = season_turnovers_def_id != last10_turnovers_def_id
+
+            assignments[team_id]['turnovers'] = {
+                'offensive': {
+                    'season': {
+                        'id': season_turnovers_off_id,
+                        'name': TURNOVERS_OFFENSIVE_ARCHETYPES[season_turnovers_off_id]['name'],
+                        'description': TURNOVERS_OFFENSIVE_ARCHETYPES[season_turnovers_off_id]['description'],
+                        'profile': TURNOVERS_OFFENSIVE_ARCHETYPES[season_turnovers_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in season_turnovers_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_turnovers_off_id,
+                        'name': TURNOVERS_OFFENSIVE_ARCHETYPES[last10_turnovers_off_id]['name'],
+                        'description': TURNOVERS_OFFENSIVE_ARCHETYPES[last10_turnovers_off_id]['description'],
+                        'profile': TURNOVERS_OFFENSIVE_ARCHETYPES[last10_turnovers_off_id]['profile'],
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_turnovers_off_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'defensive': {
+                    'season': {
+                        'id': season_turnovers_def_id,
+                        'name': TURNOVERS_DEFENSIVE_ARCHETYPES[season_turnovers_def_id]['name'],
+                        'description': TURNOVERS_DEFENSIVE_ARCHETYPES[season_turnovers_def_id]['description'],
+                        'allows': TURNOVERS_DEFENSIVE_ARCHETYPES[season_turnovers_def_id].get('allows', ''),
+                        'suppresses': TURNOVERS_DEFENSIVE_ARCHETYPES[season_turnovers_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in season_turnovers_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    },
+                    'last10': {
+                        'id': last10_turnovers_def_id,
+                        'name': TURNOVERS_DEFENSIVE_ARCHETYPES[last10_turnovers_def_id]['name'],
+                        'description': TURNOVERS_DEFENSIVE_ARCHETYPES[last10_turnovers_def_id]['description'],
+                        'allows': TURNOVERS_DEFENSIVE_ARCHETYPES[last10_turnovers_def_id].get('allows', ''),
+                        'suppresses': TURNOVERS_DEFENSIVE_ARCHETYPES[last10_turnovers_def_id].get('suppresses', ''),
+                        'percentile': calculate_percentile(max([abs(v) for v in last10_turnovers_def_std[team_id].values() if isinstance(v, (int, float))], default=0))
+                    }
+                },
+                'style_shifts': {
+                    'offensive': turnovers_off_shift,
+                    'defensive': turnovers_def_shift,
+                    'offensive_details': f"STYLE SHIFT: {TURNOVERS_OFFENSIVE_ARCHETYPES[season_turnovers_off_id]['name']} → {TURNOVERS_OFFENSIVE_ARCHETYPES[last10_turnovers_off_id]['name']}" if turnovers_off_shift else '',
+                    'defensive_details': f"STYLE SHIFT: {TURNOVERS_DEFENSIVE_ARCHETYPES[season_turnovers_def_id]['name']} → {TURNOVERS_DEFENSIVE_ARCHETYPES[last10_turnovers_def_id]['name']}" if turnovers_def_shift else ''
+                }
+            }
 
     logger.info(f"Archetype assignment complete for {len(assignments)} teams")
     return assignments
