@@ -87,7 +87,7 @@ const ARCHETYPE_DEFINITIONS = {
 /**
  * Extract stats from the splits data based on metric family
  */
-function extractStats(statsData, family, context) {
+function extractStats(statsData, family, context, window = 'season') {
   if (!statsData) {
     console.warn('[ArchetypeRankingsPanel] No stats data provided for family:', family)
     return null
@@ -121,13 +121,20 @@ function extractStats(statsData, family, context) {
                   || statsData.avg_fg3_pct
                   || 0
   } else if (family === 'turnovers') {
-    stats.tovPG = statsData.overall_avg_turnovers
-               || statsData.season_avg_turnovers  // Fixed: was season_avg_tov
-               || statsData.season_avg_tov
-               || statsData.avg_turnovers
-               || 0
+    // Use last10 stats if window is last10, otherwise use season stats
+    if (window === 'last10') {
+      stats.tovPG = statsData.last10_avg_turnovers
+                 || statsData.last10_avg_tov
+                 || 0
+    } else {
+      stats.tovPG = statsData.overall_avg_turnovers
+                 || statsData.season_avg_turnovers
+                 || statsData.season_avg_tov
+                 || statsData.avg_turnovers
+                 || 0
+    }
 
-    console.log('[ArchetypeRankingsPanel] Extracted turnovers:', { tovPG: stats.tovPG })
+    console.log('[ArchetypeRankingsPanel] Extracted turnovers:', { tovPG: stats.tovPG, window })
   } else if (family === 'assists') {
     stats.apg = statsData.overall_avg_assists
              || statsData.season_avg_ast
@@ -278,9 +285,9 @@ function ArchetypeRankingsPanel({
     )
   }
 
-  // Extract actual stats
-  const homeStatValues = extractStats(homeStats, family, context)
-  const awayStatValues = extractStats(awayStats, family, context)
+  // Extract actual stats (pass window to get correct season/last10 values)
+  const homeStatValues = extractStats(homeStats, family, context, window)
+  const awayStatValues = extractStats(awayStats, family, context, window)
 
   return (
     <div className="space-y-8">

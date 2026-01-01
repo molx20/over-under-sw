@@ -141,10 +141,11 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
             'avg_turnovers': team_row['season_avg_turnovers'] or 0            # Alternative field name
         }
 
-        # Step 2: Get all games with pace data
+        # Step 2: Get all games with pace data (ordered by date DESC for last10)
         # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)
         cursor.execute('''
             SELECT
+                game_date,
                 is_home,
                 turnovers as team_turnovers,
                 pace
@@ -155,18 +156,42 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
                 AND pace IS NOT NULL
                 AND pace > 0
                 AND game_type IN ('Regular Season', 'NBA Cup')
+            ORDER BY game_date DESC
         ''', (team_id, season))
 
         games = cursor.fetchall()
 
-        # Step 3: Group games by pace tier and location
-        splits = {
+        # Step 3: Calculate both season and last10 stats
+        # Season: all games
+        season_splits = {
             'slow': {'home_turnovers': [], 'away_turnovers': []},
             'normal': {'home_turnovers': [], 'away_turnovers': []},
             'fast': {'home_turnovers': [], 'away_turnovers': []}
         }
 
-        for game in games:
+        # Last10: only most recent 10 games
+        last10_splits = {
+            'slow': {'home_turnovers': [], 'away_turnovers': []},
+            'normal': {'home_turnovers': [], 'away_turnovers': []},
+            'fast': {'home_turnovers': [], 'away_turnovers': []}
+        }
+
+        # Calculate season avg and last10 avg turnovers
+        all_tovs = [g['team_turnovers'] for g in games if g['team_turnovers'] is not None]
+        last10_tovs = [g['team_turnovers'] for g in games[:10] if g['team_turnovers'] is not None]
+
+        team_info['season_avg_turnovers'] = round(sum(all_tovs) / len(all_tovs), 1) if all_tovs else 0
+        team_info['last10_avg_turnovers'] = round(sum(last10_tovs) / len(last10_tovs), 1) if last10_tovs else 0
+
+        # Update all field aliases for both season and last10
+        team_info['overall_avg_turnovers'] = team_info['season_avg_turnovers']
+        team_info['season_avg_tov'] = team_info['season_avg_turnovers']
+        team_info['avg_turnovers'] = team_info['season_avg_turnovers']
+
+        # Add last10 aliases
+        team_info['last10_avg_tov'] = team_info['last10_avg_turnovers']
+
+        for idx, game in enumerate(games):
             pace = game['pace']
             pace_tier = get_pace_tier(pace)
 
@@ -174,13 +199,19 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
                 continue
 
             location_key = 'home_turnovers' if game['is_home'] else 'away_turnovers'
-            splits[pace_tier][location_key].append(game['team_turnovers'])
 
-        # Step 4: Calculate averages and game counts
+            # Add to season splits (all games)
+            season_splits[pace_tier][location_key].append(game['team_turnovers'])
+
+            # Add to last10 splits (only first 10 games, which are most recent due to DESC order)
+            if idx < 10:
+                last10_splits[pace_tier][location_key].append(game['team_turnovers'])
+
+        # Step 4: Calculate averages and game counts for season
         result_splits = {}
         for tier in get_all_pace_tiers():
-            home_tovs = splits[tier]['home_turnovers']
-            away_tovs = splits[tier]['away_turnovers']
+            home_tovs = season_splits[tier]['home_turnovers']
+            away_tovs = season_splits[tier]['away_turnovers']
 
             result_splits[tier] = {
                 'home_turnovers': round(sum(home_tovs) / len(home_tovs), 1) if home_tovs else None,
@@ -190,6 +221,21 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
             }
 
         team_info['splits'] = result_splits
+
+        # Step 5: Calculate averages and game counts for last10
+        last10_result_splits = {}
+        for tier in get_all_pace_tiers():
+            home_tovs = last10_splits[tier]['home_turnovers']
+            away_tovs = last10_splits[tier]['away_turnovers']
+
+            last10_result_splits[tier] = {
+                'home_turnovers': round(sum(home_tovs) / len(home_tovs), 1) if home_tovs else None,
+                'home_games': len(home_tovs),
+                'away_turnovers': round(sum(away_tovs) / len(away_tovs), 1) if away_tovs else None,
+                'away_games': len(away_tovs)
+            }
+
+        team_info['splits_last10'] = last10_result_splits
 
         return team_info
 
