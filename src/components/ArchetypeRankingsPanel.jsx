@@ -1,12 +1,11 @@
 /**
  * ArchetypeRankingsPanel Component
  *
- * Displays ALL archetypes for a family with opponent archetype highlighting.
- * Shows offensive and defensive archetypes in a grid layout with percentile rankings.
+ * Displays ALL archetypes for a family with opponent archetype highlighting and ACTUAL STATS.
+ * Shows offensive and defensive archetypes with real performance metrics (PPG, APG, etc.)
  */
 
 import { useState } from 'react'
-import GlassTooltip from './GlassTooltip'
 
 // Archetype definitions for each family
 const ARCHETYPE_DEFINITIONS = {
@@ -85,15 +84,39 @@ const ARCHETYPE_DEFINITIONS = {
 }
 
 /**
+ * Extract stats from the splits data based on metric family
+ */
+function extractStats(statsData, family, context) {
+  if (!statsData) return null
+
+  const stats = {}
+
+  if (family === 'scoring') {
+    // Get overall average
+    stats.ppg = statsData.overall_avg_points || 0
+  } else if (family === 'threes') {
+    stats.threesPG = statsData.overall_avg_fg3m || 0
+    stats.threePct = statsData.overall_avg_fg3_pct || 0
+  } else if (family === 'turnovers') {
+    stats.tovPG = statsData.overall_avg_turnovers || 0
+  } else if (family === 'assists') {
+    stats.apg = statsData.overall_avg_assists || 0
+  }
+
+  return stats
+}
+
+/**
  * Main component that renders offensive and defensive archetype grids
  */
 function ArchetypeRankingsPanel({
-  family,          // 'scoring' | 'assists' | 'rebounds' | 'threes' | 'turnovers'
-  homeArchetypes,  // Full archetype object for home team
-  awayArchetypes,  // Full archetype object for away team
-  window,          // 'season' | 'last10'
-  homeTeamStats,   // Home team stats (PPG, etc.)
-  awayTeamStats    // Away team stats (PPG, etc.)
+  family,
+  homeArchetypes,
+  awayArchetypes,
+  window,
+  homeStats,
+  awayStats,
+  context
 }) {
   // Handle missing data
   if (!homeArchetypes || !awayArchetypes || !family) {
@@ -153,6 +176,10 @@ function ArchetypeRankingsPanel({
     )
   }
 
+  // Extract actual stats
+  const homeStatValues = extractStats(homeStats, family, context)
+  const awayStatValues = extractStats(awayStats, family, context)
+
   return (
     <div className="space-y-8">
       {/* Offensive Section */}
@@ -163,6 +190,8 @@ function ArchetypeRankingsPanel({
         awayData={awayFamilyData?.offensive?.[window]}
         homeTeam={homeArchetypes?.team_abbr || 'Home'}
         awayTeam={awayArchetypes?.team_abbr || 'Away'}
+        homeStats={homeStatValues}
+        awayStats={awayStatValues}
         window={window}
       />
 
@@ -174,6 +203,8 @@ function ArchetypeRankingsPanel({
         awayData={awayFamilyData?.defensive?.[window]}
         homeTeam={homeArchetypes?.team_abbr || 'Home'}
         awayTeam={awayArchetypes?.team_abbr || 'Away'}
+        homeStats={homeStatValues}
+        awayStats={awayStatValues}
         window={window}
       />
     </div>
@@ -183,7 +214,7 @@ function ArchetypeRankingsPanel({
 /**
  * ArchetypeGrid - Shows all 4 archetypes with opponent highlighting
  */
-function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, window }) {
+function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, homeStats, awayStats, window }) {
   if (!homeData || !awayData) {
     return (
       <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -237,7 +268,8 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, w
                   name={archetypeDef.name}
                   isCurrent={isCurrentArchetype}
                   isOpponent={isOpponentArchetype}
-                  percentile={isCurrentArchetype ? awayData.percentile : null}
+                  stats={isCurrentArchetype ? awayStats : null}
+                  family={family}
                   teamColor="orange"
                 />
               )
@@ -263,7 +295,8 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, w
                   name={archetypeDef.name}
                   isCurrent={isCurrentArchetype}
                   isOpponent={isOpponentArchetype}
-                  percentile={isCurrentArchetype ? homeData.percentile : null}
+                  stats={isCurrentArchetype ? homeStats : null}
+                  family={family}
                   teamColor="blue"
                 />
               )
@@ -276,9 +309,9 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, w
 }
 
 /**
- * ArchetypeCard - Individual archetype card with highlighting
+ * ArchetypeCard - Individual archetype card with highlighting and ACTUAL STATS
  */
-function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, percentile, teamColor }) {
+function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor }) {
   const getCardClasses = () => {
     let classes = 'p-3 rounded-lg border-2 transition-all '
 
@@ -303,16 +336,26 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, percentile, t
     return classes
   }
 
-  const getStrengthBadge = (pct) => {
-    if (!pct) return null
-    if (pct >= 80) return { label: 'Elite', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' }
-    if (pct >= 60) return { label: 'Above Avg', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' }
-    if (pct >= 40) return { label: 'Average', color: 'bg-gray-100 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300' }
-    if (pct >= 20) return { label: 'Below Avg', color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' }
-    return { label: 'Poor', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' }
+  // Get stat display based on family
+  const getStatDisplay = (stats, family) => {
+    if (!stats) return null
+
+    if (family === 'scoring') {
+      return `${stats.ppg.toFixed(1)} PPG`
+    } else if (family === 'threes') {
+      return `${stats.threesPG.toFixed(1)} 3PM | ${(stats.threePct * 100).toFixed(1)}%`
+    } else if (family === 'turnovers') {
+      return `${stats.tovPG.toFixed(1)} TOV/G`
+    } else if (family === 'assists') {
+      return `${stats.apg.toFixed(1)} APG`
+    } else if (family === 'rebounds') {
+      return `Coming soon`
+    }
+
+    return null
   }
 
-  const strength = getStrengthBadge(percentile)
+  const statDisplay = getStatDisplay(stats, family)
 
   return (
     <div className={getCardClasses()}>
@@ -334,27 +377,11 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, percentile, t
             )}
           </div>
 
-          {isCurrent && percentile && (
-            <div className="mt-2 flex items-center gap-3">
-              {/* Percentile Bar */}
-              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all ${
-                    teamColor === 'blue' ? 'bg-blue-500 dark:bg-blue-600' : 'bg-orange-500 dark:bg-orange-600'
-                  }`}
-                  style={{ width: `${Math.max(percentile, 5)}%` }}
-                />
-              </div>
-              {/* Percentile Text */}
-              <span className="text-xs font-bold text-gray-700 dark:text-gray-300 w-12 text-right">
-                {percentile.toFixed(0)}%ile
+          {isCurrent && statDisplay && (
+            <div className="mt-2">
+              <span className={`text-lg font-bold ${teamColor === 'blue' ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                {statDisplay}
               </span>
-              {/* Strength Badge */}
-              {strength && (
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${strength.color}`}>
-                  {strength.label}
-                </span>
-              )}
             </div>
           )}
         </div>

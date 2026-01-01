@@ -230,41 +230,53 @@ function AdvancedSplitsPanel({
         )}
       </div>
 
-      {/* Archetype Context Panel - Shows archetype info above stats */}
+      {/* Archetype Panel with Actual Stats */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        {metric === 'scoring' && (
+        {metric === 'scoring' && scoringSplitsData && (
           <ArchetypeRankingsPanel
             family="scoring"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
+            homeStats={scoringSplitsData?.home_team}
+            awayStats={scoringSplitsData?.away_team}
+            context={context}
           />
         )}
 
-        {metric === 'threePt' && (
+        {metric === 'threePt' && (context === 'defense' ? threePtSplitsData : threePtVsPaceData) && (
           <ArchetypeRankingsPanel
             family="threes"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
+            homeStats={context === 'defense' ? threePtSplitsData?.home_team : threePtVsPaceData?.home_team}
+            awayStats={context === 'defense' ? threePtSplitsData?.away_team : threePtVsPaceData?.away_team}
+            context={context}
           />
         )}
 
-        {metric === 'turnovers' && (
+        {metric === 'turnovers' && (context === 'defense' ? turnoverVsDefenseData : turnoverVsPaceData) && (
           <ArchetypeRankingsPanel
             family="turnovers"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
+            homeStats={context === 'defense' ? turnoverVsDefenseData?.home_team : turnoverVsPaceData?.home_team}
+            awayStats={context === 'defense' ? turnoverVsDefenseData?.away_team : turnoverVsPaceData?.away_team}
+            context={context}
           />
         )}
 
-        {metric === 'assists' && (
+        {metric === 'assists' && (context === 'defense' ? assistsVsDefenseData : assistsVsPaceData) && (
           <ArchetypeRankingsPanel
             family="assists"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
+            homeStats={context === 'defense' ? assistsVsDefenseData?.home_team : assistsVsPaceData?.home_team}
+            awayStats={context === 'defense' ? assistsVsDefenseData?.away_team : assistsVsPaceData?.away_team}
+            context={context}
           />
         )}
 
@@ -274,106 +286,10 @@ function AdvancedSplitsPanel({
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
             window={window}
+            homeStats={null}
+            awayStats={null}
+            context="defense"
           />
-        )}
-      </div>
-
-      {/* Dynamic Chart Rendering - ACTUAL STATS BARS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Scoring + Defense */}
-        {metric === 'scoring' && context === 'defense' && scoringSplitsData && (
-          <>
-            {scoringSplitsData.away_team && (
-              <ScoringSpitsChart teamData={scoringSplitsData.away_team} />
-            )}
-            {scoringSplitsData.home_team && (
-              <ScoringSpitsChart teamData={scoringSplitsData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* Scoring + Pace */}
-        {metric === 'scoring' && context === 'pace' && scoringSplitsData && (
-          <>
-            {scoringSplitsData.away_team && scoringSplitsData.away_team.pace_splits && (
-              <ScoringVsPaceChart teamData={scoringSplitsData.away_team} />
-            )}
-            {scoringSplitsData.home_team && scoringSplitsData.home_team.pace_splits && (
-              <ScoringVsPaceChart teamData={scoringSplitsData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* 3PT + Defense */}
-        {metric === 'threePt' && context === 'defense' && threePtSplitsData && (
-          <>
-            {threePtSplitsData.away_team && (
-              <ThreePointScoringVsDefenseChart teamData={threePtSplitsData.away_team} />
-            )}
-            {threePtSplitsData.home_team && (
-              <ThreePointScoringVsDefenseChart teamData={threePtSplitsData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* 3PT + Pace */}
-        {metric === 'threePt' && context === 'pace' && threePtVsPaceData && (
-          <>
-            {threePtVsPaceData.away_team && (
-              <ThreePointScoringVsPaceChart teamData={threePtVsPaceData.away_team} />
-            )}
-            {threePtVsPaceData.home_team && (
-              <ThreePointScoringVsPaceChart teamData={threePtVsPaceData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* Turnovers + Defense */}
-        {metric === 'turnovers' && context === 'defense' && turnoverVsDefenseData && (
-          <>
-            {turnoverVsDefenseData.away_team && (
-              <TurnoverVsDefensePressureChart teamData={turnoverVsDefenseData.away_team} />
-            )}
-            {turnoverVsDefenseData.home_team && (
-              <TurnoverVsDefensePressureChart teamData={turnoverVsDefenseData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* Turnovers + Pace */}
-        {metric === 'turnovers' && context === 'pace' && turnoverVsPaceData && (
-          <>
-            {turnoverVsPaceData.away_team && (
-              <TurnoverVsPaceChart teamData={turnoverVsPaceData.away_team} />
-            )}
-            {turnoverVsPaceData.home_team && (
-              <TurnoverVsPaceChart teamData={turnoverVsPaceData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* Assists + Defense */}
-        {metric === 'assists' && context === 'defense' && assistsVsDefenseData && (
-          <>
-            {assistsVsDefenseData.away_team && (
-              <AssistsVsDefenseChart teamData={assistsVsDefenseData.away_team} />
-            )}
-            {assistsVsDefenseData.home_team && (
-              <AssistsVsDefenseChart teamData={assistsVsDefenseData.home_team} />
-            )}
-          </>
-        )}
-
-        {/* Assists + Pace */}
-        {metric === 'assists' && context === 'pace' && assistsVsPaceData && (
-          <>
-            {assistsVsPaceData.away_team && (
-              <AssistsVsPaceChart teamData={assistsVsPaceData.away_team} />
-            )}
-            {assistsVsPaceData.home_team && (
-              <AssistsVsPaceChart teamData={assistsVsPaceData.home_team} />
-            )}
-          </>
         )}
       </div>
 
