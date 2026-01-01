@@ -382,8 +382,7 @@ function ArchetypeRankingsPanel({
         season: '2025-26'
       })
 
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001'
-      const response = await fetch(`${baseUrl}/api/archetype_match_games?${params}`)
+      const response = await fetch(`/api/archetype_match_games?${params}`)
       const data = await response.json()
 
       if (data.success) {
