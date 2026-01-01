@@ -230,8 +230,8 @@ ASSISTS_OFFENSIVE_ARCHETYPES = {
     'ball_movement_maestro': {
         'name': 'Ball Movement Maestro',
         'rules': {
-            'assist_rate': ('>', 0.8),
-            'assists_per_100': ('>', 0.5)
+            'assist_rate': ('>', 0.5),
+            'assists_per_100': ('>', 0.3)
         },
         'description': 'Elite ball movement with exceptional passing frequency. Team-oriented offense with high assist rate.',
         'profile': 'High assist rate, ball-sharing, team-first offense'
@@ -240,8 +240,8 @@ ASSISTS_OFFENSIVE_ARCHETYPES = {
     'high_volume_playmaking': {
         'name': 'High Volume Playmaking',
         'rules': {
-            'assists': ('>', 0.6),
-            'assist_rate': ('between', 0.2, 0.8),
+            'assists': ('>', 0.3),
+            'assist_rate': ('between', -0.3, 0.5),
         },
         'description': 'High volume of assists with solid rate. Generates plenty of scoring opportunities through passing.',
         'profile': 'High assist volume, good playmaking'
@@ -250,8 +250,8 @@ ASSISTS_OFFENSIVE_ARCHETYPES = {
     'iso_driven_low_assist': {
         'name': 'ISO Driven Low-Assist',
         'rules': {
-            'assist_rate': ('<', -0.8),
-            'assists': ('<', -0.5),
+            'assist_rate': ('<', -0.5),
+            'assists': ('<', -0.3),
         },
         'description': 'Isolation-heavy offense with minimal passing. Relies on individual creation over ball movement.',
         'profile': 'Low assists, ISO-heavy, individual creation'
@@ -259,7 +259,9 @@ ASSISTS_OFFENSIVE_ARCHETYPES = {
 
     'balanced_sharing': {
         'name': 'Balanced Sharing',
-        'rules': {},  # Fallback - matches everything
+        'rules': {
+            'assist_rate': ('between', -0.5, 0.5),
+        },
         'description': 'Balanced approach to ball movement. Neither high nor low assist tendencies.',
         'profile': 'Moderate assists, balanced playmaking'
     }
@@ -269,8 +271,8 @@ ASSISTS_DEFENSIVE_ARCHETYPES = {
     'assist_denial_elite': {
         'name': 'Assist Denial Elite',
         'rules': {
-            'opp_assist_rate': ('<', -0.8),
-            'opp_assists': ('<', -0.6),
+            'opp_assist_rate': ('<', -0.5),
+            'opp_assists': ('<', -0.3),
         },
         'description': 'Forces opponents into isolation. Excellent at denying ball movement and disrupting passing lanes.',
         'allows': 'ISO plays',
@@ -280,8 +282,8 @@ ASSISTS_DEFENSIVE_ARCHETYPES = {
     'rotation_scrambler': {
         'name': 'Rotation Scrambler',
         'rules': {
-            'opp_assist_rate': ('<', -0.4),
-            'opp_assists': ('between', -0.6, 0.2),
+            'opp_assist_rate': ('between', -0.5, 0.0),
+            'opp_assists': ('between', -0.5, 0.3),
         },
         'description': 'Solid rotations that disrupt passing angles. Makes opponents work harder for assists.',
         'allows': 'Some ball movement',
@@ -291,8 +293,8 @@ ASSISTS_DEFENSIVE_ARCHETYPES = {
     'ball_movement_vulnerable': {
         'name': 'Ball Movement Vulnerable',
         'rules': {
-            'opp_assist_rate': ('>', 0.6),
-            'opp_assists': ('>', 0.4),
+            'opp_assist_rate': ('>', 0.3),
+            'opp_assists': ('>', 0.2),
         },
         'description': 'Vulnerable to ball movement. Allows opponents to find open shooters and cutters easily.',
         'allows': 'High assist opportunities',
@@ -301,7 +303,9 @@ ASSISTS_DEFENSIVE_ARCHETYPES = {
 
     'average_assist_defense': {
         'name': 'Average Assist Defense',
-        'rules': {},  # Fallback
+        'rules': {
+            'opp_assist_rate': ('between', -0.3, 0.3),
+        },
         'description': 'Standard defense against ball movement. No extreme tendencies in assist prevention.',
         'allows': 'Average ball movement',
         'suppresses': 'Nothing specific'
@@ -320,8 +324,8 @@ REBOUNDS_OFFENSIVE_ARCHETYPES = {
     'crash_the_glass_elite': {
         'name': 'Crash the Glass Elite',
         'rules': {
-            'offensive_rebounds': ('>', 1.0),
-            'second_chance_points': ('>', 0.5),
+            'offensive_rebounds': ('>', 0.6),
+            'second_chance_points': ('>', 0.3),
         },
         'description': 'Dominant offensive rebounding creates extra possessions. Elite at second-chance opportunities.',
         'profile': 'High OREB, second-chance scoring, possession extension'
@@ -330,8 +334,8 @@ REBOUNDS_OFFENSIVE_ARCHETYPES = {
     'selective_crasher': {
         'name': 'Selective Crasher',
         'rules': {
-            'offensive_rebounds': ('between', 0.3, 1.0),
-            'second_chance_points': ('between', 0.0, 0.5),
+            'offensive_rebounds': ('between', 0.0, 0.6),
+            'second_chance_points': ('between', -0.2, 0.3),
         },
         'description': 'Good offensive rebounding with selective crashing. Creates some extra possessions.',
         'profile': 'Above average OREB, balanced approach'
@@ -340,7 +344,7 @@ REBOUNDS_OFFENSIVE_ARCHETYPES = {
     'transition_focused': {
         'name': 'Transition Focused',
         'rules': {
-            'offensive_rebounds': ('<', -0.8),
+            'offensive_rebounds': ('<', -0.5),
         },
         'description': 'Prioritizes transition over offensive rebounding. Gets back on defense quickly.',
         'profile': 'Low OREB, transition first'
@@ -348,7 +352,9 @@ REBOUNDS_OFFENSIVE_ARCHETYPES = {
 
     'balanced_rebounding': {
         'name': 'Balanced Rebounding',
-        'rules': {},  # Fallback
+        'rules': {
+            'offensive_rebounds': ('between', -0.5, 0.0),
+        },
         'description': 'Balanced approach to offensive rebounding. Neither aggressive nor passive.',
         'profile': 'Moderate OREB, balanced strategy'
     }
@@ -358,8 +364,8 @@ REBOUNDS_DEFENSIVE_ARCHETYPES = {
     'glass_protector_elite': {
         'name': 'Glass Protector Elite',
         'rules': {
-            'opp_defensive_rebounds': ('>', 1.0),  # Team gets many DREBs
-            'opp_offensive_rebounds': ('<', -0.8),  # Opponent gets few OREBs
+            'defensive_rebounds': ('>', 0.6),  # Team gets many DREBs
+            'opp_offensive_rebounds': ('<', -0.5),  # Opponent gets few OREBs
         },
         'description': 'Dominant defensive rebounding prevents second chances. Elite box-out fundamentals.',
         'allows': 'Minimal second chances',
@@ -369,8 +375,8 @@ REBOUNDS_DEFENSIVE_ARCHETYPES = {
     'solid_boxing_out': {
         'name': 'Solid Boxing Out',
         'rules': {
-            'opp_defensive_rebounds': ('between', 0.3, 1.0),
-            'opp_offensive_rebounds': ('between', -0.8, 0.0),
+            'defensive_rebounds': ('between', 0.0, 0.6),
+            'opp_offensive_rebounds': ('between', -0.5, 0.2),
         },
         'description': 'Good defensive rebounding with solid fundamentals. Limits second-chance opportunities.',
         'allows': 'Some second chances',
@@ -380,8 +386,8 @@ REBOUNDS_DEFENSIVE_ARCHETYPES = {
     'vulnerable_to_crashes': {
         'name': 'Vulnerable to Crashes',
         'rules': {
-            'opp_defensive_rebounds': ('<', -0.6),
-            'opp_offensive_rebounds': ('>', 0.6),
+            'defensive_rebounds': ('<', -0.4),
+            'opp_offensive_rebounds': ('>', 0.3),
         },
         'description': 'Vulnerable to offensive rebounds. Allows too many second-chance opportunities.',
         'allows': 'High opponent OREB',
@@ -390,7 +396,9 @@ REBOUNDS_DEFENSIVE_ARCHETYPES = {
 
     'average_rebounding': {
         'name': 'Average Rebounding',
-        'rules': {},  # Fallback
+        'rules': {
+            'defensive_rebounds': ('between', -0.4, 0.0),
+        },
         'description': 'Average defensive rebounding. No extreme tendencies.',
         'allows': 'Average second chances',
         'suppresses': 'Nothing specific'
@@ -409,8 +417,8 @@ THREES_OFFENSIVE_ARCHETYPES = {
     'volume_three_bomber': {
         'name': 'Volume Three Bomber',
         'rules': {
-            'three_pa_rate': ('>', 0.8),
-            'fg3a': ('>', 0.6),
+            'three_pa_rate': ('>', 0.5),
+            'fg3a': ('>', 0.4),
         },
         'description': 'Elite three-point shooting volume. Lives beyond the arc with high attempt rate.',
         'profile': 'High 3PA volume, perimeter-heavy, spacing offense'
@@ -419,8 +427,8 @@ THREES_OFFENSIVE_ARCHETYPES = {
     'efficient_selective_shooter': {
         'name': 'Efficient Selective Shooter',
         'rules': {
-            'fg3_pct': ('>', 0.8),
-            'three_pa_rate': ('between', 0.2, 0.8),
+            'fg3_pct': ('>', 0.5),
+            'three_pa_rate': ('between', -0.2, 0.5),
         },
         'description': 'Selective but efficient three-point shooting. Quality over quantity approach.',
         'profile': 'High 3P%, selective shooting, efficient'
@@ -429,8 +437,8 @@ THREES_OFFENSIVE_ARCHETYPES = {
     'three_avoidant': {
         'name': 'Three Avoidant',
         'rules': {
-            'three_pa_rate': ('<', -0.8),
-            'fg3a': ('<', -0.6),
+            'three_pa_rate': ('<', -0.5),
+            'fg3a': ('<', -0.4),
         },
         'description': 'Avoids three-point shooting. Prefers midrange and paint scoring.',
         'profile': 'Low 3PA, inside-focused, traditional scoring'
@@ -438,7 +446,9 @@ THREES_OFFENSIVE_ARCHETYPES = {
 
     'balanced_shooting': {
         'name': 'Balanced Shooting',
-        'rules': {},  # Fallback
+        'rules': {
+            'three_pa_rate': ('between', -0.5, 0.5),
+        },
         'description': 'Balanced three-point approach. Moderate volume and efficiency.',
         'profile': 'Average 3PT shooting, balanced offense'
     }
@@ -448,8 +458,8 @@ THREES_DEFENSIVE_ARCHETYPES = {
     'three_point_shutdown': {
         'name': 'Three-Point Shutdown',
         'rules': {
-            'opp_fg3_pct': ('<', -0.8),
-            'opp_three_pa_rate': ('<', -0.4),
+            'opp_fg3_pct': ('<', -0.5),
+            'opp_three_pa_rate': ('<', -0.2),
         },
         'description': 'Elite three-point defense. Limits both volume and efficiency from deep.',
         'allows': 'Inside scoring',
@@ -459,8 +469,8 @@ THREES_DEFENSIVE_ARCHETYPES = {
     'perimeter_contest_strong': {
         'name': 'Perimeter Contest Strong',
         'rules': {
-            'opp_fg3_pct': ('<', -0.5),
-            'opp_three_pa_rate': ('between', -0.4, 0.4),
+            'opp_fg3_pct': ('<', -0.3),
+            'opp_three_pa_rate': ('between', -0.3, 0.3),
         },
         'description': 'Strong perimeter contests make threes difficult. Limits efficiency more than volume.',
         'allows': 'Three-point attempts',
@@ -470,8 +480,8 @@ THREES_DEFENSIVE_ARCHETYPES = {
     'three_point_vulnerable': {
         'name': 'Three-Point Vulnerable',
         'rules': {
-            'opp_fg3_pct': ('>', 0.6),
-            'opp_three_pa_rate': ('>', 0.4),
+            'opp_fg3_pct': ('>', 0.3),
+            'opp_three_pa_rate': ('>', 0.2),
         },
         'description': 'Vulnerable to three-point shooting. Allows both high volume and efficiency.',
         'allows': 'High 3PA volume and efficiency',
@@ -480,7 +490,9 @@ THREES_DEFENSIVE_ARCHETYPES = {
 
     'average_perimeter_defense': {
         'name': 'Average Perimeter Defense',
-        'rules': {},  # Fallback
+        'rules': {
+            'opp_fg3_pct': ('between', -0.3, 0.3),
+        },
         'description': 'Average three-point defense. No extreme tendencies.',
         'allows': 'Average three-point shooting',
         'suppresses': 'Nothing specific'
@@ -499,8 +511,8 @@ TURNOVERS_OFFENSIVE_ARCHETYPES = {
     'ball_security_elite': {
         'name': 'Ball Security Elite',
         'rules': {
-            'turnover_rate': ('<', -1.0),
-            'turnovers': ('<', -0.8),
+            'turnover_rate': ('<', -0.6),
+            'turnovers': ('<', -0.5),
         },
         'description': 'Elite ball security with minimal turnovers. Takes care of the ball exceptionally well.',
         'profile': 'Low turnovers, ball security, careful play'
@@ -509,8 +521,8 @@ TURNOVERS_OFFENSIVE_ARCHETYPES = {
     'solid_ball_handler': {
         'name': 'Solid Ball Handler',
         'rules': {
-            'turnover_rate': ('between', -1.0, -0.3),
-            'turnovers': ('between', -0.8, 0.0),
+            'turnover_rate': ('between', -0.6, 0.0),
+            'turnovers': ('between', -0.5, 0.2),
         },
         'description': 'Good ball security with below-average turnover rate. Solid fundamental ball handling.',
         'profile': 'Below average turnovers, solid handling'
@@ -519,8 +531,8 @@ TURNOVERS_OFFENSIVE_ARCHETYPES = {
     'turnover_prone_aggressive': {
         'name': 'Turnover Prone Aggressive',
         'rules': {
-            'turnover_rate': ('>', 0.6),
-            'turnovers': ('>', 0.5),
+            'turnover_rate': ('>', 0.3),
+            'turnovers': ('>', 0.3),
         },
         'description': 'Aggressive style leads to turnovers. High-risk, high-reward approach.',
         'profile': 'High turnovers, aggressive play, risky'
@@ -528,7 +540,9 @@ TURNOVERS_OFFENSIVE_ARCHETYPES = {
 
     'average_ball_security': {
         'name': 'Average Ball Security',
-        'rules': {},  # Fallback
+        'rules': {
+            'turnover_rate': ('between', -0.3, 0.3),
+        },
         'description': 'Average ball security. Moderate turnover tendencies.',
         'profile': 'Average turnovers, balanced approach'
     }
@@ -538,8 +552,8 @@ TURNOVERS_DEFENSIVE_ARCHETYPES = {
     'turnover_forcing_havoc': {
         'name': 'Turnover Forcing Havoc',
         'rules': {
-            'opp_turnovers': ('>', 1.0),
-            'opp_steals': ('>', 0.8),
+            'opp_turnovers': ('>', 0.6),
+            'opp_steals': ('>', 0.5),
         },
         'description': 'Creates chaos and forces turnovers. Aggressive, disruptive defensive pressure.',
         'allows': 'High pace, possessions',
@@ -549,8 +563,8 @@ TURNOVERS_DEFENSIVE_ARCHETYPES = {
     'pressure_defense': {
         'name': 'Pressure Defense',
         'rules': {
-            'opp_turnovers': ('between', 0.4, 1.0),
-            'opp_steals': ('between', 0.3, 0.8),
+            'opp_turnovers': ('between', 0.0, 0.6),
+            'opp_steals': ('between', 0.0, 0.5),
         },
         'description': 'Applies solid pressure that creates some turnovers. Active hands and good positioning.',
         'allows': 'Some possessions',
@@ -560,8 +574,8 @@ TURNOVERS_DEFENSIVE_ARCHETYPES = {
     'passive_turnover_defense': {
         'name': 'Passive Turnover Defense',
         'rules': {
-            'opp_turnovers': ('<', -0.8),
-            'opp_steals': ('<', -0.6),
+            'opp_turnovers': ('<', -0.5),
+            'opp_steals': ('<', -0.4),
         },
         'description': 'Passive approach that doesn\'t force turnovers. Allows opponents to execute cleanly.',
         'allows': 'Clean possessions',
@@ -570,7 +584,9 @@ TURNOVERS_DEFENSIVE_ARCHETYPES = {
 
     'average_pressure': {
         'name': 'Average Pressure',
-        'rules': {},  # Fallback
+        'rules': {
+            'opp_turnovers': ('between', -0.5, 0.0),
+        },
         'description': 'Average defensive pressure. Moderate turnover forcing.',
         'allows': 'Average ball security',
         'suppresses': 'Nothing specific'

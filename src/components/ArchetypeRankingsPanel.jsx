@@ -129,6 +129,21 @@ function extractStats(statsData, family, context) {
              || statsData.season_avg_ast
              || statsData.avg_assists
              || 0
+  } else if (family === 'rebounds') {
+    stats.orpg = statsData.overall_avg_offensive_rebounds
+              || statsData.season_avg_oreb
+              || statsData.avg_offensive_rebounds
+              || 0
+    stats.drpg = statsData.overall_avg_defensive_rebounds
+              || statsData.season_avg_dreb
+              || statsData.avg_defensive_rebounds
+              || 0
+    stats.rpg = statsData.overall_avg_rebounds
+             || statsData.season_avg_reb
+             || statsData.avg_rebounds
+             || 0
+
+    console.log('[ArchetypeRankingsPanel] Extracted rebounds:', { orpg: stats.orpg, drpg: stats.drpg, rpg: stats.rpg })
   }
 
   return stats
@@ -377,7 +392,7 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
     } else if (family === 'assists') {
       return `${stats.apg.toFixed(1)} APG`
     } else if (family === 'rebounds') {
-      return `Coming soon`
+      return `${stats.rpg.toFixed(1)} RPG (${stats.orpg.toFixed(1)} O / ${stats.drpg.toFixed(1)} D)`
     }
 
     return null
