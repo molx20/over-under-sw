@@ -15,8 +15,59 @@ Design Principles:
 from typing import Dict, Tuple, List, Optional
 import logging
 import statistics
+import math
 
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# SCIPY FALLBACK - Safe import with pure Python alternatives
+# ============================================================================
+
+_SCIPY_AVAILABLE = False
+_scipy_norm = None
+
+try:
+    from scipy.stats import norm as _scipy_norm
+    _SCIPY_AVAILABLE = True
+    logger.info("[ARCHETYPE_CLASSIFIER] scipy.stats available - using norm.cdf for percentiles")
+except ImportError:
+    logger.warning("[ARCHETYPE_CLASSIFIER] scipy NOT available - using pure Python fallback for percentiles")
+    _scipy_norm = None
+
+
+def _pure_python_percentile_from_zscore(z_score: float) -> float:
+    """
+    Pure Python approximation of percentile from z-score.
+
+    Uses Python's built-in math.erf to compute the CDF of standard normal distribution.
+
+    Args:
+        z_score: Standardized value
+
+    Returns:
+        Percentile (0-100)
+    """
+    # CDF of standard normal = 0.5 * (1 + erf(z / sqrt(2)))
+    # This uses Python 3's math.erf which is very accurate
+    cdf = 0.5 * (1.0 + math.erf(z_score / math.sqrt(2.0)))
+    return round(cdf * 100, 1)
+
+
+def _safe_zscore(x: float, mean: float, std: float) -> float:
+    """
+    Calculate z-score safely, handling edge cases.
+
+    Args:
+        x: Value to standardize
+        mean: Mean of distribution
+        std: Standard deviation
+
+    Returns:
+        Z-score (0 if std is 0)
+    """
+    if std == 0 or std is None or math.isnan(std):
+        return 0.0
+    return (x - mean) / std
 
 try:
     from api.utils.archetype_features import (
@@ -831,7 +882,7 @@ def calculate_percentile(z_score: float) -> float:
     """
     Convert z-score to percentile (0-100).
 
-    Uses normal distribution CDF approximation.
+    Uses scipy's normal distribution CDF if available, otherwise uses pure Python fallback.
 
     Args:
         z_score: Standardized feature value
@@ -839,8 +890,10 @@ def calculate_percentile(z_score: float) -> float:
     Returns:
         Percentile value between 0 and 100
     """
-    from scipy.stats import norm
-    return round(norm.cdf(z_score) * 100, 1)
+    if _SCIPY_AVAILABLE and _scipy_norm is not None:
+        return round(_scipy_norm.cdf(z_score) * 100, 1)
+    else:
+        return _pure_python_percentile_from_zscore(z_score)
 
 
 # ============================================================================

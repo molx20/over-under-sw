@@ -20,16 +20,24 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (needed for scipy wheels)
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    gfortran \
+    libopenblas-dev \
+    liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python requirements
 COPY requirements.txt .
 
-# Install Python dependencies including scipy (rebuilt 2025-12-31)
-RUN pip install --no-cache-dir -r requirements.txt && echo "scipy installed: $(pip show scipy | grep Version)"
+# Install Python dependencies including scipy
+# NOTE: scipy requires build tools (gcc, g++, gfortran, openblas, lapack) installed above
+# If scipy fails to install, the backend will fall back to pure Python percentile calculations
+RUN pip install --no-cache-dir -r requirements.txt && \
+    echo "=== Python Dependencies Installed ===" && \
+    pip show scipy || echo "WARNING: scipy not installed - using fallback"
 
 # Copy application code
 COPY . .

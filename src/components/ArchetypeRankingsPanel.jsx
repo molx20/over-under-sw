@@ -87,20 +87,48 @@ const ARCHETYPE_DEFINITIONS = {
  * Extract stats from the splits data based on metric family
  */
 function extractStats(statsData, family, context) {
-  if (!statsData) return null
+  if (!statsData) {
+    console.warn('[ArchetypeRankingsPanel] No stats data provided for family:', family)
+    return null
+  }
 
   const stats = {}
 
+  // Log available fields for debugging
+  console.log('[ArchetypeRankingsPanel] extractStats for', family, '- available fields:', Object.keys(statsData))
+
   if (family === 'scoring') {
-    // Get overall average
-    stats.ppg = statsData.overall_avg_points || 0
+    // Try multiple field names for PPG (different APIs may use different names)
+    stats.ppg = statsData.overall_avg_points
+             || statsData.season_avg_pts
+             || statsData.avg_points
+             || statsData.points
+             || 0
+
+    console.log('[ArchetypeRankingsPanel] Extracted PPG:', stats.ppg, 'from statsData')
+
+    if (stats.ppg === 0) {
+      console.error('[ArchetypeRankingsPanel] PPG is 0! statsData:', statsData)
+    }
   } else if (family === 'threes') {
-    stats.threesPG = statsData.overall_avg_fg3m || 0
-    stats.threePct = statsData.overall_avg_fg3_pct || 0
+    stats.threesPG = statsData.overall_avg_fg3m
+                  || statsData.season_avg_fg3m
+                  || statsData.avg_fg3m
+                  || 0
+    stats.threePct = statsData.overall_avg_fg3_pct
+                  || statsData.season_avg_fg3_pct
+                  || statsData.avg_fg3_pct
+                  || 0
   } else if (family === 'turnovers') {
-    stats.tovPG = statsData.overall_avg_turnovers || 0
+    stats.tovPG = statsData.overall_avg_turnovers
+               || statsData.season_avg_tov
+               || statsData.avg_turnovers
+               || 0
   } else if (family === 'assists') {
-    stats.apg = statsData.overall_avg_assists || 0
+    stats.apg = statsData.overall_avg_assists
+             || statsData.season_avg_ast
+             || statsData.avg_assists
+             || 0
   }
 
   return stats
