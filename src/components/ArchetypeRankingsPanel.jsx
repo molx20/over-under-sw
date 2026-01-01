@@ -121,7 +121,7 @@ function extractStats(statsData, family, context, window = 'season') {
                   || statsData.avg_fg3_pct
                   || 0
   } else if (family === 'turnovers') {
-    // Use last10 stats if window is last10, otherwise use season stats
+    // OFFENSIVE: Turnovers committed by the team
     if (window === 'last10') {
       stats.tovPG = statsData.last10_avg_turnovers
                  || statsData.last10_avg_tov
@@ -134,7 +134,23 @@ function extractStats(statsData, family, context, window = 'season') {
                  || 0
     }
 
-    console.log('[ArchetypeRankingsPanel] Extracted turnovers:', { tovPG: stats.tovPG, window })
+    // DEFENSIVE: Turnovers forced (opponent turnovers)
+    if (window === 'last10') {
+      stats.tovPG_def = statsData.last10_avg_opp_turnovers
+                     || statsData.last10_avg_opp_tov
+                     || 0
+    } else {
+      stats.tovPG_def = statsData.overall_avg_opp_turnovers
+                     || statsData.season_avg_opp_turnovers
+                     || statsData.season_avg_opp_tov
+                     || 0
+    }
+
+    console.log('[ArchetypeRankingsPanel] Extracted turnovers:', {
+      offensive_tovPG: stats.tovPG,
+      defensive_tovPG: stats.tovPG_def,
+      window
+    })
   } else if (family === 'assists') {
     stats.apg = statsData.overall_avg_assists
              || statsData.season_avg_ast
@@ -423,6 +439,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   family={family}
                   teamColor="orange"
                   onClick={isOpponentArchetype ? () => onArchetypeClick?.('away', type, archetypeId) : null}
+                  type={type}
                 />
               )
             })}
@@ -451,6 +468,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   family={family}
                   teamColor="blue"
                   onClick={isOpponentArchetype ? () => onArchetypeClick?.('home', type, archetypeId) : null}
+                  type={type}
                 />
               )
             })}
@@ -464,7 +482,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
 /**
  * ArchetypeCard - Individual archetype card with highlighting and ACTUAL STATS
  */
-function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor, onClick }) {
+function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor, onClick, type }) {
   const getCardClasses = () => {
     let classes = 'p-3 rounded-lg border-2 transition-all '
 
@@ -494,8 +512,8 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
     return classes
   }
 
-  // Get stat display based on family
-  const getStatDisplay = (stats, family) => {
+  // Get stat display based on family and type (offensive vs defensive)
+  const getStatDisplay = (stats, family, type) => {
     if (!stats) return null
 
     if (family === 'scoring') {
@@ -503,7 +521,9 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
     } else if (family === 'threes') {
       return `${stats.threesPG.toFixed(1)} 3PM | ${(stats.threePct * 100).toFixed(1)}%`
     } else if (family === 'turnovers') {
-      return `${stats.tovPG.toFixed(1)} TOV/G`
+      // OFFENSIVE: Turnovers committed | DEFENSIVE: Turnovers forced
+      const tovValue = type === 'defensive' ? stats.tovPG_def : stats.tovPG
+      return `${tovValue.toFixed(1)} TOV/G`
     } else if (family === 'assists') {
       return `${stats.apg.toFixed(1)} APG`
     } else if (family === 'rebounds') {
@@ -513,7 +533,7 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
     return null
   }
 
-  const statDisplay = getStatDisplay(stats, family)
+  const statDisplay = getStatDisplay(stats, family, type)
 
   return (
     <div className={getCardClasses()} onClick={onClick}>

@@ -176,7 +176,7 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
             'fast': {'home_turnovers': [], 'away_turnovers': []}
         }
 
-        # Calculate season avg and last10 avg turnovers
+        # Calculate season avg and last10 avg turnovers (OFFENSIVE - turnovers committed)
         all_tovs = [g['team_turnovers'] for g in games if g['team_turnovers'] is not None]
         last10_tovs = [g['team_turnovers'] for g in games[:10] if g['team_turnovers'] is not None]
 
@@ -190,6 +190,31 @@ def get_team_turnover_vs_pace(team_id: int, season: str = '2025-26') -> Optional
 
         # Add last10 aliases
         team_info['last10_avg_tov'] = team_info['last10_avg_turnovers']
+
+        # DEFENSIVE STATS: Calculate opponent turnovers (turnovers FORCED)
+        # Need to query opp_turnovers separately
+        cursor.execute('''
+            SELECT
+                opp_turnovers
+            FROM team_game_logs
+            WHERE team_id = ?
+                AND season = ?
+                AND opp_turnovers IS NOT NULL
+                AND game_type IN ('Regular Season', 'NBA Cup')
+            ORDER BY game_date DESC
+        ''', (team_id, season))
+
+        opp_tov_games = cursor.fetchall()
+        all_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games if g['opp_turnovers'] is not None]
+        last10_opp_tovs = [g['opp_turnovers'] for g in opp_tov_games[:10] if g['opp_turnovers'] is not None]
+
+        team_info['season_avg_opp_turnovers'] = round(sum(all_opp_tovs) / len(all_opp_tovs), 1) if all_opp_tovs else 0
+        team_info['last10_avg_opp_turnovers'] = round(sum(last10_opp_tovs) / len(last10_opp_tovs), 1) if last10_opp_tovs else 0
+
+        # Add defensive field aliases
+        team_info['overall_avg_opp_turnovers'] = team_info['season_avg_opp_turnovers']
+        team_info['season_avg_opp_tov'] = team_info['season_avg_opp_turnovers']
+        team_info['last10_avg_opp_tov'] = team_info['last10_avg_opp_turnovers']
 
         for idx, game in enumerate(games):
             pace = game['pace']
