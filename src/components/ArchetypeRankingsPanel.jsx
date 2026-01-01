@@ -100,12 +100,23 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
   console.log('[ArchetypeRankingsPanel] extractStats for', family, '- available fields:', Object.keys(statsData))
 
   if (family === 'scoring') {
-    // Try multiple field names for PPG (different APIs may use different names)
-    stats.ppg = statsData.overall_avg_points
-             || statsData.season_avg_pts
-             || statsData.avg_points
-             || statsData.points
-             || 0
+    const locationSuffix = isHomeTeam ? '_home' : '_away'
+
+    // PPG with home/away splits
+    if (window === 'last10') {
+      stats.ppg = statsData[`last10_avg_ppg${locationSuffix}`]
+               || statsData.last10_avg_ppg
+               || statsData.overall_avg_points
+               || statsData.season_avg_pts
+               || 0
+    } else {
+      stats.ppg = statsData[`season_avg_ppg${locationSuffix}`]
+               || statsData.overall_avg_points
+               || statsData.season_avg_pts
+               || statsData.avg_points
+               || statsData.points
+               || 0
+    }
 
     console.log('[ArchetypeRankingsPanel] Extracted PPG:', stats.ppg, 'from statsData')
 
@@ -113,14 +124,35 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
       console.error('[ArchetypeRankingsPanel] PPG is 0! statsData:', statsData)
     }
   } else if (family === 'threes') {
-    stats.threesPG = statsData.overall_avg_fg3m
-                  || statsData.season_avg_fg3m
-                  || statsData.avg_fg3m
-                  || 0
-    stats.threePct = statsData.overall_avg_fg3_pct
-                  || statsData.season_avg_fg3_pct
-                  || statsData.avg_fg3_pct
-                  || 0
+    const locationSuffix = isHomeTeam ? '_home' : '_away'
+
+    // 3PT Makes with home/away splits
+    if (window === 'last10') {
+      stats.threesPG = statsData[`last10_avg_fg3m${locationSuffix}`]
+                    || statsData.last10_avg_fg3m
+                    || statsData.overall_avg_fg3m
+                    || 0
+    } else {
+      stats.threesPG = statsData[`season_avg_fg3m${locationSuffix}`]
+                    || statsData.overall_avg_fg3m
+                    || statsData.season_avg_fg3m
+                    || statsData.avg_fg3m
+                    || 0
+    }
+
+    // 3PT Percentage with home/away splits
+    if (window === 'last10') {
+      stats.threePct = statsData[`last10_avg_fg3_pct${locationSuffix}`]
+                    || statsData.last10_avg_fg3_pct
+                    || statsData.overall_avg_fg3_pct
+                    || 0
+    } else {
+      stats.threePct = statsData[`season_avg_fg3_pct${locationSuffix}`]
+                    || statsData.overall_avg_fg3_pct
+                    || statsData.season_avg_fg3_pct
+                    || statsData.avg_fg3_pct
+                    || 0
+    }
   } else if (family === 'turnovers') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
@@ -160,19 +192,53 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
       window
     })
   } else if (family === 'assists') {
-    stats.apg = statsData.overall_avg_assists
-             || statsData.season_avg_ast
-             || statsData.avg_assists
-             || 0
+    const locationSuffix = isHomeTeam ? '_home' : '_away'
+
+    // Assists with home/away splits
+    if (window === 'last10') {
+      stats.apg = statsData[`last10_avg_ast${locationSuffix}`]
+               || statsData.last10_avg_ast
+               || statsData.overall_avg_assists
+               || 0
+    } else {
+      stats.apg = statsData[`season_avg_ast${locationSuffix}`]
+               || statsData.overall_avg_assists
+               || statsData.season_avg_ast
+               || statsData.avg_assists
+               || 0
+    }
   } else if (family === 'rebounds') {
-    stats.orpg = statsData.overall_avg_offensive_rebounds
-              || statsData.season_avg_oreb
-              || statsData.avg_offensive_rebounds
-              || 0
-    stats.drpg = statsData.overall_avg_defensive_rebounds
-              || statsData.season_avg_dreb
-              || statsData.avg_defensive_rebounds
-              || 0
+    const locationSuffix = isHomeTeam ? '_home' : '_away'
+
+    // Offensive Rebounds with home/away splits
+    if (window === 'last10') {
+      stats.orpg = statsData[`last10_avg_oreb${locationSuffix}`]
+                || statsData.last10_avg_oreb
+                || statsData.overall_avg_offensive_rebounds
+                || 0
+    } else {
+      stats.orpg = statsData[`season_avg_oreb${locationSuffix}`]
+                || statsData.overall_avg_offensive_rebounds
+                || statsData.season_avg_oreb
+                || statsData.avg_offensive_rebounds
+                || 0
+    }
+
+    // Defensive Rebounds with home/away splits
+    if (window === 'last10') {
+      stats.drpg = statsData[`last10_avg_dreb${locationSuffix}`]
+                || statsData.last10_avg_dreb
+                || statsData.overall_avg_defensive_rebounds
+                || 0
+    } else {
+      stats.drpg = statsData[`season_avg_dreb${locationSuffix}`]
+                || statsData.overall_avg_defensive_rebounds
+                || statsData.season_avg_dreb
+                || statsData.avg_defensive_rebounds
+                || 0
+    }
+
+    // Total Rebounds (for reference, though not typically shown separately)
     stats.rpg = statsData.overall_avg_rebounds
              || statsData.season_avg_reb
              || statsData.avg_rebounds

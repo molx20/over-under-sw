@@ -120,28 +120,65 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
             'avg_rebounds': team_row['rebounds']                # Alternative field name
         }
 
-        # SAFE MODE ADDITION: Calculate offensive/defensive rebounds from game logs
+        # SAFE MODE ADDITION: Calculate offensive/defensive rebounds from game logs with home/away splits
         # (team_season_stats doesn't have these broken down)
         cursor.execute('''
             SELECT
-                AVG(offensive_rebounds) as avg_oreb,
-                AVG(defensive_rebounds) as avg_dreb
+                offensive_rebounds,
+                defensive_rebounds,
+                is_home,
+                game_date
             FROM team_game_logs
             WHERE team_id = ?
                 AND season = ?
                 AND game_type IN ('Regular Season', 'NBA Cup')
                 AND offensive_rebounds IS NOT NULL
                 AND defensive_rebounds IS NOT NULL
+            ORDER BY game_date DESC
         ''', (team_id, season))
 
-        reb_row = cursor.fetchone()
-        if reb_row:
-            team_info['overall_avg_offensive_rebounds'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
-            team_info['season_avg_oreb'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
-            team_info['avg_offensive_rebounds'] = round(reb_row['avg_oreb'], 1) if reb_row['avg_oreb'] else 0
-            team_info['overall_avg_defensive_rebounds'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
-            team_info['season_avg_dreb'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
-            team_info['avg_defensive_rebounds'] = round(reb_row['avg_dreb'], 1) if reb_row['avg_dreb'] else 0
+        reb_games = cursor.fetchall()
+
+        # Calculate season and last10 rebounds (offensive and defensive)
+        all_orebs = [g['offensive_rebounds'] for g in reb_games]
+        all_drebs = [g['defensive_rebounds'] for g in reb_games]
+        last10_orebs = [g['offensive_rebounds'] for g in reb_games[:10]]
+        last10_drebs = [g['defensive_rebounds'] for g in reb_games[:10]]
+
+        # Home/Away splits
+        home_orebs = [g['offensive_rebounds'] for g in reb_games if g['is_home'] == 1]
+        away_orebs = [g['offensive_rebounds'] for g in reb_games if g['is_home'] == 0]
+        home_drebs = [g['defensive_rebounds'] for g in reb_games if g['is_home'] == 1]
+        away_drebs = [g['defensive_rebounds'] for g in reb_games if g['is_home'] == 0]
+
+        last10_home_orebs = [g['offensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 1]
+        last10_away_orebs = [g['offensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 0]
+        last10_home_drebs = [g['defensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 1]
+        last10_away_drebs = [g['defensive_rebounds'] for g in reb_games[:10] if g['is_home'] == 0]
+
+        # Offensive rebounds - season
+        team_info['overall_avg_offensive_rebounds'] = round(sum(all_orebs) / len(all_orebs), 1) if all_orebs else 0
+        team_info['season_avg_oreb'] = team_info['overall_avg_offensive_rebounds']
+        team_info['avg_offensive_rebounds'] = team_info['overall_avg_offensive_rebounds']
+        team_info['last10_avg_oreb'] = round(sum(last10_orebs) / len(last10_orebs), 1) if last10_orebs else 0
+
+        # Offensive rebounds - home/away
+        team_info['season_avg_oreb_home'] = round(sum(home_orebs) / len(home_orebs), 1) if home_orebs else 0
+        team_info['season_avg_oreb_away'] = round(sum(away_orebs) / len(away_orebs), 1) if away_orebs else 0
+        team_info['last10_avg_oreb_home'] = round(sum(last10_home_orebs) / len(last10_home_orebs), 1) if last10_home_orebs else 0
+        team_info['last10_avg_oreb_away'] = round(sum(last10_away_orebs) / len(last10_away_orebs), 1) if last10_away_orebs else 0
+
+        # Defensive rebounds - season
+        team_info['overall_avg_defensive_rebounds'] = round(sum(all_drebs) / len(all_drebs), 1) if all_drebs else 0
+        team_info['season_avg_dreb'] = team_info['overall_avg_defensive_rebounds']
+        team_info['avg_defensive_rebounds'] = team_info['overall_avg_defensive_rebounds']
+        team_info['last10_avg_dreb'] = round(sum(last10_drebs) / len(last10_drebs), 1) if last10_drebs else 0
+
+        # Defensive rebounds - home/away
+        team_info['season_avg_dreb_home'] = round(sum(home_drebs) / len(home_drebs), 1) if home_drebs else 0
+        team_info['season_avg_dreb_away'] = round(sum(away_drebs) / len(away_drebs), 1) if away_drebs else 0
+        team_info['last10_avg_dreb_home'] = round(sum(last10_home_drebs) / len(last10_home_drebs), 1) if last10_home_drebs else 0
+        team_info['last10_avg_dreb_away'] = round(sum(last10_away_drebs) / len(last10_away_drebs), 1) if last10_away_drebs else 0
 
         # Step 2: Fetch game logs with opponent defensive rankings
         # FILTER: Only Regular Season + NBA Cup (exclude Summer League, preseason, etc.)
@@ -163,6 +200,29 @@ def get_team_scoring_splits(team_id: int, season: str = '2025-26') -> Optional[D
         ''', (team_id, season))
 
         game_logs = cursor.fetchall()
+
+        # Step 2.5: Calculate season and last10 home/away splits for PPG
+        all_pts = [g['team_pts'] for g in game_logs if g['team_pts'] is not None]
+        last10_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None]
+
+        home_pts = [g['team_pts'] for g in game_logs if g['team_pts'] is not None and g['is_home'] == 1]
+        away_pts = [g['team_pts'] for g in game_logs if g['team_pts'] is not None and g['is_home'] == 0]
+        last10_home_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None and g['is_home'] == 1]
+        last10_away_pts = [g['team_pts'] for g in game_logs[:10] if g['team_pts'] is not None and g['is_home'] == 0]
+
+        # Update season_avg_ppg from actual game logs (more accurate than team_season_stats)
+        team_info['season_avg_ppg'] = round(sum(all_pts) / len(all_pts), 1) if all_pts else 0
+        team_info['last10_avg_ppg'] = round(sum(last10_pts) / len(last10_pts), 1) if last10_pts else 0
+
+        # Home/Away splits for PPG
+        team_info['season_avg_ppg_home'] = round(sum(home_pts) / len(home_pts), 1) if home_pts else 0
+        team_info['season_avg_ppg_away'] = round(sum(away_pts) / len(away_pts), 1) if away_pts else 0
+        team_info['last10_avg_ppg_home'] = round(sum(last10_home_pts) / len(last10_home_pts), 1) if last10_home_pts else 0
+        team_info['last10_avg_ppg_away'] = round(sum(last10_away_pts) / len(last10_away_pts), 1) if last10_away_pts else 0
+
+        # Update all field aliases
+        team_info['overall_avg_points'] = team_info['season_avg_ppg']
+        team_info['season_avg_pts'] = team_info['season_avg_ppg']
 
         # Step 3: Aggregate games by tier and location
         # Initialize buckets: {tier: {home: [pts], away: [pts]}}
