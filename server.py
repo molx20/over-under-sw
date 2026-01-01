@@ -1457,6 +1457,7 @@ def game_detail():
 
             if home_archetypes:
                 response['home_archetypes'] = {
+                    # LEGACY SCORING ARCHETYPES (for backward compatibility)
                     'season_offensive': {
                         'id': home_archetypes['season_offensive'],
                         'name': OFFENSIVE_ARCHETYPES[home_archetypes['season_offensive']]['name'],
@@ -1488,11 +1489,17 @@ def game_detail():
                         'defensive': home_archetypes['defensive_style_shift'],
                         'offensive_details': home_archetypes['offensive_shift_details'],
                         'defensive_details': home_archetypes['defensive_shift_details']
-                    }
+                    },
+                    # NEW ARCHETYPE FAMILIES (assists, rebounds, threes, turnovers)
+                    'assists': home_archetypes.get('assists'),
+                    'rebounds': home_archetypes.get('rebounds'),
+                    'threes': home_archetypes.get('threes'),
+                    'turnovers': home_archetypes.get('turnovers')
                 }
 
             if away_archetypes:
                 response['away_archetypes'] = {
+                    # LEGACY SCORING ARCHETYPES (for backward compatibility)
                     'season_offensive': {
                         'id': away_archetypes['season_offensive'],
                         'name': OFFENSIVE_ARCHETYPES[away_archetypes['season_offensive']]['name'],
@@ -1524,10 +1531,24 @@ def game_detail():
                         'defensive': away_archetypes['defensive_style_shift'],
                         'offensive_details': away_archetypes['offensive_shift_details'],
                         'defensive_details': away_archetypes['defensive_shift_details']
-                    }
+                    },
+                    # NEW ARCHETYPE FAMILIES (assists, rebounds, threes, turnovers)
+                    'assists': away_archetypes.get('assists'),
+                    'rebounds': away_archetypes.get('rebounds'),
+                    'threes': away_archetypes.get('threes'),
+                    'turnovers': away_archetypes.get('turnovers')
                 }
 
             print('[game_detail] Archetypes added to response')
+            # DEBUG: Verify new archetype families are included
+            if home_archetypes:
+                print(f'[DEBUG game_detail] home_archetypes keys: {list(response["home_archetypes"].keys())}')
+                print(f'[DEBUG game_detail] Has threes? {"threes" in response["home_archetypes"]}')
+                print(f'[DEBUG game_detail] Has assists? {"assists" in response["home_archetypes"]}')
+                print(f'[DEBUG game_detail] Has rebounds? {"rebounds" in response["home_archetypes"]}')
+                print(f'[DEBUG game_detail] Has turnovers? {"turnovers" in response["home_archetypes"]}')
+                if response["home_archetypes"].get("threes"):
+                    print(f'[DEBUG game_detail] threes structure: {list(response["home_archetypes"]["threes"].keys())}')
 
         except Exception as archetype_error:
             import traceback
