@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import GamesVsArchetypeModal from './GamesVsArchetypeModal'
 
 // Archetype definitions for each family
 const ARCHETYPE_DEFINITIONS = {
@@ -308,88 +309,45 @@ function ArchetypeRankingsPanel({
         onArchetypeClick={fetchArchetypeMatchGames}
       />
 
-      {/* SAFE MODE ADDITION: Games vs This Archetype Panel (below existing archetypes) */}
-      {selectedArchetype && (
-        <div className="mt-8 border-t-2 border-gray-300 dark:border-gray-600 pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Historical Games vs This Archetype
-            </h3>
-            <button
-              onClick={() => {
-                setSelectedArchetype(null)
-                setArchetypeGames([])
-              }}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              ✕ Close
-            </button>
-          </div>
-
-          {archetypeGamesLoading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
-              <p className="text-sm text-gray-500">Loading games...</p>
-            </div>
-          ) : archetypeGames.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <p>No matching games found.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Found {archetypeGames.length} game{archetypeGames.length !== 1 ? 's' : ''}
-              </p>
-              <div className="grid gap-2">
-                {archetypeGames.map((game) => (
-                  <div
-                    key={game.game_id}
-                    onClick={() => {
-                      // Navigate to game detail using existing navigation
-                      window.location.href = `/game/${game.game_id}`
-                    }}
-                    className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {game.matchup}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            game.wl === 'W'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          }`}>
-                            {game.wl}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {game.is_home ? 'Home' : 'Away'}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-4 mt-1">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {game.game_date}
-                          </span>
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {game.team_pts} - {game.opp_pts}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            vs {game.opponent?.tricode}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Click to view</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* SAFE MODE ADDITION: Games vs This Archetype Modal (popup instead of inline) */}
+      <GamesVsArchetypeModal
+        isOpen={!!selectedArchetype}
+        onClose={() => {
+          setSelectedArchetype(null)
+          setArchetypeGames([])
+        }}
+        archetype={
+          selectedArchetype
+            ? {
+                name: ARCHETYPE_DEFINITIONS[family]?.[selectedArchetype.side]?.[selectedArchetype.label]?.name || selectedArchetype.label,
+                id: selectedArchetype.label
+              }
+            : null
+        }
+        archetypeType={selectedArchetype?.side}
+        window={window}
+        targetTeamAbbr={
+          selectedArchetype
+            ? (selectedArchetype.team === 'home' ? awayArchetypes?.team_abbr : homeArchetypes?.team_abbr)
+            : null
+        }
+        selectedTeamAbbr={
+          selectedArchetype
+            ? (selectedArchetype.team === 'home' ? homeArchetypes?.team_abbr : awayArchetypes?.team_abbr)
+            : null
+        }
+        games={archetypeGames}
+        summary={{
+          games_count: archetypeGames.length,
+          ppg: archetypeGames.length > 0 ? archetypeGames.reduce((sum, g) => sum + (g.team_pts || 0), 0) / archetypeGames.length : 0,
+          efg: archetypeGames.length > 0 ? archetypeGames.reduce((sum, g) => sum + (g.efg_pct || 0), 0) / archetypeGames.length : 0,
+          ft_points: archetypeGames.length > 0 ? archetypeGames.reduce((sum, g) => sum + (g.ft_points || 0), 0) / archetypeGames.length : 0,
+          paint_points: archetypeGames.length > 0 ? archetypeGames.reduce((sum, g) => sum + (g.paint_points || 0), 0) / archetypeGames.length : 0,
+          wins: archetypeGames.filter(g => g.wl === 'W').length,
+          win_pct: archetypeGames.length > 0 ? (archetypeGames.filter(g => g.wl === 'W').length / archetypeGames.length) * 100 : 0
+        }}
+        isLoading={archetypeGamesLoading}
+      />
     </div>
   )
 }
