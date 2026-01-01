@@ -34,7 +34,10 @@ function AdvancedSplitsPanel({
   assistsVsDefenseLoading,
   assistsVsPaceLoading,
   homeArchetypes,
-  awayArchetypes
+  awayArchetypes,
+  homeTeam,
+  awayTeam,
+  gameId
 }) {
   // Toggle states for metric, context, and window
   const [metric, setMetric] = useState('scoring') // 'scoring' | 'threePt' | 'turnovers' | 'assists' | 'rebounds'
@@ -241,6 +244,9 @@ function AdvancedSplitsPanel({
             homeStats={scoringSplitsData?.home_team}
             awayStats={scoringSplitsData?.away_team}
             context={context}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            gameId={gameId}
           />
         )}
 
@@ -253,6 +259,9 @@ function AdvancedSplitsPanel({
             homeStats={context === 'defense' ? threePtSplitsData?.home_team : threePtVsPaceData?.home_team}
             awayStats={context === 'defense' ? threePtSplitsData?.away_team : threePtVsPaceData?.away_team}
             context={context}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            gameId={gameId}
           />
         )}
 
@@ -265,6 +274,9 @@ function AdvancedSplitsPanel({
             homeStats={context === 'defense' ? turnoverVsDefenseData?.home_team : turnoverVsPaceData?.home_team}
             awayStats={context === 'defense' ? turnoverVsDefenseData?.away_team : turnoverVsPaceData?.away_team}
             context={context}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            gameId={gameId}
           />
         )}
 
@@ -277,6 +289,9 @@ function AdvancedSplitsPanel({
             homeStats={context === 'defense' ? assistsVsDefenseData?.home_team : assistsVsPaceData?.home_team}
             awayStats={context === 'defense' ? assistsVsDefenseData?.away_team : assistsVsPaceData?.away_team}
             context={context}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            gameId={gameId}
           />
         )}
 
@@ -289,6 +304,9 @@ function AdvancedSplitsPanel({
             homeStats={scoringSplitsData?.home_team}
             awayStats={scoringSplitsData?.away_team}
             context="defense"
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            gameId={gameId}
           />
         )}
       </div>

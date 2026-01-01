@@ -341,6 +341,9 @@ function GamePage() {
             assistsVsPaceLoading={assistsVsPaceLoading}
             homeArchetypes={gameData.home_archetypes}
             awayArchetypes={gameData.away_archetypes}
+            homeTeam={home_team}
+            awayTeam={away_team}
+            gameId={gameId}
           />
         </div>
       )}

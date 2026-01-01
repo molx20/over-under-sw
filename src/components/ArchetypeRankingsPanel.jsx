@@ -159,8 +159,63 @@ function ArchetypeRankingsPanel({
   window,
   homeStats,
   awayStats,
-  context
+  context,
+  homeTeam,
+  awayTeam,
+  gameId
 }) {
+  // SAFE MODE ADDITION: State for archetype match games (click-to-view feature)
+  const [selectedArchetype, setSelectedArchetype] = useState(null) // { team: 'home'|'away', side: 'offensive'|'defensive', label: str }
+  const [archetypeGames, setArchetypeGames] = useState([])
+  const [archetypeGamesLoading, setArchetypeGamesLoading] = useState(false)
+
+  // SAFE MODE ADDITION: Fetch games where team played against opponents with specific archetype
+  const fetchArchetypeMatchGames = async (clickedTeam, clickedSide, archetypeLabel) => {
+    if (!homeTeam || !awayTeam) {
+      console.warn('[ArchetypeRankingsPanel] Missing team data, cannot fetch games')
+      return
+    }
+
+    // Determine which team's games to fetch (the OPPONENT of the clicked archetype)
+    const targetTeam = clickedTeam === 'home' ? awayTeam : homeTeam
+    const targetRole = clickedTeam === 'home' ? 'away' : 'home' // Opponent's role in THIS game
+
+    console.log(`[ArchetypeRankingsPanel] Clicked ${clickedTeam} team's ${clickedSide} archetype`)
+    console.log(`[ArchetypeRankingsPanel] Fetching ${targetTeam.abbreviation}'s ${targetRole} games vs archetype ${archetypeLabel}`)
+
+    setSelectedArchetype({ team: clickedTeam, side: clickedSide, label: archetypeLabel })
+    setArchetypeGamesLoading(true)
+
+    try {
+      const params = new URLSearchParams({
+        team_id: targetTeam.id,
+        category: family === 'scoring' ? 'scoring' : family,
+        side: clickedSide,
+        label: archetypeLabel,
+        window: window,
+        role: targetRole,
+        season: '2025-26'
+      })
+
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001'
+      const response = await fetch(`${baseUrl}/api/archetype_match_games?${params}`)
+      const data = await response.json()
+
+      if (data.success) {
+        console.log(`[ArchetypeRankingsPanel] Found ${data.games_count} matching games`)
+        setArchetypeGames(data.games || [])
+      } else {
+        console.error('[ArchetypeRankingsPanel] API error:', data.error)
+        setArchetypeGames([])
+      }
+    } catch (error) {
+      console.error('[ArchetypeRankingsPanel] Fetch error:', error)
+      setArchetypeGames([])
+    } finally {
+      setArchetypeGamesLoading(false)
+    }
+  }
+
   // Handle missing data
   if (!homeArchetypes || !awayArchetypes || !family) {
     return (
@@ -236,6 +291,7 @@ function ArchetypeRankingsPanel({
         homeStats={homeStatValues}
         awayStats={awayStatValues}
         window={window}
+        onArchetypeClick={fetchArchetypeMatchGames}
       />
 
       {/* Defensive Section */}
@@ -249,7 +305,91 @@ function ArchetypeRankingsPanel({
         homeStats={homeStatValues}
         awayStats={awayStatValues}
         window={window}
+        onArchetypeClick={fetchArchetypeMatchGames}
       />
+
+      {/* SAFE MODE ADDITION: Games vs This Archetype Panel (below existing archetypes) */}
+      {selectedArchetype && (
+        <div className="mt-8 border-t-2 border-gray-300 dark:border-gray-600 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Historical Games vs This Archetype
+            </h3>
+            <button
+              onClick={() => {
+                setSelectedArchetype(null)
+                setArchetypeGames([])
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          {archetypeGamesLoading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
+              <p className="text-sm text-gray-500">Loading games...</p>
+            </div>
+          ) : archetypeGames.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <p>No matching games found.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Found {archetypeGames.length} game{archetypeGames.length !== 1 ? 's' : ''}
+              </p>
+              <div className="grid gap-2">
+                {archetypeGames.map((game) => (
+                  <div
+                    key={game.game_id}
+                    onClick={() => {
+                      // Navigate to game detail using existing navigation
+                      window.location.href = `/game/${game.game_id}`
+                    }}
+                    className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {game.matchup}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            game.wl === 'W'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          }`}>
+                            {game.wl}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {game.is_home ? 'Home' : 'Away'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {game.game_date}
+                          </span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {game.team_pts} - {game.opp_pts}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            vs {game.opponent?.tricode}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Click to view</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -257,7 +397,7 @@ function ArchetypeRankingsPanel({
 /**
  * ArchetypeGrid - Shows all 4 archetypes with opponent highlighting
  */
-function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, homeStats, awayStats, window }) {
+function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, homeStats, awayStats, window, onArchetypeClick }) {
   if (!homeData || !awayData) {
     return (
       <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -314,6 +454,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   stats={isCurrentArchetype ? awayStats : null}
                   family={family}
                   teamColor="orange"
+                  onClick={isOpponentArchetype ? () => onArchetypeClick?.('away', type, archetypeId) : null}
                 />
               )
             })}
@@ -341,6 +482,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   stats={isCurrentArchetype ? homeStats : null}
                   family={family}
                   teamColor="blue"
+                  onClick={isOpponentArchetype ? () => onArchetypeClick?.('home', type, archetypeId) : null}
                 />
               )
             })}
@@ -354,9 +496,14 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
 /**
  * ArchetypeCard - Individual archetype card with highlighting and ACTUAL STATS
  */
-function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor }) {
+function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor, onClick }) {
   const getCardClasses = () => {
     let classes = 'p-3 rounded-lg border-2 transition-all '
+
+    // SAFE MODE ADDITION: Add cursor-pointer and hover effect for clickable opponent archetypes
+    if (onClick) {
+      classes += 'cursor-pointer hover:shadow-lg '
+    }
 
     if (isCurrent && isOpponent) {
       // Both teams have this archetype - purple highlight
@@ -369,7 +516,7 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
         classes += 'bg-orange-50 dark:bg-orange-900/20 border-orange-600 dark:border-orange-400 shadow-md'
       }
     } else if (isOpponent) {
-      // Opponent's archetype - yellow warning border
+      // Opponent's archetype - yellow warning border (CLICKABLE if onClick provided)
       classes += 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500 dark:border-yellow-400 shadow-md'
     } else {
       // Inactive archetype - gray
@@ -401,7 +548,7 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
   const statDisplay = getStatDisplay(stats, family)
 
   return (
-    <div className={getCardClasses()}>
+    <div className={getCardClasses()} onClick={onClick}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2">
