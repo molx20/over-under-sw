@@ -20,7 +20,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (needed for scipy wheels)
+# Install system dependencies REQUIRED for scipy compilation
+# scipy is a MANDATORY dependency for archetype percentile calculations
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -32,12 +33,12 @@ RUN apt-get update && apt-get install -y \
 # Copy Python requirements
 COPY requirements.txt .
 
-# Install Python dependencies including scipy
-# NOTE: scipy requires build tools (gcc, g++, gfortran, openblas, lapack) installed above
-# If scipy fails to install, the backend will fall back to pure Python percentile calculations
+# Install Python dependencies - scipy is REQUIRED (app will crash without it)
+# Build tools installed above are necessary for scipy wheel compilation
 RUN pip install --no-cache-dir -r requirements.txt && \
     echo "=== Python Dependencies Installed ===" && \
-    pip show scipy || echo "WARNING: scipy not installed - using fallback"
+    pip show scipy && \
+    echo "✓ scipy successfully installed" || (echo "✗ CRITICAL: scipy installation failed" && exit 1)
 
 # Copy application code
 COPY . .

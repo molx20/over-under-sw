@@ -20,37 +20,19 @@ import math
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# SCIPY FALLBACK - Safe import with pure Python alternatives
+# SCIPY REQUIRED DEPENDENCY - Percentile calculation
 # ============================================================================
 
-_SCIPY_AVAILABLE = False
-_scipy_norm = None
-
 try:
-    from scipy.stats import norm as _scipy_norm
-    _SCIPY_AVAILABLE = True
-    logger.info("[ARCHETYPE_CLASSIFIER] scipy.stats available - using norm.cdf for percentiles")
-except ImportError:
-    logger.warning("[ARCHETYPE_CLASSIFIER] scipy NOT available - using pure Python fallback for percentiles")
-    _scipy_norm = None
-
-
-def _pure_python_percentile_from_zscore(z_score: float) -> float:
-    """
-    Pure Python approximation of percentile from z-score.
-
-    Uses Python's built-in math.erf to compute the CDF of standard normal distribution.
-
-    Args:
-        z_score: Standardized value
-
-    Returns:
-        Percentile (0-100)
-    """
-    # CDF of standard normal = 0.5 * (1 + erf(z / sqrt(2)))
-    # This uses Python 3's math.erf which is very accurate
-    cdf = 0.5 * (1.0 + math.erf(z_score / math.sqrt(2.0)))
-    return round(cdf * 100, 1)
+    from scipy.stats import norm
+    logger.info("[ARCHETYPE_CLASSIFIER] scipy.stats successfully imported")
+except ImportError as e:
+    error_msg = (
+        "CRITICAL: scipy is required for archetype percentile calculations. "
+        "Install scipy with: pip install scipy>=1.13.1"
+    )
+    logger.error(f"[ARCHETYPE_CLASSIFIER] {error_msg}")
+    raise RuntimeError(error_msg) from e
 
 
 def _safe_zscore(x: float, mean: float, std: float) -> float:
@@ -880,20 +862,18 @@ def assign_turnovers_defensive_archetype(standardized_features: Dict) -> str:
 
 def calculate_percentile(z_score: float) -> float:
     """
-    Convert z-score to percentile (0-100).
-
-    Uses scipy's normal distribution CDF if available, otherwise uses pure Python fallback.
+    Convert z-score to percentile (0-100) using scipy.
 
     Args:
         z_score: Standardized feature value
 
     Returns:
         Percentile value between 0 and 100
+
+    Raises:
+        RuntimeError: If scipy is not available (should never happen after startup check)
     """
-    if _SCIPY_AVAILABLE and _scipy_norm is not None:
-        return round(_scipy_norm.cdf(z_score) * 100, 1)
-    else:
-        return _pure_python_percentile_from_zscore(z_score)
+    return round(norm.cdf(z_score) * 100, 1)
 
 
 # ============================================================================
