@@ -41,28 +41,28 @@ const ARCHETYPE_DEFINITIONS = {
   },
   rebounds: {
     offensive: {
-      glass_crasher_elite: { name: 'Glass Crasher Elite', color: 'purple' },
+      crash_the_glass_elite: { name: 'Crash the Glass Elite', color: 'purple' },
       selective_crasher: { name: 'Selective Crasher', color: 'blue' },
       transition_focused: { name: 'Transition Focused', color: 'green' },
-      passive_offense_boards: { name: 'Passive Offense Boards', color: 'gray' }
+      balanced_rebounding: { name: 'Balanced Rebounding', color: 'gray' }
     },
     defensive: {
-      defensive_glass_dominant: { name: 'Defensive Glass Dominant', color: 'indigo' },
-      boxing_out_discipline: { name: 'Boxing Out Discipline', color: 'teal' },
-      vulnerable_boards: { name: 'Vulnerable Boards', color: 'orange' },
+      glass_protector_elite: { name: 'Glass Protector Elite', color: 'indigo' },
+      solid_boxing_out: { name: 'Solid Boxing Out', color: 'teal' },
+      vulnerable_to_crashes: { name: 'Vulnerable to Crashes', color: 'orange' },
       average_rebounding: { name: 'Average Rebounding', color: 'gray' }
     }
   },
   threes: {
     offensive: {
       volume_three_bomber: { name: 'Volume Three Bomber', color: 'purple' },
-      efficient_three_selective: { name: 'Efficient Three Selective', color: 'blue' },
-      high_volume_low_efficiency: { name: 'High Volume Low-Efficiency', color: 'orange' },
-      midrange_paint_focused: { name: 'Midrange/Paint Focused', color: 'gray' }
+      efficient_selective_shooter: { name: 'Efficient Selective Shooter', color: 'blue' },
+      three_avoidant: { name: 'Three Avoidant', color: 'orange' },
+      balanced_shooting: { name: 'Balanced Shooting', color: 'gray' }
     },
     defensive: {
-      three_point_lockdown: { name: 'Three-Point Lockdown', color: 'indigo' },
-      contest_rate_elite: { name: 'Contest Rate Elite', color: 'teal' },
+      three_point_shutdown: { name: 'Three-Point Shutdown', color: 'indigo' },
+      perimeter_contest_strong: { name: 'Perimeter Contest Strong', color: 'teal' },
       three_point_vulnerable: { name: 'Three-Point Vulnerable', color: 'red' },
       average_perimeter_defense: { name: 'Average Perimeter Defense', color: 'gray' }
     }
@@ -70,14 +70,14 @@ const ARCHETYPE_DEFINITIONS = {
   turnovers: {
     offensive: {
       ball_security_elite: { name: 'Ball Security Elite', color: 'purple' },
-      careful_controlled: { name: 'Careful Controlled', color: 'blue' },
-      turnover_prone: { name: 'Turnover Prone', color: 'orange' },
+      solid_ball_handler: { name: 'Solid Ball Handler', color: 'blue' },
+      turnover_prone_aggressive: { name: 'Turnover Prone Aggressive', color: 'orange' },
       average_ball_security: { name: 'Average Ball Security', color: 'gray' }
     },
     defensive: {
-      ball_hawking_pressure: { name: 'Ball Hawking Pressure', color: 'indigo' },
-      steal_rate_elite: { name: 'Steal Rate Elite', color: 'teal' },
-      passive_low_pressure: { name: 'Passive Low-Pressure', color: 'green' },
+      turnover_forcing_havoc: { name: 'Turnover Forcing Havoc', color: 'indigo' },
+      pressure_defense: { name: 'Pressure Defense', color: 'teal' },
+      passive_turnover_defense: { name: 'Passive Turnover Defense', color: 'green' },
       average_pressure: { name: 'Average Pressure', color: 'gray' }
     }
   }
