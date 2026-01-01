@@ -25,11 +25,11 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements (CACHE BUST: 2025-12-31-scipy-install)
+# Copy Python requirements
 COPY requirements.txt .
 
-# Install Python dependencies including scipy
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies including scipy (rebuilt 2025-12-31)
+RUN pip install --no-cache-dir -r requirements.txt && echo "scipy installed: $(pip show scipy | grep Version)"
 
 # Copy application code
 COPY . .
