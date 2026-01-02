@@ -28,6 +28,21 @@ function AIMatchupWriteup({ writeup, homeTeam, awayTeam }) {
     { title: 'Last 5 Games Trends', icon: '📊' }
   ]
 
+  // Helper function to render text with bold numbers
+  const renderTextWithBold = (text) => {
+    // Split text by **bold** markdown syntax
+    const parts = text.split(/(\*\*.*?\*\*)/)
+
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        // Remove ** markers and render as bold
+        const boldText = part.slice(2, -2)
+        return <strong key={i} className="font-bold text-white">{boldText}</strong>
+      }
+      return <span key={i}>{part}</span>
+    })
+  }
+
   return (
     <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden">
       {/* Header */}
@@ -62,7 +77,7 @@ function AIMatchupWriteup({ writeup, homeTeam, awayTeam }) {
 
               {/* Section Text */}
               <p className="text-base leading-relaxed text-white/85">
-                {text}
+                {renderTextWithBold(text)}
               </p>
             </div>
           )

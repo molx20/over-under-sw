@@ -144,6 +144,7 @@ CRITICAL REQUIREMENTS:
 4. Use specific data points from context
 5. Professional but accessible (8th-grade reading level)
 6. NO betting advice ("hammer", "lock") - analysis only
+7. IMPORTANT: Wrap ALL numbers in **bold** (e.g., **12.3%**, **105.2 PPG**, **+4.5**)
 
 Output: Plain text with double line breaks between sections (NO section headers)."""
 
