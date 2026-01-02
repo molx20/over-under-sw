@@ -397,6 +397,64 @@ def migrate_to_v10_enhance_sync_log():
     print('[db_migrations] data_sync_log table now has enhanced tracking capabilities')
 
 
+def migrate_to_v11_ai_game_writeups():
+    """
+    Migrate nba_data.db to support AI-generated game writeups
+
+    Adds:
+    - ai_game_writeups table for storing AI-generated game analysis
+    - game_id (PRIMARY KEY): Unique game identifier
+    - writeup_text: Full AI-generated writeup (3 sections)
+    - data_hash: MD5 hash of source data for cache invalidation
+    - engine_version: AI prompt version for regeneration tracking
+    - created_at/updated_at: Timestamps
+
+    Safe to run multiple times - will skip if table exists
+    """
+    print('[db_migrations] Running NBA data migration v11 (ai_game_writeups)...')
+
+    with _get_connection_nba_data() as conn:
+        cursor = conn.cursor()
+
+        # Create ai_game_writeups table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ai_game_writeups (
+                game_id TEXT PRIMARY KEY,
+                writeup_text TEXT NOT NULL,
+                data_hash TEXT NOT NULL,
+                engine_version TEXT NOT NULL DEFAULT 'v1',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        print('[db_migrations] ai_game_writeups table created')
+
+        # Create index on game_id for fast lookups
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ai_writeups_game_id
+                ON ai_game_writeups(game_id)
+            """)
+            print('[db_migrations] Created index: idx_ai_writeups_game_id')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_ai_writeups_game_id already exists')
+
+        # Create index on data_hash for cache validation
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ai_writeups_hash
+                ON ai_game_writeups(data_hash)
+            """)
+            print('[db_migrations] Created index: idx_ai_writeups_hash')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_ai_writeups_hash already exists')
+
+        conn.commit()
+
+    print('[db_migrations] Migration v11 completed successfully')
+    print('[db_migrations] AI game writeups table ready for use')
+
+
 if __name__ == '__main__':
     # Run migration when executed directly
     print('=== Database Migration Tool ===')
@@ -424,5 +482,6 @@ if __name__ == '__main__':
     print()
     print('Running nba_data.db migrations...')
     migrate_to_v10_enhance_sync_log()
+    migrate_to_v11_ai_game_writeups()
     print()
     print('All migrations complete!')

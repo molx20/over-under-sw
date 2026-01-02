@@ -4,6 +4,7 @@ import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
 import DecisionCard from '../components/DecisionCard'
 import TeamContextTab from '../components/TeamContextTab'
+import AIMatchupWriteup from '../components/AIMatchupWriteup'
 import { makeDecision } from '../utils/decisionEngine'
 import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace } from '../utils/api'
 
@@ -127,7 +128,7 @@ function GamePage() {
     )
   }
 
-  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment } = gameData
+  const { prediction, home_stats, away_stats, home_recent_games, away_recent_games, home_team, away_team, matchup_summary, scoring_environment, ai_writeup } = gameData
 
   // 🚨 CRITICAL DEBUG - Print archetype JSON to console
   console.log('═══════════════════════════════════════════════════════')
@@ -256,8 +257,14 @@ function GamePage() {
             </div>
           )}
 
-          {/* Matchup Summary */}
-          {matchup_summary && matchup_summary.matchup_dna_summary && (
+          {/* AI-Powered Game Writeup (preferred) or Matchup Summary (fallback) */}
+          {ai_writeup ? (
+            <AIMatchupWriteup
+              writeup={ai_writeup}
+              homeTeam={home_team}
+              awayTeam={away_team}
+            />
+          ) : matchup_summary && matchup_summary.matchup_dna_summary ? (
             <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
               <div className="flex items-center justify-center mb-3">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,7 +276,7 @@ function GamePage() {
                 {matchup_summary.matchup_dna_summary.text}
               </p>
             </div>
-          )}
+          ) : null}
 
           {/* Tab Navigation */}
           <div className="mt-6 sm:mt-8 pt-6 border-t border-white/20">

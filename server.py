@@ -30,6 +30,7 @@ from api.utils import db_queries
 from api.utils.performance import create_timing_middleware
 from api.utils.matchup_summary_cache import get_or_generate_summary
 from api.utils.empty_possessions_calculator import calculate_matchup_empty_possessions
+from api.utils.ai_writeup_cache import get_or_generate_writeup
 import json
 import os
 
@@ -1597,6 +1598,39 @@ def game_detail():
             'rating_gap': round(rating_gap, 1)
         }
 
+        # Generate AI-powered game writeup (3 sections: Empty Possessions, Archetypes, Last 5 Trends)
+        print(f'[game_detail] Generating AI writeup for game {game_id}')
+        try:
+            # Construct game_data dict from response fields
+            game_data_for_writeup = {
+                'game_id': game_id,
+                'home_team': response.get('home_team', {}),
+                'away_team': response.get('away_team', {}),
+                'empty_possessions': response.get('empty_possessions'),
+                'home_archetypes': response.get('home_archetypes'),
+                'away_archetypes': response.get('away_archetypes'),
+                'home_last5_trends': response.get('prediction', {}).get('home_last5_trends', {}),
+                'away_last5_trends': response.get('prediction', {}).get('away_last5_trends', {}),
+                'back_to_back_debug': response.get('prediction', {}).get('back_to_back_debug', {})
+            }
+
+            # Call cache-first writeup generator
+            ai_writeup = get_or_generate_writeup(game_data_for_writeup)
+
+            if ai_writeup:
+                response['ai_writeup'] = ai_writeup
+                print(f'[game_detail] AI writeup generated successfully (length: {len(ai_writeup)} chars)')
+            else:
+                response['ai_writeup'] = None
+                print('[game_detail] AI writeup generation returned None (likely OpenAI key missing or API error)')
+
+        except Exception as writeup_error:
+            import traceback
+            print(f'[game_detail] Warning: AI writeup generation failed: {writeup_error}')
+            traceback.print_exc()
+            # Don't fail the entire request if AI writeup fails
+            response['ai_writeup'] = None
+
         return jsonify(response)
 
     except Exception as e:
@@ -2102,7 +2136,10 @@ def archetype_match_games():
                     'opp_pts': 108,
                     'opponent': {
                         'tricode': 'BOS',
-                        'team_id': 1610612738
+                        'team_id': 1610612738,
+                        'off_rtg_rank': 5,
+                        'def_rtg_rank': 12,
+                        'strength': 'Elite'
                     }
                 }
             ]
@@ -2170,7 +2207,11 @@ def archetype_match_games():
                     key = 'season_offensive' if side == 'offensive' else 'season_defensive'
                 else:  # last10
                     key = 'last10_offensive' if side == 'offensive' else 'last10_defensive'
-                opponent_archetypes[tid] = assignment.get(key)
+                team_assignment = assignment.get(key)
+                if isinstance(team_assignment, dict):
+                    opponent_archetypes[tid] = team_assignment.get('id')
+                else:
+                    opponent_archetypes[tid] = team_assignment
         else:
             # New archetype families (assists, rebounds, threes, turnovers)
             for tid, assignment in all_archetypes.items():
@@ -2195,16 +2236,32 @@ def archetype_match_games():
                 tgl.opp_pts,
                 tgl.is_home,
                 tgl.opponent_abbr as opp_abbr,
-                nt.team_id as opp_team_id
+                nt.team_id as opp_team_id,
+                tgl.pace,
+                tgl.fgm,
+                tgl.fga,
+                tgl.fg3m,
+                tgl.fg3a,
+                tgl.fg3_pct,
+                tgl.ftm,
+                tgl.points_in_paint,
+                tgl.assists,
+                tgl.turnovers,
+                tgl.rebounds,
+                tss.off_rtg_rank as opp_off_rtg_rank,
+                tss.def_rtg_rank as opp_def_rtg_rank
             FROM team_game_logs tgl
             LEFT JOIN nba_teams nt ON tgl.opponent_abbr = nt.team_abbreviation
+            LEFT JOIN team_season_stats tss ON nt.team_id = tss.team_id
+                AND tss.season = ?
+                AND tss.split_type = 'overall'
             WHERE tgl.team_id = ?
             AND tgl.season = ?
             AND tgl.is_home = ?
             AND tgl.game_date >= '2025-10-21'
             ORDER BY tgl.game_date DESC
         """
-        cursor.execute(query, (team_id, season, is_home))
+        cursor.execute(query, (season, team_id, season, is_home))
 
         matching_games = []
         for row in cursor.fetchall():
@@ -2214,6 +2271,20 @@ def archetype_match_games():
             if opp_team_id and opp_team_id in opponent_archetypes:
                 opp_archetype = opponent_archetypes[opp_team_id]
                 if opp_archetype == label:
+                    # Calculate eFG% = (FGM + 0.5 * FG3M) / FGA
+                    fgm = row['fgm'] or 0
+                    fga = row['fga'] or 0
+                    fg3m = row['fg3m'] or 0
+                    efg_pct = ((fgm + 0.5 * fg3m) / fga * 100) if fga > 0 else 0
+
+                    # Calculate three-point points
+                    three_pt_points = (fg3m * 3) if fg3m else 0
+                    fg3a = row['fg3a'] or 0
+                    fg3_pct = row['fg3_pct'] or 0
+
+                    # FT points
+                    ft_points = row['ftm'] or 0
+
                     matching_games.append({
                         'game_id': row['game_id'],
                         'game_date': row['game_date'],
@@ -2223,16 +2294,32 @@ def archetype_match_games():
                         'opp_pts': row['opp_pts'] or 0,
                         'total': (row['team_pts'] or 0) + (row['opp_pts'] or 0),
                         'is_home': row['is_home'],
+                        'pace': round(row['pace'], 1) if row['pace'] else 0,
+                        'efg_pct': round(efg_pct, 1),
+                        'ft_points': ft_points,
+                        'paint_points': row['points_in_paint'] or 0,
+                        'ast': row['assists'] or 0,
+                        'tov': row['turnovers'] or 0,
+                        'reb': row['rebounds'] or 0,
+                        'three_pt': {
+                            'points': three_pt_points,
+                            'made': fg3m,
+                            'attempted': fg3a,
+                            'percentage': round(fg3_pct * 100, 1) if fg3_pct else 0
+                        },
                         'opponent': {
                             'tricode': row['opp_abbr'],
                             'team_id': opp_team_id,
-                            'archetype': opp_archetype
+                            'archetype': opp_archetype,
+                            'off_rtg_rank': row['opp_off_rtg_rank'] or 0,
+                            'def_rtg_rank': row['opp_def_rtg_rank'] or 0,
+                            'strength': 'Elite' if (row['opp_off_rtg_rank'] or 99) <= 10 else ('Average' if (row['opp_off_rtg_rank'] or 99) <= 20 else 'Weak')
                         }
                     })
 
         conn.close()
 
-        print(f'[archetype_match_games] Found {len(matching_games)} matching games for {team_abbr} ({role}) vs {label}')
+        print(f'[archetype_match_games] Found {len(matching_games)} {role} games for {team_abbr} vs opponents with {label}')
 
         return jsonify({
             'success': True,
