@@ -27,7 +27,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Engine version for cache invalidation when prompt changes
-ENGINE_VERSION = 'v1'
+ENGINE_VERSION = 'v2'  # v2: Added bold number formatting
 
 
 def build_writeup_context(game_data: Dict) -> Dict:
