@@ -31,7 +31,7 @@ function Home() {
         case 'time':
           const timeA = a.game_time || a.game_date || ''
           const timeB = b.game_time || b.game_date || ''
-          return timeA.localeCompare(timeB)
+          return timeB.localeCompare(timeA) // Reverse to show earliest games first
         case 'alphabetical':
           const teamA = a.away_team?.abbreviation || a.away_team_name || ''
           const teamB = b.away_team?.abbreviation || b.away_team_name || ''
