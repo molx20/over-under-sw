@@ -433,6 +433,28 @@ def get_expected_matchup_metrics(
         mode='index'
     )
 
+    # Calculate expected FT points for team (season)
+    team_ft_points_season = calculate_expected_ft_points(
+        team_identity_season,
+        opp_resistance_season,
+        team_expected_ftr_season,
+        (blend_weight_team, blend_weight_opp)
+    )
+
+    # Calculate expected FG points for team (season)
+    team_fg_points_season = calculate_expected_fg_points(
+        team_id,
+        season,
+        as_of_date,
+        'season'
+    )
+
+    # Calculate expected total points for team (season)
+    team_total_points_season = calculate_expected_total_points(
+        team_fg_points_season,
+        team_ft_points_season
+    )
+
     # Team B expected metrics (blend team B identity with team A resistance using learned weights)
     opp_expected_to_season = (blend_weight_team * opp_identity_season['to_pct'] +
                                blend_weight_opp * team_resistance_season['opp_forces_to_pct'])
@@ -448,6 +470,28 @@ def get_expected_matchup_metrics(
         opp_expected_to_season,
         opp_expected_oreb_season,
         mode='index'
+    )
+
+    # Calculate expected FT points for opponent (season)
+    opp_ft_points_season = calculate_expected_ft_points(
+        opp_identity_season,
+        team_resistance_season,
+        opp_expected_ftr_season,
+        (blend_weight_team, blend_weight_opp)
+    )
+
+    # Calculate expected FG points for opponent (season)
+    opp_fg_points_season = calculate_expected_fg_points(
+        opp_id,
+        season,
+        as_of_date,
+        'season'
+    )
+
+    # Calculate expected total points for opponent (season)
+    opp_total_points_season = calculate_expected_total_points(
+        opp_fg_points_season,
+        opp_ft_points_season
     )
 
     # === LAST5 WINDOW ===
@@ -467,6 +511,28 @@ def get_expected_matchup_metrics(
         mode='index'
     )
 
+    # Calculate expected FT points for team (last5)
+    team_ft_points_last5 = calculate_expected_ft_points(
+        team_identity_last5,
+        opp_resistance_last5,
+        team_expected_ftr_last5,
+        (blend_weight_team, blend_weight_opp)
+    )
+
+    # Calculate expected FG points for team (last5)
+    team_fg_points_last5 = calculate_expected_fg_points(
+        team_id,
+        season,
+        as_of_date,
+        'last5'
+    )
+
+    # Calculate expected total points for team (last5)
+    team_total_points_last5 = calculate_expected_total_points(
+        team_fg_points_last5,
+        team_ft_points_last5
+    )
+
     opp_expected_to_last5 = (blend_weight_team * opp_identity_last5['to_pct'] +
                               blend_weight_opp * team_resistance_last5['opp_forces_to_pct'])
     opp_expected_oreb_last5 = (blend_weight_team * opp_identity_last5['oreb_pct'] +
@@ -483,6 +549,28 @@ def get_expected_matchup_metrics(
         mode='index'
     )
 
+    # Calculate expected FT points for opponent (last5)
+    opp_ft_points_last5 = calculate_expected_ft_points(
+        opp_identity_last5,
+        team_resistance_last5,
+        opp_expected_ftr_last5,
+        (blend_weight_team, blend_weight_opp)
+    )
+
+    # Calculate expected FG points for opponent (last5)
+    opp_fg_points_last5 = calculate_expected_fg_points(
+        opp_id,
+        season,
+        as_of_date,
+        'last5'
+    )
+
+    # Calculate expected total points for opponent (last5)
+    opp_total_points_last5 = calculate_expected_total_points(
+        opp_fg_points_last5,
+        opp_ft_points_last5
+    )
+
     # Calculate empty edge (positive = team has advantage)
     empty_edge_season = team_empty_season['expected_empty_index'] - opp_empty_season['expected_empty_index']
     empty_edge_last5 = team_empty_last5['expected_empty_index'] - opp_empty_last5['expected_empty_index']
@@ -496,6 +584,9 @@ def get_expected_matchup_metrics(
                 'expected_ftr': round(team_expected_ftr_season, 2),
                 'expected_ftr_delta': round(team_expected_ftr_delta_season, 2),
                 **team_empty_season,
+                'free_throw_points': team_ft_points_season,
+                'field_goal_points': team_fg_points_season,
+                'total_points': team_total_points_season,
             },
             'last5': {
                 **team_identity_last5,
@@ -504,6 +595,9 @@ def get_expected_matchup_metrics(
                 'expected_ftr': round(team_expected_ftr_last5, 2),
                 'expected_ftr_delta': round(team_expected_ftr_delta_last5, 2),
                 **team_empty_last5,
+                'free_throw_points': team_ft_points_last5,
+                'field_goal_points': team_fg_points_last5,
+                'total_points': team_total_points_last5,
             }
         },
         'opp': {
@@ -514,6 +608,9 @@ def get_expected_matchup_metrics(
                 'expected_ftr': round(opp_expected_ftr_season, 2),
                 'expected_ftr_delta': round(opp_expected_ftr_delta_season, 2),
                 **opp_empty_season,
+                'free_throw_points': opp_ft_points_season,
+                'field_goal_points': opp_fg_points_season,
+                'total_points': opp_total_points_season,
             },
             'last5': {
                 **opp_identity_last5,
@@ -522,6 +619,9 @@ def get_expected_matchup_metrics(
                 'expected_ftr': round(opp_expected_ftr_last5, 2),
                 'expected_ftr_delta': round(opp_expected_ftr_delta_last5, 2),
                 **opp_empty_last5,
+                'free_throw_points': opp_ft_points_last5,
+                'field_goal_points': opp_fg_points_last5,
+                'total_points': opp_total_points_last5,
             }
         },
         'expected': {
@@ -621,4 +721,207 @@ def calculate_pregame_projections(
         'expected_empty_possessions_game': round(game_expected_empty, 1),
         'expected_empty_rate': round(game_empty_rate, 1),
         'league_avg_empty_rate': league_avg_empty_rate
+    }
+
+
+def calculate_expected_total_points(
+    fg_points: Dict,
+    ft_points: Dict
+) -> Dict:
+    """
+    Calculate expected total points combining FG and FT points
+
+    Args:
+        fg_points: Field goal points dict from calculate_expected_fg_points()
+        ft_points: Free throw points dict from calculate_expected_ft_points()
+
+    Returns:
+        {
+            'expected_fg_points': float,
+            'expected_ft_points': float,
+            'expected_total_points': float,
+            'fg_contribution_pct': float,
+            'ft_contribution_pct': float
+        }
+    """
+    if not fg_points or not ft_points:
+        return {}
+
+    fg_total = fg_points.get('expected_fg_points_total', 0)
+    ft_total = ft_points.get('expected_ft_points_adjusted', 0)
+    total_points = fg_total + ft_total
+
+    # Calculate contribution percentages
+    fg_pct = (fg_total / total_points * 100) if total_points > 0 else 0
+    ft_pct = (ft_total / total_points * 100) if total_points > 0 else 0
+
+    return {
+        'expected_fg_points': round(fg_total, 1),
+        'expected_ft_points': round(ft_total, 1),
+        'expected_total_points': round(total_points, 1),
+        'fg_contribution_pct': round(fg_pct, 1),
+        'ft_contribution_pct': round(ft_pct, 1)
+    }
+
+
+def calculate_expected_fg_points(
+    team_id: int,
+    season: str = '2025-26',
+    as_of_date: str = '2026-01-02',
+    window: str = 'season'
+) -> Dict:
+    """
+    Calculate expected field goal points based on shot mix and shooting percentages
+
+    Args:
+        team_id: NBA team ID
+        season: Season string
+        as_of_date: Calculate up to this date
+        window: 'season' for full season avg, 'last5' for last 5 games
+
+    Returns:
+        {
+            'expected_2p_attempts': float,
+            'expected_3p_attempts': float,
+            'expected_2p_pct': float,
+            'expected_3p_pct': float,
+            'expected_2p_made': float,
+            'expected_3p_made': float,
+            'expected_2p_points': float,
+            'expected_3p_points': float,
+            'expected_fg_points_total': float
+        }
+    """
+    conn = _get_db_connection()
+    cursor = conn.cursor()
+
+    if window == 'last5':
+        # Get last 5 games averages
+        query = """
+            SELECT
+                AVG(fg2a) as avg_fg2a,
+                AVG(fg3a) as avg_fg3a,
+                AVG(fg2m * 1.0 / NULLIF(fg2a, 0)) as avg_fg2_pct,
+                AVG(fg3m * 1.0 / NULLIF(fg3a, 0)) as avg_fg3_pct
+            FROM (
+                SELECT fg2a, fg3a, fg2m, fg3m
+                FROM team_game_logs
+                WHERE team_id = ?
+                  AND season = ?
+                  AND date(game_date) <= date(?)
+                  AND fga > 0
+                ORDER BY game_date DESC
+                LIMIT 5
+            )
+        """
+    else:
+        # Get season averages
+        query = """
+            SELECT
+                AVG(fg2a) as avg_fg2a,
+                AVG(fg3a) as avg_fg3a,
+                AVG(fg2m * 1.0 / NULLIF(fg2a, 0)) as avg_fg2_pct,
+                AVG(fg3m * 1.0 / NULLIF(fg3a, 0)) as avg_fg3_pct
+            FROM team_game_logs
+            WHERE team_id = ?
+              AND season = ?
+              AND date(game_date) >= '2025-10-21'
+              AND date(game_date) <= date(?)
+              AND fga > 0
+        """
+
+    cursor.execute(query, (team_id, season, as_of_date))
+    result = cursor.fetchone()
+    conn.close()
+
+    if not result:
+        return {}
+
+    avg_fg2a = result[0] or 0
+    avg_fg3a = result[1] or 0
+    avg_fg2_pct = result[2] or 0
+    avg_fg3_pct = result[3] or 0
+
+    # Calculate expected makes and points
+    expected_2p_made = avg_fg2a * avg_fg2_pct
+    expected_3p_made = avg_fg3a * avg_fg3_pct
+    expected_2p_points = expected_2p_made * 2
+    expected_3p_points = expected_3p_made * 3
+    expected_fg_points_total = expected_2p_points + expected_3p_points
+
+    return {
+        'expected_2p_attempts': round(avg_fg2a, 1),
+        'expected_3p_attempts': round(avg_fg3a, 1),
+        'expected_2p_pct': round(avg_fg2_pct * 100, 1),
+        'expected_3p_pct': round(avg_fg3_pct * 100, 1),
+        'expected_2p_made': round(expected_2p_made, 1),
+        'expected_3p_made': round(expected_3p_made, 1),
+        'expected_2p_points': round(expected_2p_points, 1),
+        'expected_3p_points': round(expected_3p_points, 1),
+        'expected_fg_points_total': round(expected_fg_points_total, 1)
+    }
+
+
+def calculate_expected_ft_points(
+    team_identity: Dict,
+    opp_resistance: Dict,
+    expected_ftr: float,
+    blend_weights: Tuple[float, float] = (0.5, 0.5)
+) -> Dict:
+    """
+    Calculate expected free throw points (pregame projection)
+
+    Args:
+        team_identity: Team's identity metrics
+        opp_resistance: Opponent's resistance metrics
+        expected_ftr: Blended FTr from matchup
+        blend_weights: (team_weight, opp_weight) for blending
+
+    Returns:
+        {
+            'baseline_ftr': float,
+            'adjusted_ftr': float,
+            'expected_fga': float,
+            'expected_fta_baseline': float,
+            'expected_fta_adjusted': float,
+            'ft_pct_used': float,
+            'expected_ft_points_baseline': float,
+            'expected_ft_points_adjusted': float,
+            'net_ft_points_impact': float
+        }
+    """
+    # Get team averages
+    avg_possessions = team_identity['avg_possessions']
+    to_pct = team_identity['to_pct']
+    baseline_ftr = team_identity['ftr']
+
+    # Get FT% (use a reasonable estimate if not available)
+    # TODO: Get actual FT% from team stats
+    ft_pct_used = 0.78  # League average approximation
+
+    # Calculate expected FGA (possessions minus turnovers)
+    expected_fga = avg_possessions * (1 - to_pct / 100)
+
+    # Baseline FT points (team's identity, no opponent adjustment)
+    expected_fta_baseline = expected_fga * (baseline_ftr / 100)
+    expected_ft_points_baseline = expected_fta_baseline * ft_pct_used
+
+    # Opponent-adjusted FT points (using blended FTr)
+    adjusted_ftr = expected_ftr
+    expected_fta_adjusted = expected_fga * (adjusted_ftr / 100)
+    expected_ft_points_adjusted = expected_fta_adjusted * ft_pct_used
+
+    # Net impact
+    net_ft_points_impact = expected_ft_points_adjusted - expected_ft_points_baseline
+
+    return {
+        'baseline_ftr': round(baseline_ftr, 1),
+        'adjusted_ftr': round(adjusted_ftr, 1),
+        'expected_fga': round(expected_fga, 1),
+        'expected_fta_baseline': round(expected_fta_baseline, 1),
+        'expected_fta_adjusted': round(expected_fta_adjusted, 1),
+        'ft_pct_used': round(ft_pct_used, 2),
+        'expected_ft_points_baseline': round(expected_ft_points_baseline, 1),
+        'expected_ft_points_adjusted': round(expected_ft_points_adjusted, 1),
+        'net_ft_points_impact': round(net_ft_points_impact, 1)
     }

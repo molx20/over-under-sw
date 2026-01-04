@@ -1763,6 +1763,92 @@ def get_game_possession_insights():
                 'message': insights.get('message', 'Unable to generate insights')
             }), 200  # Return 200 with error details for expected failures
 
+        # Enrich insights with FT points data from opponent_resistance
+        try:
+            from api.utils.opponent_resistance import get_expected_matchup_metrics
+            import sqlite3
+
+            # Get home/away team IDs from game
+            conn = sqlite3.connect('/Users/malcolmlittle/NBA OVER UNDER SW/api/data/nba_data.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT home_team_id, away_team_id, game_date FROM games WHERE game_id = ?', (game_id,))
+            game = cursor.fetchone()
+            conn.close()
+
+            if game:
+                home_team_id, away_team_id, game_date = game
+                as_of_date = game_date[:10] if len(game_date) >= 10 else '2026-01-02'
+
+                resistance_data = get_expected_matchup_metrics(
+                    team_id=home_team_id,
+                    opp_id=away_team_id,
+                    season=season,
+                    as_of_date=as_of_date
+                )
+
+                if resistance_data:
+                    # Calculate combined FT points for both teams (using season window)
+                    home_ft = resistance_data['team']['season'].get('free_throw_points', {})
+                    away_ft = resistance_data['opp']['season'].get('free_throw_points', {})
+
+                    if home_ft and away_ft:
+                        combined_ft_points = {
+                            'adjusted': round(home_ft.get('expected_ft_points_adjusted', 0) +
+                                            away_ft.get('expected_ft_points_adjusted', 0), 1),
+                            'net_impact': round(home_ft.get('net_ft_points_impact', 0) +
+                                              away_ft.get('net_ft_points_impact', 0), 1)
+                        }
+
+                        # Add to section_3_total for both teams
+                        if 'home_team' in insights and 'section_3_total' in insights['home_team']:
+                            insights['home_team']['section_3_total']['combined_ft_points'] = combined_ft_points
+                        if 'away_team' in insights and 'section_3_total' in insights['away_team']:
+                            insights['away_team']['section_3_total']['combined_ft_points'] = combined_ft_points
+
+                    # Calculate combined FG points for both teams (using season window)
+                    home_fg = resistance_data['team']['season'].get('field_goal_points', {})
+                    away_fg = resistance_data['opp']['season'].get('field_goal_points', {})
+
+                    if home_fg and away_fg:
+                        combined_fg_points = {
+                            'expected_2p_points': round(home_fg.get('expected_2p_points', 0) +
+                                                       away_fg.get('expected_2p_points', 0), 1),
+                            'expected_3p_points': round(home_fg.get('expected_3p_points', 0) +
+                                                       away_fg.get('expected_3p_points', 0), 1),
+                            'expected_fg_points_total': round(home_fg.get('expected_fg_points_total', 0) +
+                                                             away_fg.get('expected_fg_points_total', 0), 1)
+                        }
+
+                        # Add to section_3_total for both teams
+                        if 'home_team' in insights and 'section_3_total' in insights['home_team']:
+                            insights['home_team']['section_3_total']['combined_fg_points'] = combined_fg_points
+                        if 'away_team' in insights and 'section_3_total' in insights['away_team']:
+                            insights['away_team']['section_3_total']['combined_fg_points'] = combined_fg_points
+
+                    # Calculate combined Total points for both teams (using season window)
+                    home_total = resistance_data['team']['season'].get('total_points', {})
+                    away_total = resistance_data['opp']['season'].get('total_points', {})
+
+                    if home_total and away_total:
+                        combined_total_points = {
+                            'expected_fg_points': round(home_total.get('expected_fg_points', 0) +
+                                                       away_total.get('expected_fg_points', 0), 1),
+                            'expected_ft_points': round(home_total.get('expected_ft_points', 0) +
+                                                       away_total.get('expected_ft_points', 0), 1),
+                            'expected_total_points': round(home_total.get('expected_total_points', 0) +
+                                                          away_total.get('expected_total_points', 0), 1)
+                        }
+
+                        # Add to section_3_total for both teams
+                        if 'home_team' in insights and 'section_3_total' in insights['home_team']:
+                            insights['home_team']['section_3_total']['combined_total_points'] = combined_total_points
+                        if 'away_team' in insights and 'section_3_total' in insights['away_team']:
+                            insights['away_team']['section_3_total']['combined_total_points'] = combined_total_points
+
+        except Exception as points_err:
+            print(f'[game_possession_insights] Warning: Failed to add expected points data: {points_err}')
+            # Continue without expected points data
+
         return jsonify({
             'success': True,
             'data': insights
