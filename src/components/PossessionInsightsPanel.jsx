@@ -3,8 +3,10 @@ import {
   calculateExpectedEmptyPossessions,
   calculateExpectedScoringPossessions,
   round1,
+  roundWhole,
   formatPts,
-  getImpactColor
+  getImpactColor,
+  getDeltaVsLeagueColor
 } from '../utils/possessionTranslation'
 
 /**
@@ -258,6 +260,72 @@ function Section3TotalLens({ total }) {
           </div>
         </div>
       </div>
+
+      {/* Translation (Counts) - NEW SECTION - Only show if data available */}
+      {total.projected_game_possessions != null && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-3">
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Translation (Counts)
+            </h5>
+            <button
+              className="group relative"
+              title="Turns rates into expected counts so you can 'feel' the matchup. Pregame projection."
+            >
+              <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Turns rates into expected counts so you can 'feel' the matchup. Pregame projection.
+              </span>
+            </button>
+            <span className="ml-auto text-xs px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full font-medium">
+              Projected — Pregame
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Projected Game Possessions:</span>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">
+                {roundWhole(total.projected_game_possessions)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Expected Empty Possessions:</span>
+              <span className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                {roundWhole(total.expected_empty_possessions_game)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Expected Scoring Possessions:</span>
+              <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                {roundWhole(total.projected_game_possessions - total.expected_empty_possessions_game)}
+              </span>
+            </div>
+
+            <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600 dark:text-gray-400">League Avg Empty Rate:</span>
+                <span className="text-gray-700 dark:text-gray-300 font-semibold">
+                  {round1(total.league_avg_empty_rate)}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-1">
+                <span className="text-gray-600 dark:text-gray-400">This Game Expected:</span>
+                <span className={`font-bold ${getDeltaVsLeagueColor(total.expected_empty_rate - total.league_avg_empty_rate)}`}>
+                  {round1(total.expected_empty_rate)}%
+                  {' '}
+                  ({total.expected_empty_rate > total.league_avg_empty_rate ? '+' : ''}
+                  {round1(total.expected_empty_rate - total.league_avg_empty_rate)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FT Points Environment - Only show if data available */}
       {total.combined_ft_points && (
