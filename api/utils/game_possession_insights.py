@@ -238,17 +238,6 @@ def generate_game_possession_insights(game_id: str, season: str = '2025-26') -> 
             WHERE game_id = ?
         ''', (game_id,))
         game = cursor.fetchone()
-
-        # Fallback to historical_games
-        if not game:
-            cursor.execute('''
-                SELECT game_id, game_date, home_team_id, home_team_id as home_team_name,
-                       visitor_team_id as away_team_id, visitor_team_id as away_team_name
-                FROM historical_games
-                WHERE game_id = ?
-            ''', (game_id,))
-            game = cursor.fetchone()
-
         conn.close()
 
         if not game:
