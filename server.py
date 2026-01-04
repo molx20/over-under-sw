@@ -1766,10 +1766,11 @@ def get_game_possession_insights():
         # Enrich insights with FT points data from opponent_resistance
         try:
             from api.utils.opponent_resistance import get_expected_matchup_metrics
+            from api.utils.db_config import get_db_path
             import sqlite3
 
             # Get home/away team IDs from game
-            conn = sqlite3.connect('/Users/malcolmlittle/NBA OVER UNDER SW/api/data/nba_data.db')
+            conn = sqlite3.connect(get_db_path('nba_data.db'))
             cursor = conn.cursor()
             cursor.execute('SELECT home_team_id, away_team_id, game_date FROM games WHERE game_id = ?', (game_id,))
             game = cursor.fetchone()
