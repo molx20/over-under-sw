@@ -352,28 +352,28 @@ function Section3TotalLens({ total }) {
       )}
 
       {/* FG Points Projection - Only show if data available */}
-      {total.combined_fg_points && (
+      {total.team_fg_points && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-            Expected FG Points (Game)
+            Expected FG Points (Team)
           </h5>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-600 dark:text-gray-400">2-Point Field Goals:</span>
               <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                {formatPts(total.combined_fg_points.expected_2p_points)}
+                {formatPts(total.team_fg_points.expected_2p_points)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-600 dark:text-gray-400">3-Point Field Goals:</span>
               <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
-                {formatPts(total.combined_fg_points.expected_3p_points)}
+                {formatPts(total.team_fg_points.expected_3p_points)}
               </span>
             </div>
             <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
               <span className="text-xs text-gray-700 dark:text-gray-300 font-semibold">Total FG Points:</span>
               <span className="text-base font-bold text-gray-900 dark:text-white">
-                {formatPts(total.combined_fg_points.expected_fg_points_total)}
+                {formatPts(total.team_fg_points.expected_fg_points_total)}
               </span>
             </div>
           </div>

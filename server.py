@@ -1810,25 +1810,19 @@ def get_game_possession_insights():
                         if 'away_team' in insights and 'section_3_total' in insights['away_team']:
                             insights['away_team']['section_3_total']['combined_ft_points'] = combined_ft_points
 
-                    # Calculate combined FG points for both teams (using season window)
+                    # Add individual team FG points (using season window)
                     home_fg = resistance_data['team']['season'].get('field_goal_points', {})
                     away_fg = resistance_data['opp']['season'].get('field_goal_points', {})
 
-                    if home_fg and away_fg:
-                        combined_fg_points = {
-                            'expected_2p_points': round(home_fg.get('expected_2p_points', 0) +
-                                                       away_fg.get('expected_2p_points', 0), 1),
-                            'expected_3p_points': round(home_fg.get('expected_3p_points', 0) +
-                                                       away_fg.get('expected_3p_points', 0), 1),
-                            'expected_fg_points_total': round(home_fg.get('expected_fg_points_total', 0) +
-                                                             away_fg.get('expected_fg_points_total', 0), 1)
-                        }
-
-                        # Add to section_3_total for both teams
+                    if home_fg:
+                        # Add home team's individual FG points
                         if 'home_team' in insights and 'section_3_total' in insights['home_team']:
-                            insights['home_team']['section_3_total']['combined_fg_points'] = combined_fg_points
+                            insights['home_team']['section_3_total']['team_fg_points'] = home_fg
+
+                    if away_fg:
+                        # Add away team's individual FG points
                         if 'away_team' in insights and 'section_3_total' in insights['away_team']:
-                            insights['away_team']['section_3_total']['combined_fg_points'] = combined_fg_points
+                            insights['away_team']['section_3_total']['team_fg_points'] = away_fg
 
                     # Calculate combined Total points for both teams (using season window)
                     home_total = resistance_data['team']['season'].get('total_points', {})
