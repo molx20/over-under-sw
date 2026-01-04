@@ -121,7 +121,7 @@ python3 api/quick_test.py
 
 ## 🌐 Deploy to Production
 
-Ready to deploy to Vercel:
+Ready to deploy to Railway:
 
 ```bash
 git add .
@@ -129,7 +129,7 @@ git commit -m "NBA Over/Under app - 2025-26 season ready"
 git push origin main
 ```
 
-Then connect to Vercel for free hosting!
+Then deploy via Railway for backend hosting!
 
 ## 📊 Sample Prediction Output
 
@@ -152,7 +152,7 @@ Breakdown:
 2. **View today's games** and predictions
 3. **Click a game** for detailed analysis
 4. **Toggle dark mode** for night viewing
-5. **Deploy to Vercel** when ready
+5. **Deploy to Railway** when ready
 
 ## 🎨 Customization
 

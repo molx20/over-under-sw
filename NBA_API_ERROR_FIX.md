@@ -148,8 +148,7 @@ else:
 
 ### 4. **Extended Timeout** (`api/utils/nba_data.py:502`)
 
-**Before**: 50-second timeout (for Vercel)
-**After**: 480-second timeout (8 minutes for Railway)
+**Timeout**: 480-second timeout (8 minutes for Railway)
 
 Railway has a 10-minute request timeout, so we can be more patient with the NBA API.
 

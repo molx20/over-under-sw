@@ -40,7 +40,7 @@ def _load_model() -> Dict:
     """
     Load the team ratings model from GitHub (source of truth) with local fallback
 
-    On Vercel serverless, always fetch from GitHub to get latest ratings.
+    In production, always fetch from GitHub to get latest ratings.
     Fall back to local file if GitHub is unavailable (e.g., no credentials).
     """
     # Try to fetch from GitHub first (source of truth for updated ratings)
@@ -68,19 +68,19 @@ def _load_model() -> Dict:
 
 def _save_model(model_data: Dict) -> None:
     """
-    Save the team ratings model (skip local save on read-only serverless filesystem)
+    Save the team ratings model (skip local save on read-only production filesystem)
 
-    On Vercel, we can't write to the filesystem, so we only update the timestamp
+    In production environments with read-only filesystems, we only update the timestamp
     and rely on GitHub persistence. Local saves work in development.
     """
     model_data['last_updated'] = datetime.now(timezone.utc).isoformat()
 
-    # Try to save locally (works in development, fails silently on Vercel)
+    # Try to save locally (works in development, may fail in production)
     try:
         with open(MODEL_PATH, 'w') as f:
             json.dump(model_data, f, indent=2)
     except (OSError, IOError) as e:
-        # Read-only filesystem on serverless (expected on Vercel)
+        # Read-only filesystem in production (expected behavior)
         print(f"Local save skipped (read-only filesystem): {e}")
         pass
 

@@ -142,7 +142,7 @@ Mavericks: 1610612742
 
 ## 🚀 Deploy to Production
 
-### Vercel Deployment (FREE)
+### Railway Deployment
 
 1. **Push to GitHub:**
 ```bash
@@ -153,13 +153,14 @@ git remote add origin <your-repo-url>
 git push -u origin main
 ```
 
-2. **Deploy on Vercel:**
-- Go to [vercel.com](https://vercel.com)
+2. **Deploy on Railway:**
+- Go to [railway.app](https://railway.app)
 - Click "New Project"
 - Import your GitHub repo
-- Click "Deploy"
+- Configure environment variables
+- Deploy
 
-Vercel automatically detects the configuration and deploys both frontend and API!
+Railway will automatically build and deploy your backend!
 
 ## 📖 Documentation
 
@@ -173,7 +174,7 @@ Vercel automatically detects the configuration and deploys both frontend and API
 2. **Explore the interface**
 3. **Test predictions** with different teams
 4. **Customize the algorithm** in `api/utils/prediction_engine.py`
-5. **Deploy to Vercel** for free hosting
+5. **Deploy to Railway** for backend hosting
 
 ---
 

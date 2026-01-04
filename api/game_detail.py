@@ -70,11 +70,6 @@ def get_game_detail():
             'error': str(e)
         }), 500
 
-# For Vercel serverless function
-def handler(request):
-    with app.request_context(request.environ):
-        return app.full_dispatch_request()
-
 if __name__ == '__main__':
     # For local testing
     app.run(debug=True, port=5001)

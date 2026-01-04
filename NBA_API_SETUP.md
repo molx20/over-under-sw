@@ -297,7 +297,7 @@ pip install -r requirements.txt
 1. **Test the API**: Run `python api/test_nba_api.py`
 2. **Start Development Server**: Run `python api/games.py`
 3. **Test Frontend**: Run `npm run dev` and view at `http://localhost:5173`
-4. **Deploy to Vercel**: Push to GitHub and connect to Vercel
+4. **Deploy to Railway**: Push to GitHub and deploy via Railway
 
 ## Resources
 

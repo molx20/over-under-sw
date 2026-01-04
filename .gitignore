@@ -38,9 +38,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Vercel
-.vercel
-
 # Testing
 coverage/
 .pytest_cache/

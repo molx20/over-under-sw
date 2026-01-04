@@ -79,7 +79,7 @@ git commit -m "NBA Over/Under app ready"
 git push origin main
 ```
 
-Then deploy to Vercel for **FREE**!
+Then deploy to Railway!
 
 ---
 

@@ -42,7 +42,7 @@ class handler(BaseHTTPRequestHandler):
                 },
                 'data_freshness': freshness,
                 'version': '2.0.0',
-                'environment': 'production' if os.getenv('VERCEL') else 'development',
+                'environment': 'production' if os.getenv('RAILWAY_ENVIRONMENT') else 'development',
             }
 
             # If database is down or data is stale, still return 200 but mark as degraded

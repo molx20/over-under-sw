@@ -51,7 +51,6 @@ nba-over-under/
 │   └── index.css                 # Global styles
 ├── package.json                  # Node dependencies
 ├── requirements.txt              # Python dependencies
-├── vercel.json                   # Vercel configuration
 └── vite.config.js                # Vite configuration
 ```
 
@@ -243,7 +242,7 @@ This app is configured for the **2025-26 NBA season**. Once the season begins, a
 The NBA API has rate limits. The app implements:
 - 0.6-second delay between API calls
 - In-memory caching of team stats (1-hour TTL)
-- For production, consider using Vercel KV (Redis) for caching
+- For production, consider using Redis for caching
 
 ## Customization
 
@@ -273,7 +272,7 @@ Edit `tailwind.config.js`:
 If you see errors about rate limiting:
 - Increase delay between calls in `nba_data.py`
 - Implement more aggressive caching
-- Consider using Vercel KV for persistent caching
+- Consider using Redis for persistent caching
 
 ### Build Errors
 ```bash
@@ -306,7 +305,7 @@ MIT License - feel free to use this project for personal or commercial purposes.
 ## Acknowledgments
 
 - [nba_api](https://github.com/swar/nba_api) for NBA statistics
-- [Vercel](https://vercel.com) for free hosting
+- [Railway](https://railway.app) for backend hosting
 - Inspired by [propsmadness.com](https://propsmadness.com)
 
 ## Support

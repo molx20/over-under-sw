@@ -1,5 +1,5 @@
 """
-Debug endpoint to test NBA API from Vercel
+Debug endpoint to test NBA API
 """
 from http.server import BaseHTTPRequestHandler
 import json
