@@ -178,53 +178,75 @@ function ResistanceCard({ team, data, isHome }) {
 
       {/* Metrics */}
       <div className="p-6 space-y-4">
-        {/* TO Pressure */}
-        <ResistanceMetric
-          label="TO Pressure"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          }
-          identity={data.to_pct}
-          expected={data.expected_to_pct}
-          delta={data.expected_to_delta}
-          unit="%"
-          description="Turnover rate adjusted for opponent's defensive pressure"
-          deltaEmpty={deltaEmptyTO}
-        />
+        {/* Section: Opponent Resistance (Empty Possessions) */}
+        <div>
+          <h6 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            Opponent Resistance (Empty Possessions)
+          </h6>
 
-        {/* OREB Impact */}
-        <ResistanceMetric
-          label="OREB Impact"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          }
-          identity={data.oreb_pct}
-          expected={data.expected_oreb_pct}
-          delta={data.expected_oreb_delta}
-          unit="%"
-          description="Offensive rebound rate adjusted for opponent's rebounding strength"
-          deltaEmpty={deltaEmptyOREB}
-        />
+          <div className="space-y-4">
+            {/* TO Pressure */}
+            <ResistanceMetric
+              label="TO Pressure"
+              icon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              }
+              identity={data.to_pct}
+              expected={data.expected_to_pct}
+              delta={data.expected_to_delta}
+              unit="%"
+              description="Turnover rate adjusted for opponent's defensive pressure"
+              deltaEmpty={deltaEmptyTO}
+              metricType="empty"
+            />
 
-        {/* Foul Rate */}
-        <ResistanceMetric
-          label="Foul Rate"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-          identity={data.ftr}
-          expected={data.expected_ftr}
-          delta={data.expected_ftr_delta}
-          unit="%"
-          description="Free throw rate (FTA/FGA) adjusted for opponent's foul tendency"
-          deltaEmpty={null}
-        />
+            {/* OREB Impact */}
+            <ResistanceMetric
+              label="OREB Impact"
+              icon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              }
+              identity={data.oreb_pct}
+              expected={data.expected_oreb_pct}
+              delta={data.expected_oreb_delta}
+              unit="%"
+              description="Offensive rebound rate adjusted for opponent's rebounding strength"
+              deltaEmpty={deltaEmptyOREB}
+              metricType="empty"
+            />
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t-2 border-gray-300 dark:border-gray-600"></div>
+
+        {/* Section: Scoring Environment (Free Throws) */}
+        <div>
+          <h6 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+            Scoring Environment (Free Throws)
+          </h6>
+
+          {/* Foul Rate */}
+          <ResistanceMetric
+            label="Foul Rate"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+            identity={data.ftr}
+            expected={data.expected_ftr}
+            delta={data.expected_ftr_delta}
+            unit="%"
+            description="Free throw rate (FTA/FGA) - higher values mean more scoring opportunities"
+            deltaEmpty={null}
+            metricType="scoring"
+          />
+        </div>
 
         {/* Opponent Impact on Possessions */}
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -260,10 +282,47 @@ function ResistanceCard({ team, data, isHome }) {
 
 /**
  * ResistanceMetric - Individual metric row with identity → expected
+ *
+ * @param {string} metricType - "empty" | "scoring"
+ *   - "empty": More = bad (red/orange), Less = good (green) [TO, OREB]
+ *   - "scoring": More = good (green), Less = bad (red) [FTr]
  */
-function ResistanceMetric({ label, icon, identity, expected, delta, unit, description, deltaEmpty }) {
+function ResistanceMetric({ label, icon, identity, expected, delta, unit, description, deltaEmpty, metricType = "empty" }) {
   const isIncrease = delta > 0
   const isSignificant = Math.abs(delta) >= 1
+
+  // Color logic splits based on metric type
+  const getValueColor = () => {
+    if (!isSignificant) return 'text-gray-900 dark:text-white'
+
+    if (metricType === "scoring") {
+      // Scoring metrics: More = GREEN, Less = RED
+      return isIncrease
+        ? 'text-green-600 dark:text-green-400'
+        : 'text-red-600 dark:text-red-400'
+    } else {
+      // Empty possession metrics: More = ORANGE/RED, Less = GREEN
+      return isIncrease
+        ? 'text-orange-600 dark:text-orange-400'
+        : 'text-green-600 dark:text-green-400'
+    }
+  }
+
+  const getBadgeColor = () => {
+    if (!isSignificant) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+
+    if (metricType === "scoring") {
+      // Scoring metrics: More = GREEN, Less = RED
+      return isIncrease
+        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+        : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+    } else {
+      // Empty possession metrics: More = ORANGE, Less = GREEN
+      return isIncrease
+        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+        : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+    }
+  }
 
   return (
     <div className="space-y-2">
@@ -287,25 +346,13 @@ function ResistanceMetric({ label, icon, identity, expected, delta, unit, descri
           </svg>
 
           {/* Expected */}
-          <span className={`text-lg font-mono font-bold ${
-            isSignificant
-              ? isIncrease
-                ? 'text-orange-600 dark:text-orange-400'
-                : 'text-green-600 dark:text-green-400'
-              : 'text-gray-900 dark:text-white'
-          }`}>
+          <span className={`text-lg font-mono font-bold ${getValueColor()}`}>
             {expected?.toFixed(1)}{unit}
           </span>
         </div>
 
         {/* Delta Badge */}
-        <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
-          isSignificant
-            ? isIncrease
-              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
-              : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-        }`}>
+        <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getBadgeColor()}`}>
           {isIncrease ? (
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" />
@@ -321,8 +368,8 @@ function ResistanceMetric({ label, icon, identity, expected, delta, unit, descri
 
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
 
-      {/* Delta Empty Possessions (Translation) */}
-      {deltaEmpty != null && (
+      {/* Delta Empty Possessions (Translation) - Only for empty metrics */}
+      {deltaEmpty != null && metricType === "empty" && (
         <p className={`text-xs font-medium ${getDeltaEmptyColor(deltaEmpty)}`}>
           ≈ {formatSigned(deltaEmpty)} empty possessions
         </p>
