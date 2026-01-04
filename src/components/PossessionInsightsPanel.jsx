@@ -350,6 +350,74 @@ function Section3TotalLens({ total }) {
           </div>
         </div>
       )}
+
+      {/* FG Points Projection - Only show if data available */}
+      {total.combined_fg_points && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            Expected FG Points (Game)
+          </h5>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">2-Point Field Goals:</span>
+              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                {formatPts(total.combined_fg_points.expected_2p_points)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">3-Point Field Goals:</span>
+              <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                {formatPts(total.combined_fg_points.expected_3p_points)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+              <span className="text-xs text-gray-700 dark:text-gray-300 font-semibold">Total FG Points:</span>
+              <span className="text-base font-bold text-gray-900 dark:text-white">
+                {formatPts(total.combined_fg_points.expected_fg_points_total)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Total Points Projection - Only show if data available */}
+      {total.combined_total_points && (
+        <div className="mt-4 pt-4 border-t-2 border-gray-300 dark:border-gray-600">
+          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            Expected Total Points (Game)
+          </h5>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Field Goal Points:</span>
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                {formatPts(total.combined_total_points.expected_fg_points)}
+                <span className="text-xs ml-1 text-gray-500">
+                  ({total.combined_total_points.expected_fg_points && total.combined_total_points.expected_total_points
+                    ? ((total.combined_total_points.expected_fg_points / total.combined_total_points.expected_total_points) * 100).toFixed(1)
+                    : '0'}%)
+                </span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Free Throw Points:</span>
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                {formatPts(total.combined_total_points.expected_ft_points)}
+                <span className="text-xs ml-1 text-gray-500">
+                  ({total.combined_total_points.expected_ft_points && total.combined_total_points.expected_total_points
+                    ? ((total.combined_total_points.expected_ft_points / total.combined_total_points.expected_total_points) * 100).toFixed(1)
+                    : '0'}%)
+                </span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-3 mt-3 border-t-2 border-gray-400 dark:border-gray-500">
+              <span className="text-sm text-gray-900 dark:text-white font-bold">Expected Total:</span>
+              <span className="text-xl font-black text-green-600 dark:text-green-400">
+                {formatPts(total.combined_total_points.expected_total_points)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
