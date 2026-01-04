@@ -3,7 +3,9 @@ import {
   calculateDeltaEmptyTO,
   calculateDeltaEmptyOREB,
   formatSigned,
-  getDeltaEmptyColor
+  getDeltaEmptyColor,
+  formatPts,
+  getImpactColor
 } from '../utils/possessionTranslation'
 
 /**
@@ -246,6 +248,37 @@ function ResistanceCard({ team, data, isHome }) {
             deltaEmpty={null}
             metricType="scoring"
           />
+
+          {/* Expected FT Points - Only show if data available */}
+          {data.free_throw_points && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+              <h6 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Expected FT Points
+              </h6>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Baseline FT Points:</span>
+                  <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                    {formatPts(data.free_throw_points.expected_ft_points_baseline)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Opponent-Adjusted FT Points:</span>
+                  <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                    {formatPts(data.free_throw_points.expected_ft_points_adjusted)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Net FT Impact:</span>
+                  <span className={`text-base font-bold ${getImpactColor(data.free_throw_points.net_ft_points_impact)}`}>
+                    {data.free_throw_points.net_ft_points_impact > 0 ? '+' : ''}
+                    {formatPts(data.free_throw_points.net_ft_points_impact)} pts
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Opponent Impact on Possessions */}

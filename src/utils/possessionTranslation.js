@@ -167,3 +167,35 @@ export function roundWhole(x) {
   if (Math.abs(x) < 0.5) return 0
   return Math.round(x)
 }
+
+/**
+ * Format points with 1 decimal place
+ *
+ * @param {number} pts - Points value
+ * @returns {string} Formatted string like "39.6"
+ */
+export function formatPts(pts) {
+  if (pts == null || isNaN(pts)) return '0.0'
+  return round1(pts).toFixed(1)
+}
+
+/**
+ * Get color class for points impact
+ * Positive points = good (green), Negative = bad (red)
+ *
+ * @param {number} impact - Points impact value
+ * @returns {string} Tailwind color classes
+ */
+export function getImpactColor(impact) {
+  if (impact == null || Math.abs(impact) < 0.5) {
+    return 'text-gray-600 dark:text-gray-400'
+  }
+
+  if (impact > 0) {
+    // Positive impact = more points = good (green)
+    return 'text-green-600 dark:text-green-400'
+  } else {
+    // Negative impact = fewer points = bad (red)
+    return 'text-red-600 dark:text-red-400'
+  }
+}

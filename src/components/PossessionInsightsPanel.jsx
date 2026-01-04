@@ -2,7 +2,9 @@ import { useState } from 'react'
 import {
   calculateExpectedEmptyPossessions,
   calculateExpectedScoringPossessions,
-  round1
+  round1,
+  formatPts,
+  getImpactColor
 } from '../utils/possessionTranslation'
 
 /**
@@ -256,6 +258,30 @@ function Section3TotalLens({ total }) {
           </div>
         </div>
       </div>
+
+      {/* FT Points Environment - Only show if data available */}
+      {total.combined_ft_points && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            FT Points Environment
+          </h5>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Combined FT Points (Adj):</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                {formatPts(total.combined_ft_points.adjusted)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Net FT Impact:</span>
+              <span className={`text-sm font-bold ${getImpactColor(total.combined_ft_points.net_impact)}`}>
+                {total.combined_ft_points.net_impact > 0 ? '+' : ''}
+                {formatPts(total.combined_ft_points.net_impact)} pts
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
