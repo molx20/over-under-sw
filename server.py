@@ -1769,12 +1769,16 @@ def get_game_possession_insights():
             from api.utils.db_config import get_db_path
             import sqlite3
 
-            # Get home/away team IDs from game
+            print(f'[game_possession_insights] Starting enrichment for game {game_id}')
+
+            # Get home/away team IDs from game (check todays_games table)
             conn = sqlite3.connect(get_db_path('nba_data.db'))
             cursor = conn.cursor()
-            cursor.execute('SELECT home_team_id, away_team_id, game_date FROM games WHERE game_id = ?', (game_id,))
+            cursor.execute('SELECT home_team_id, away_team_id, game_date FROM todays_games WHERE game_id = ?', (game_id,))
             game = cursor.fetchone()
             conn.close()
+
+            print(f'[game_possession_insights] Game found: {game is not None}')
 
             if game:
                 home_team_id, away_team_id, game_date = game
