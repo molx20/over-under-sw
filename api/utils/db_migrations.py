@@ -455,6 +455,79 @@ def migrate_to_v11_ai_game_writeups():
     print('[db_migrations] AI game writeups table ready for use')
 
 
+def migrate_to_v12_possession_insights():
+    """
+    Migrate nba_data.db to support possession insights cache
+
+    Adds:
+    - possession_insights_cache table for storing game-level possession analysis
+    - game_id (part of composite PK): NBA game identifier
+    - team_id (part of composite PK): Team perspective for insights
+    - opponent_id: Opponent team ID
+    - game_date: Game date for time-based queries
+    - insights_json: Full JSON payload with 4 sections
+    - data_hash: MD5 hash for cache invalidation
+    - created_at/updated_at: Timestamps
+
+    Safe to run multiple times - will skip if table exists
+    """
+    print('[db_migrations] Running NBA data migration v12 (possession_insights_cache)...')
+
+    with _get_connection_nba_data() as conn:
+        cursor = conn.cursor()
+
+        # Create possession_insights_cache table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS possession_insights_cache (
+                game_id TEXT NOT NULL,
+                team_id INTEGER NOT NULL,
+                opponent_id INTEGER NOT NULL,
+                game_date TEXT NOT NULL,
+                insights_json TEXT NOT NULL,
+                data_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (game_id, team_id)
+            )
+        ''')
+        print('[db_migrations] possession_insights_cache table created')
+
+        # Create index on game_id for fast game lookups
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_possession_insights_game
+                ON possession_insights_cache(game_id)
+            """)
+            print('[db_migrations] Created index: idx_possession_insights_game')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_possession_insights_game already exists')
+
+        # Create index on data_hash for cache validation
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_possession_insights_hash
+                ON possession_insights_cache(data_hash)
+            """)
+            print('[db_migrations] Created index: idx_possession_insights_hash')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_possession_insights_hash already exists')
+
+        # Create index on game_date for date-based queries
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_possession_insights_date
+                ON possession_insights_cache(game_date)
+            """)
+            print('[db_migrations] Created index: idx_possession_insights_date')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_possession_insights_date already exists')
+
+        conn.commit()
+
+    print('[db_migrations] Migration v12 completed successfully')
+    print('[db_migrations] Possession insights cache table ready for use')
+
+
 if __name__ == '__main__':
     # Run migration when executed directly
     print('=== Database Migration Tool ===')
@@ -483,5 +556,6 @@ if __name__ == '__main__':
     print('Running nba_data.db migrations...')
     migrate_to_v10_enhance_sync_log()
     migrate_to_v11_ai_game_writeups()
+    migrate_to_v12_possession_insights()
     print()
     print('All migrations complete!')

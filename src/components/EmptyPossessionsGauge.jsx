@@ -6,6 +6,11 @@ import {
   getStep1DisplayColor,
   getStep2DisplayColor
 } from '../utils/decisionStepsHelpers'
+import {
+  roundWhole,
+  round1,
+  getDeltaVsLeagueColor
+} from '../utils/possessionTranslation'
 
 /**
  * Empty Possessions Gauge Component
@@ -84,6 +89,9 @@ function EmptyPossessionsGauge({ homeTeam, awayTeam, emptyPossessionsData }) {
 
       {/* Collapsible Glossary */}
       {showGlossary && <GlossarySection />}
+
+      {/* Pregame Possession Outlook */}
+      <PregamePossessionOutlook emptyPossessionsData={emptyPossessionsData} />
 
       {/* Main Gauge Bar */}
       <div className="mb-6">
@@ -193,13 +201,73 @@ function TeamSection({ team, data }) {
         />
       </div>
 
-      {/* Blended Score Badge */}
-      <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+      {/* Expected Team Possessions Section - Only show if data available */}
+      {data.projected_team_possessions != null && data.expected_empty_possessions != null && data.empty_rate != null && (
+        <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+          <h5 className="text-sm font-bold text-gray-900 dark:text-white mb-3">
+            Expected Team Possessions
+          </h5>
+
+          {/* Possession Counts */}
+          <div className="space-y-2 mb-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Projected Team Possessions:</span>
+              <span className="text-base font-bold text-gray-900 dark:text-white">
+                {roundWhole(data.projected_team_possessions)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Expected Empty Possessions:</span>
+              <span className="text-base font-bold text-gray-900 dark:text-white">
+                {roundWhole(data.expected_empty_possessions)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Empty Rate:</span>
+              <span className="text-base font-bold text-gray-900 dark:text-white">
+                {round1(data.empty_rate).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Main Drivers - Only show if data available */}
+          {data.driver_turnovers_empty != null && data.driver_oreb_empty != null && data.driver_fts_points != null && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <h6 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Main Drivers
+              </h6>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Turnovers:</span>
+                  <span className="font-medium text-orange-600 dark:text-orange-400">
+                    +{roundWhole(data.driver_turnovers_empty)} empty poss
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Offensive Rebounds:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    −{roundWhole(data.driver_oreb_empty)} empty poss
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Fouls (FTs):</span>
+                  <span className="font-medium text-blue-600 dark:text-blue-400">
+                    +{roundWhole(data.driver_fts_points)} expected points
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Blended Score Badge (de-emphasized) */}
+      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+          <span className="text-xs text-gray-500 dark:text-gray-500">
             Conversion Score
           </span>
-          <span className={`text-2xl font-bold ${getScoreColorClass(data.blended_score)}`}>
+          <span className={`text-lg font-semibold ${getScoreColorClass(data.blended_score)}`}>
             {data.blended_score}
           </span>
         </div>
@@ -231,6 +299,71 @@ function MetricIndicator({ label, season, last5, trend, inverted = false }) {
           Season: {season !== null ? `${season}%` : 'N/A'} | L5: {last5 !== null ? `${last5}%` : 'N/A'}
         </span>
         <span className={`text-lg font-bold ${arrowColor}`}>{arrow}</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Pregame Possession Outlook Component
+ * Displays expected possession counts and empty possession projections
+ * Only renders when backend provides the required data
+ */
+function PregamePossessionOutlook({ emptyPossessionsData }) {
+  if (!emptyPossessionsData) return null
+
+  // Only render if we have the required fields from backend
+  const hasRequiredData = (
+    emptyPossessionsData.projected_game_possessions != null &&
+    emptyPossessionsData.expected_empty_possessions_game != null &&
+    emptyPossessionsData.expected_empty_rate != null &&
+    emptyPossessionsData.league_avg_empty_rate != null
+  )
+
+  if (!hasRequiredData) return null
+
+  const projectedGamePossessions = emptyPossessionsData.projected_game_possessions
+  const expectedEmptyPossessions = emptyPossessionsData.expected_empty_possessions_game
+  const expectedEmptyRate = emptyPossessionsData.expected_empty_rate
+  const expectedScoringPossessions = projectedGamePossessions - expectedEmptyPossessions
+  const leagueAvgEmptyRate = emptyPossessionsData.league_avg_empty_rate
+  const deltaVsLeague = expectedEmptyRate - leagueAvgEmptyRate
+
+  return (
+    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">
+        Pregame Possession Outlook
+      </h4>
+
+      {/* Numeric Fields */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 dark:text-gray-300">Projected Game Possessions:</span>
+          <span className="text-lg font-bold text-gray-900 dark:text-white">{roundWhole(projectedGamePossessions)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 dark:text-gray-300">Expected Empty Possessions:</span>
+          <span className="text-lg font-bold text-gray-900 dark:text-white">{roundWhole(expectedEmptyPossessions)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 dark:text-gray-300">Expected Empty Rate:</span>
+          <span className="text-lg font-bold text-gray-900 dark:text-white">{round1(expectedEmptyRate).toFixed(1)}%</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-700 dark:text-gray-300">Expected Scoring Possessions:</span>
+          <span className="text-lg font-bold text-gray-900 dark:text-white">{roundWhole(expectedScoringPossessions)}</span>
+        </div>
+      </div>
+
+      {/* Comparison Line */}
+      <div className="pt-3 border-t border-blue-300 dark:border-blue-700">
+        <div className="text-sm text-center text-gray-700 dark:text-gray-300">
+          <span>League Avg Empty Rate: <span className="font-semibold">{round1(leagueAvgEmptyRate).toFixed(1)}%</span></span>
+          <span className="mx-2">|</span>
+          <span>This Game: <span className={`font-semibold ${getDeltaVsLeagueColor(deltaVsLeague)}`}>
+            {deltaVsLeague > 0 ? '+' : ''}{round1(deltaVsLeague).toFixed(1)}%
+          </span></span>
+        </div>
       </div>
     </div>
   )

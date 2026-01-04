@@ -240,6 +240,7 @@ function AdvancedSplitsPanel({
             family="scoring"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
+            allTeamsArchetypes={allTeamsArchetypes}
             window={window}
             homeStats={scoringSplitsData?.home_team}
             awayStats={scoringSplitsData?.away_team}
@@ -255,6 +256,7 @@ function AdvancedSplitsPanel({
             family="threes"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
+            allTeamsArchetypes={allTeamsArchetypes}
             window={window}
             homeStats={context === 'defense' ? threePtSplitsData?.home_team : threePtVsPaceData?.home_team}
             awayStats={context === 'defense' ? threePtSplitsData?.away_team : threePtVsPaceData?.away_team}
@@ -270,6 +272,7 @@ function AdvancedSplitsPanel({
             family="turnovers"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
+            allTeamsArchetypes={allTeamsArchetypes}
             window={window}
             homeStats={context === 'defense' ? turnoverVsDefenseData?.home_team : turnoverVsPaceData?.home_team}
             awayStats={context === 'defense' ? turnoverVsDefenseData?.away_team : turnoverVsPaceData?.away_team}
@@ -285,6 +288,7 @@ function AdvancedSplitsPanel({
             family="assists"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
+            allTeamsArchetypes={allTeamsArchetypes}
             window={window}
             homeStats={context === 'defense' ? assistsVsDefenseData?.home_team : assistsVsPaceData?.home_team}
             awayStats={context === 'defense' ? assistsVsDefenseData?.away_team : assistsVsPaceData?.away_team}
@@ -300,6 +304,7 @@ function AdvancedSplitsPanel({
             family="rebounds"
             homeArchetypes={homeArchetypes}
             awayArchetypes={awayArchetypes}
+            allTeamsArchetypes={allTeamsArchetypes}
             window={window}
             homeStats={scoringSplitsData?.home_team}
             awayStats={scoringSplitsData?.away_team}

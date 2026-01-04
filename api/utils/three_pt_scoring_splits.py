@@ -125,6 +125,9 @@ def get_team_three_pt_scoring_splits(team_id: int, season: str = '2025-26') -> O
             SELECT
                 tgl.is_home,
                 tgl.fg3m,
+                tgl.fg3a,
+                tgl.opp_fg3m,
+                tgl.opp_fg3a,
                 tss_opp.opp_fg3_pct_rank
             FROM team_game_logs tgl
             LEFT JOIN team_season_stats tss_opp
@@ -134,11 +137,86 @@ def get_team_three_pt_scoring_splits(team_id: int, season: str = '2025-26') -> O
             WHERE tgl.team_id = ?
                 AND tgl.season = ?
                 AND tgl.fg3m IS NOT NULL
+                AND tgl.fg3a IS NOT NULL
+                AND tgl.opp_fg3m IS NOT NULL
+                AND tgl.opp_fg3a IS NOT NULL
                 AND tgl.game_type IN ('Regular Season', 'NBA Cup')
             ORDER BY tgl.game_date DESC
         ''', (team_id, season))
 
         game_logs = cursor.fetchall()
+
+        # Step 2.5: Calculate season and last10 home/away splits for 3PT stats
+        all_fg3m = [g['fg3m'] for g in game_logs]
+        all_fg3a = [g['fg3a'] for g in game_logs]
+        last10_fg3m = [g['fg3m'] for g in game_logs[:10]]
+        last10_fg3a = [g['fg3a'] for g in game_logs[:10]]
+
+        home_fg3m = [g['fg3m'] for g in game_logs if g['is_home'] == 1]
+        home_fg3a = [g['fg3a'] for g in game_logs if g['is_home'] == 1]
+        away_fg3m = [g['fg3m'] for g in game_logs if g['is_home'] == 0]
+        away_fg3a = [g['fg3a'] for g in game_logs if g['is_home'] == 0]
+
+        last10_home_fg3m = [g['fg3m'] for g in game_logs[:10] if g['is_home'] == 1]
+        last10_home_fg3a = [g['fg3a'] for g in game_logs[:10] if g['is_home'] == 1]
+        last10_away_fg3m = [g['fg3m'] for g in game_logs[:10] if g['is_home'] == 0]
+        last10_away_fg3a = [g['fg3a'] for g in game_logs[:10] if g['is_home'] == 0]
+
+        # 3PT Makes (3PM)
+        team_info['season_avg_fg3m'] = round(sum(all_fg3m) / len(all_fg3m), 1) if all_fg3m else 0
+        team_info['last10_avg_fg3m'] = round(sum(last10_fg3m) / len(last10_fg3m), 1) if last10_fg3m else 0
+        team_info['season_avg_fg3m_home'] = round(sum(home_fg3m) / len(home_fg3m), 1) if home_fg3m else 0
+        team_info['season_avg_fg3m_away'] = round(sum(away_fg3m) / len(away_fg3m), 1) if away_fg3m else 0
+        team_info['last10_avg_fg3m_home'] = round(sum(last10_home_fg3m) / len(last10_home_fg3m), 1) if last10_home_fg3m else 0
+        team_info['last10_avg_fg3m_away'] = round(sum(last10_away_fg3m) / len(last10_away_fg3m), 1) if last10_away_fg3m else 0
+
+        # 3PT Percentage (3P%)
+        team_info['season_avg_fg3_pct'] = round((sum(all_fg3m) / sum(all_fg3a) * 100), 1) if all_fg3a and sum(all_fg3a) > 0 else 0
+        team_info['last10_avg_fg3_pct'] = round((sum(last10_fg3m) / sum(last10_fg3a) * 100), 1) if last10_fg3a and sum(last10_fg3a) > 0 else 0
+        team_info['season_avg_fg3_pct_home'] = round((sum(home_fg3m) / sum(home_fg3a) * 100), 1) if home_fg3a and sum(home_fg3a) > 0 else 0
+        team_info['season_avg_fg3_pct_away'] = round((sum(away_fg3m) / sum(away_fg3a) * 100), 1) if away_fg3a and sum(away_fg3a) > 0 else 0
+        team_info['last10_avg_fg3_pct_home'] = round((sum(last10_home_fg3m) / sum(last10_home_fg3a) * 100), 1) if last10_home_fg3a and sum(last10_home_fg3a) > 0 else 0
+        team_info['last10_avg_fg3_pct_away'] = round((sum(last10_away_fg3m) / sum(last10_away_fg3a) * 100), 1) if last10_away_fg3a and sum(last10_away_fg3a) > 0 else 0
+
+        # Update field aliases
+        team_info['overall_avg_fg3m'] = team_info['season_avg_fg3m']
+        team_info['overall_avg_fg3_pct'] = team_info['season_avg_fg3_pct']
+
+        # DEFENSIVE: Opponent 3PT stats (3PT allowed)
+        all_opp_fg3m = [g['opp_fg3m'] for g in game_logs]
+        all_opp_fg3a = [g['opp_fg3a'] for g in game_logs]
+        last10_opp_fg3m = [g['opp_fg3m'] for g in game_logs[:10]]
+        last10_opp_fg3a = [g['opp_fg3a'] for g in game_logs[:10]]
+
+        home_opp_fg3m = [g['opp_fg3m'] for g in game_logs if g['is_home'] == 1]
+        home_opp_fg3a = [g['opp_fg3a'] for g in game_logs if g['is_home'] == 1]
+        away_opp_fg3m = [g['opp_fg3m'] for g in game_logs if g['is_home'] == 0]
+        away_opp_fg3a = [g['opp_fg3a'] for g in game_logs if g['is_home'] == 0]
+
+        last10_home_opp_fg3m = [g['opp_fg3m'] for g in game_logs[:10] if g['is_home'] == 1]
+        last10_home_opp_fg3a = [g['opp_fg3a'] for g in game_logs[:10] if g['is_home'] == 1]
+        last10_away_opp_fg3m = [g['opp_fg3m'] for g in game_logs[:10] if g['is_home'] == 0]
+        last10_away_opp_fg3a = [g['opp_fg3a'] for g in game_logs[:10] if g['is_home'] == 0]
+
+        # Opponent 3PT Makes (3PM allowed)
+        team_info['season_avg_opp_fg3m'] = round(sum(all_opp_fg3m) / len(all_opp_fg3m), 1) if all_opp_fg3m else 0
+        team_info['last10_avg_opp_fg3m'] = round(sum(last10_opp_fg3m) / len(last10_opp_fg3m), 1) if last10_opp_fg3m else 0
+        team_info['season_avg_opp_fg3m_home'] = round(sum(home_opp_fg3m) / len(home_opp_fg3m), 1) if home_opp_fg3m else 0
+        team_info['season_avg_opp_fg3m_away'] = round(sum(away_opp_fg3m) / len(away_opp_fg3m), 1) if away_opp_fg3m else 0
+        team_info['last10_avg_opp_fg3m_home'] = round(sum(last10_home_opp_fg3m) / len(last10_home_opp_fg3m), 1) if last10_home_opp_fg3m else 0
+        team_info['last10_avg_opp_fg3m_away'] = round(sum(last10_away_opp_fg3m) / len(last10_away_opp_fg3m), 1) if last10_away_opp_fg3m else 0
+
+        # Opponent 3PT Percentage (3P% allowed)
+        team_info['season_avg_opp_fg3_pct'] = round((sum(all_opp_fg3m) / sum(all_opp_fg3a) * 100), 1) if all_opp_fg3a and sum(all_opp_fg3a) > 0 else 0
+        team_info['last10_avg_opp_fg3_pct'] = round((sum(last10_opp_fg3m) / sum(last10_opp_fg3a) * 100), 1) if last10_opp_fg3a and sum(last10_opp_fg3a) > 0 else 0
+        team_info['season_avg_opp_fg3_pct_home'] = round((sum(home_opp_fg3m) / sum(home_opp_fg3a) * 100), 1) if home_opp_fg3a and sum(home_opp_fg3a) > 0 else 0
+        team_info['season_avg_opp_fg3_pct_away'] = round((sum(away_opp_fg3m) / sum(away_opp_fg3a) * 100), 1) if away_opp_fg3a and sum(away_opp_fg3a) > 0 else 0
+        team_info['last10_avg_opp_fg3_pct_home'] = round((sum(last10_home_opp_fg3m) / sum(last10_home_opp_fg3a) * 100), 1) if last10_home_opp_fg3a and sum(last10_home_opp_fg3a) > 0 else 0
+        team_info['last10_avg_opp_fg3_pct_away'] = round((sum(last10_away_opp_fg3m) / sum(last10_away_opp_fg3a) * 100), 1) if last10_away_opp_fg3a and sum(last10_away_opp_fg3a) > 0 else 0
+
+        # Defensive field aliases
+        team_info['overall_avg_opp_fg3m'] = team_info['season_avg_opp_fg3m']
+        team_info['overall_avg_opp_fg3_pct'] = team_info['season_avg_opp_fg3_pct']
 
         # Step 3: Aggregate games by 3PT defense tier and location
         # Initialize buckets: {tier: {home: [3pt_pts], away: [3pt_pts]}}

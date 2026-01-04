@@ -2,13 +2,12 @@
  * TeamContextTab Component
  *
  * Wrapper component for Team Context tab in Deep Dive
- * Combines: TeamFormIndex, MatchupIndicators, VolatilityProfile, EmptyPossessionsGauge
+ * Combines: TeamFormIndex, EmptyPossessionsGauge, OpponentResistancePanel
  */
 
 import TeamFormIndex from './TeamFormIndex'
-import MatchupIndicators from './MatchupIndicators'
-import VolatilityProfile from './VolatilityProfile'
 import EmptyPossessionsGauge from './EmptyPossessionsGauge'
+import OpponentResistancePanel from './OpponentResistancePanel'
 
 function TeamContextTab({
   homeTeam,
@@ -17,7 +16,8 @@ function TeamContextTab({
   awayStats,
   homeRecentGames,
   awayRecentGames,
-  emptyPossessionsData
+  emptyPossessionsData,
+  opponentResistanceData
 }) {
   return (
     <div className="space-y-6">
@@ -36,35 +36,7 @@ function TeamContextTab({
         />
       </div>
 
-      {/* Section 2: Matchup Indicators */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Matchup Indicators
-        </h2>
-        <MatchupIndicators
-          homeTeam={homeTeam}
-          awayTeam={awayTeam}
-          homeStats={homeStats}
-          awayStats={awayStats}
-        />
-      </div>
-
-      {/* Section 3: Volatility Profile */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Volatility Profile
-        </h2>
-        <VolatilityProfile
-          homeTeam={homeTeam}
-          awayTeam={awayTeam}
-          homeRecentGames={homeRecentGames}
-          awayRecentGames={awayRecentGames}
-          homeStats={homeStats}
-          awayStats={awayStats}
-        />
-      </div>
-
-      {/* Section 4: Empty Possessions Analysis */}
+      {/* Section 2: Empty Possessions Analysis */}
       {emptyPossessionsData && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
@@ -74,6 +46,17 @@ function TeamContextTab({
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             emptyPossessionsData={emptyPossessionsData}
+          />
+        </div>
+      )}
+
+      {/* Section 3: Opponent Resistance */}
+      {opponentResistanceData && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+          <OpponentResistancePanel
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            resistanceData={opponentResistanceData}
           />
         </div>
       )}

@@ -98,7 +98,9 @@
       "Bash(PORT=5001 python3:*)",
       "Bash(npx vite:*)",
       "Bash(timeout 5 python3:*)",
-      "Bash(/tasks)"
+      "Bash(/tasks)",
+      "Bash(mkdir:*)",
+      "Bash(PORT=8080 python3:*)"
     ],
     "deny": [],
     "ask": []

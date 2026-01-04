@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import GamesVsArchetypeModal from './GamesVsArchetypeModal'
+import SimilarTeamsChips from './SimilarTeamsChips'
 
 // Archetype definitions for each family
 const ARCHETYPE_DEFINITIONS = {
@@ -82,6 +83,38 @@ const ARCHETYPE_DEFINITIONS = {
       average_pressure: { name: 'Average Pressure', color: 'gray' }
     }
   }
+}
+
+/**
+ * Helper function to find teams with matching archetypes
+ */
+function findSimilarTeams(allTeamsArchetypes, archetypeId, family, type, window, excludeTeamIds = []) {
+  if (!allTeamsArchetypes) return []
+
+  const similarTeams = []
+  const windowKey = window === 'season' ? 'season' : 'last10'
+
+  Object.entries(allTeamsArchetypes).forEach(([teamId, teamData]) => {
+    // Skip excluded teams (e.g., the current team and their opponent)
+    if (excludeTeamIds.includes(parseInt(teamId))) return
+
+    let teamArchetypeId = null
+
+    // Handle scoring family (legacy structure)
+    if (family === 'scoring') {
+      teamArchetypeId = teamData[`${windowKey}_${type}`]?.id
+    } else {
+      // Handle new families (nested structure)
+      teamArchetypeId = teamData[family]?.[type]?.[window]?.id
+    }
+
+    // If this team has the same archetype, add them to the list
+    if (teamArchetypeId === archetypeId) {
+      similarTeams.push(teamData.team_abbr || 'Unknown')
+    }
+  })
+
+  return similarTeams
 }
 
 /**
@@ -198,6 +231,17 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                         || statsData.season_avg_opp_fg3_pct
                         || 0
     }
+
+    console.log('[ArchetypeRankingsPanel] Extracted 3PT defensive stats:', {
+      isHomeTeam,
+      locationSuffix,
+      window,
+      threesPG_def: stats.threesPG_def,
+      threePct_def: stats.threePct_def,
+      raw_season_avg_opp_fg3m: statsData.season_avg_opp_fg3m,
+      raw_season_avg_opp_fg3m_home: statsData.season_avg_opp_fg3m_home,
+      raw_season_avg_opp_fg3m_away: statsData.season_avg_opp_fg3m_away
+    })
   } else if (family === 'turnovers') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
@@ -265,6 +309,16 @@ function extractStats(statsData, family, context, window = 'season', isHomeTeam 
                    || statsData.season_avg_opp_ast
                    || 0
     }
+
+    console.log('[ArchetypeRankingsPanel] Extracted assists defensive stats:', {
+      isHomeTeam,
+      locationSuffix,
+      window,
+      apg_def: stats.apg_def,
+      raw_season_avg_opp_ast: statsData.season_avg_opp_ast,
+      raw_season_avg_opp_ast_home: statsData.season_avg_opp_ast_home,
+      raw_season_avg_opp_ast_away: statsData.season_avg_opp_ast_away
+    })
   } else if (family === 'rebounds') {
     const locationSuffix = isHomeTeam ? '_home' : '_away'
 
@@ -341,6 +395,7 @@ function ArchetypeRankingsPanel({
   family,
   homeArchetypes,
   awayArchetypes,
+  allTeamsArchetypes,
   window,
   homeStats,
   awayStats,
@@ -361,12 +416,12 @@ function ArchetypeRankingsPanel({
       return
     }
 
-    // Determine which team's games to fetch (the OPPONENT of the clicked archetype)
-    const targetTeam = clickedTeam === 'home' ? awayTeam : homeTeam
-    const targetRole = clickedTeam === 'home' ? 'away' : 'home' // Opponent's role in THIS game
+    // Determine which team's games to fetch (the CLICKED team, not the opponent)
+    const targetTeam = clickedTeam === 'home' ? homeTeam : awayTeam
+    const targetRole = clickedTeam === 'home' ? 'home' : 'away' // Clicked team's role in THIS game
 
     console.log(`[ArchetypeRankingsPanel] Clicked ${clickedTeam} team's ${clickedSide} archetype`)
-    console.log(`[ArchetypeRankingsPanel] Fetching ${targetTeam.abbreviation}'s ${targetRole} games vs archetype ${archetypeLabel}`)
+    console.log(`[ArchetypeRankingsPanel] Fetching ${targetTeam.abbreviation}'s ${targetRole} games vs opponents with ${archetypeLabel}`)
 
     setSelectedArchetype({ team: clickedTeam, side: clickedSide, label: archetypeLabel })
     setArchetypeGamesLoading(true)
@@ -471,12 +526,15 @@ function ArchetypeRankingsPanel({
         family={family}
         homeData={homeFamilyData?.offensive?.[window]}
         awayData={awayFamilyData?.offensive?.[window]}
-        homeTeam={homeArchetypes?.team_abbr || 'Home'}
-        awayTeam={awayArchetypes?.team_abbr || 'Away'}
+        homeTeam={homeTeam?.name || homeTeam?.abbreviation || 'Home'}
+        awayTeam={awayTeam?.name || awayTeam?.abbreviation || 'Away'}
         homeStats={homeStatValues}
         awayStats={awayStatValues}
         window={window}
         onArchetypeClick={fetchArchetypeMatchGames}
+        allTeamsArchetypes={allTeamsArchetypes}
+        homeTeamId={homeTeam?.team_id}
+        awayTeamId={awayTeam?.team_id}
       />
 
       {/* Defensive Section */}
@@ -485,12 +543,15 @@ function ArchetypeRankingsPanel({
         family={family}
         homeData={homeFamilyData?.defensive?.[window]}
         awayData={awayFamilyData?.defensive?.[window]}
-        homeTeam={homeArchetypes?.team_abbr || 'Home'}
-        awayTeam={awayArchetypes?.team_abbr || 'Away'}
+        homeTeam={homeTeam?.name || homeTeam?.abbreviation || 'Home'}
+        awayTeam={awayTeam?.name || awayTeam?.abbreviation || 'Away'}
         homeStats={homeStatValues}
         awayStats={awayStatValues}
         window={window}
         onArchetypeClick={fetchArchetypeMatchGames}
+        allTeamsArchetypes={allTeamsArchetypes}
+        homeTeamId={homeTeam?.team_id}
+        awayTeamId={awayTeam?.team_id}
       />
 
       {/* SAFE MODE ADDITION: Games vs This Archetype Modal (popup instead of inline) */}
@@ -512,12 +573,12 @@ function ArchetypeRankingsPanel({
         window={window}
         targetTeamAbbr={
           selectedArchetype
-            ? (selectedArchetype.team === 'home' ? awayArchetypes?.team_abbr : homeArchetypes?.team_abbr)
+            ? (selectedArchetype.team === 'home' ? awayTeam?.abbreviation : homeTeam?.abbreviation)
             : null
         }
         selectedTeamAbbr={
           selectedArchetype
-            ? (selectedArchetype.team === 'home' ? homeArchetypes?.team_abbr : awayArchetypes?.team_abbr)
+            ? (selectedArchetype.team === 'home' ? homeTeam?.abbreviation : awayTeam?.abbreviation)
             : null
         }
         games={archetypeGames}
@@ -539,7 +600,7 @@ function ArchetypeRankingsPanel({
 /**
  * ArchetypeGrid - Shows all 4 archetypes with opponent highlighting
  */
-function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, homeStats, awayStats, window, onArchetypeClick }) {
+function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, homeStats, awayStats, window, onArchetypeClick, allTeamsArchetypes, homeTeamId, awayTeamId }) {
   if (!homeData || !awayData) {
     return (
       <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -560,6 +621,9 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
   // Get current archetypes
   const homeArchetypeId = homeData?.id
   const awayArchetypeId = awayData?.id
+
+  // Calculate similar teams for each archetype (exclude current home and away teams)
+  const excludeTeamIds = [homeTeamId, awayTeamId].filter(Boolean)
 
   return (
     <div className="relative">
@@ -586,6 +650,11 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
               const isOpponentArchetype = archetypeId === homeArchetypeId
               const archetypeDef = archetypeDefs[archetypeId]
 
+              // Find similar teams for this archetype
+              const similarTeams = isCurrentArchetype
+                ? findSimilarTeams(allTeamsArchetypes, archetypeId, family, type, window, excludeTeamIds)
+                : []
+
               return (
                 <ArchetypeCard
                   key={archetypeId}
@@ -598,6 +667,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   teamColor="orange"
                   onClick={isOpponentArchetype ? () => onArchetypeClick?.('away', type, archetypeId) : null}
                   type={type}
+                  similarTeams={similarTeams}
                 />
               )
             })}
@@ -615,6 +685,11 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
               const isOpponentArchetype = archetypeId === awayArchetypeId
               const archetypeDef = archetypeDefs[archetypeId]
 
+              // Find similar teams for this archetype
+              const similarTeams = isCurrentArchetype
+                ? findSimilarTeams(allTeamsArchetypes, archetypeId, family, type, window, excludeTeamIds)
+                : []
+
               return (
                 <ArchetypeCard
                   key={archetypeId}
@@ -627,6 +702,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
                   teamColor="blue"
                   onClick={isOpponentArchetype ? () => onArchetypeClick?.('home', type, archetypeId) : null}
                   type={type}
+                  similarTeams={similarTeams}
                 />
               )
             })}
@@ -640,7 +716,7 @@ function ArchetypeGrid({ type, family, homeData, awayData, homeTeam, awayTeam, h
 /**
  * ArchetypeCard - Individual archetype card with highlighting and ACTUAL STATS
  */
-function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor, onClick, type }) {
+function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family, teamColor, onClick, type, similarTeams = [] }) {
   const getCardClasses = () => {
     let classes = 'p-3 rounded-lg border-2 transition-all '
 
@@ -730,6 +806,10 @@ function ArchetypeCard({ archetypeId, name, isCurrent, isOpponent, stats, family
                 {statDisplay}
               </span>
             </div>
+          )}
+
+          {isCurrent && similarTeams.length > 0 && (
+            <SimilarTeamsChips teams={similarTeams} compact={true} />
           )}
         </div>
       </div>

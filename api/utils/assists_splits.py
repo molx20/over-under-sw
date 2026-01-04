@@ -150,6 +150,7 @@ def get_team_assists_splits(team_id: int, season: str = '2025-26') -> Optional[D
             SELECT
                 tgl.is_home,
                 tgl.assists,
+                tgl.opp_assists,
                 tss_opp.opp_assists_rank
             FROM team_game_logs tgl
             LEFT JOIN team_season_stats tss_opp
@@ -159,11 +160,55 @@ def get_team_assists_splits(team_id: int, season: str = '2025-26') -> Optional[D
             WHERE tgl.team_id = ?
                 AND tgl.season = ?
                 AND tgl.assists IS NOT NULL
+                AND tgl.opp_assists IS NOT NULL
                 AND tgl.game_type IN ('Regular Season', 'NBA Cup')
             ORDER BY tgl.game_date DESC
         ''', (team_id, season))
 
         game_logs = cursor.fetchall()
+
+        # Step 2.5: Calculate season and last10 home/away splits for assists
+        all_asts = [g['assists'] for g in game_logs if g['assists'] is not None]
+        last10_asts = [g['assists'] for g in game_logs[:10] if g['assists'] is not None]
+
+        home_asts = [g['assists'] for g in game_logs if g['assists'] is not None and g['is_home'] == 1]
+        away_asts = [g['assists'] for g in game_logs if g['assists'] is not None and g['is_home'] == 0]
+        last10_home_asts = [g['assists'] for g in game_logs[:10] if g['assists'] is not None and g['is_home'] == 1]
+        last10_away_asts = [g['assists'] for g in game_logs[:10] if g['assists'] is not None and g['is_home'] == 0]
+
+        # Update season_avg_ast from actual game logs (more accurate than team_season_stats)
+        team_info['season_avg_ast'] = round(sum(all_asts) / len(all_asts), 1) if all_asts else 0
+        team_info['last10_avg_ast'] = round(sum(last10_asts) / len(last10_asts), 1) if last10_asts else 0
+
+        # Home/Away splits
+        team_info['season_avg_ast_home'] = round(sum(home_asts) / len(home_asts), 1) if home_asts else 0
+        team_info['season_avg_ast_away'] = round(sum(away_asts) / len(away_asts), 1) if away_asts else 0
+        team_info['last10_avg_ast_home'] = round(sum(last10_home_asts) / len(last10_home_asts), 1) if last10_home_asts else 0
+        team_info['last10_avg_ast_away'] = round(sum(last10_away_asts) / len(last10_away_asts), 1) if last10_away_asts else 0
+
+        # Update field aliases
+        team_info['overall_avg_assists'] = team_info['season_avg_ast']
+
+        # DEFENSIVE: Opponent assists (assists allowed)
+        all_opp_asts = [g['opp_assists'] for g in game_logs if g['opp_assists'] is not None]
+        last10_opp_asts = [g['opp_assists'] for g in game_logs[:10] if g['opp_assists'] is not None]
+
+        home_opp_asts = [g['opp_assists'] for g in game_logs if g['opp_assists'] is not None and g['is_home'] == 1]
+        away_opp_asts = [g['opp_assists'] for g in game_logs if g['opp_assists'] is not None and g['is_home'] == 0]
+        last10_home_opp_asts = [g['opp_assists'] for g in game_logs[:10] if g['opp_assists'] is not None and g['is_home'] == 1]
+        last10_away_opp_asts = [g['opp_assists'] for g in game_logs[:10] if g['opp_assists'] is not None and g['is_home'] == 0]
+
+        team_info['season_avg_opp_ast'] = round(sum(all_opp_asts) / len(all_opp_asts), 1) if all_opp_asts else 0
+        team_info['last10_avg_opp_ast'] = round(sum(last10_opp_asts) / len(last10_opp_asts), 1) if last10_opp_asts else 0
+
+        # Home/Away splits for defensive
+        team_info['season_avg_opp_ast_home'] = round(sum(home_opp_asts) / len(home_opp_asts), 1) if home_opp_asts else 0
+        team_info['season_avg_opp_ast_away'] = round(sum(away_opp_asts) / len(away_opp_asts), 1) if away_opp_asts else 0
+        team_info['last10_avg_opp_ast_home'] = round(sum(last10_home_opp_asts) / len(last10_home_opp_asts), 1) if last10_home_opp_asts else 0
+        team_info['last10_avg_opp_ast_away'] = round(sum(last10_away_opp_asts) / len(last10_away_opp_asts), 1) if last10_away_opp_asts else 0
+
+        # Defensive field aliases
+        team_info['overall_avg_opp_assists'] = team_info['season_avg_opp_ast']
 
         # Step 3: Aggregate games by tier and location
         # Initialize buckets: {tier: {home: [ast], away: [ast]}}

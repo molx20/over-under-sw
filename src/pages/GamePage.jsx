@@ -4,9 +4,9 @@ import Last5GamesPanel from '../components/Last5GamesPanel'
 import AdvancedSplitsPanel from '../components/AdvancedSplitsPanel'
 import DecisionCard from '../components/DecisionCard'
 import TeamContextTab from '../components/TeamContextTab'
-import AIMatchupWriteup from '../components/AIMatchupWriteup'
+import PossessionInsightsPanel from '../components/PossessionInsightsPanel'
 import { makeDecision } from '../utils/decisionEngine'
-import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace } from '../utils/api'
+import { useGameDetail, useGameScoringSplits, useGameThreePointScoringSplits, useGameThreePointScoringVsPace, useGameTurnoverVsDefensePressure, useGameTurnoverVsPace, useGameAssistsVsDefense, useGameAssistsVsPace, useGamePossessionInsights } from '../utils/api'
 
 function GamePage() {
   console.log('[GamePage] ===== COMPONENT RENDERING =====')
@@ -84,6 +84,13 @@ function GamePage() {
   console.log('[GamePage] assistsVsDefenseLoading from hook:', assistsVsDefenseLoading)
   console.log('[GamePage] assistsVsPaceData from hook:', assistsVsPaceData)
   console.log('[GamePage] assistsVsPaceLoading from hook:', assistsVsPaceLoading)
+
+  // Fetch possession insights for both teams
+  const {
+    data: possessionInsightsData,
+    isLoading: possessionInsightsLoading,
+    error: possessionInsightsError,
+  } = useGamePossessionInsights(gameId, '2025-26')
 
   // Show loading state only on initial load (no cached data)
   if (isLoading && !gameData) {
@@ -222,19 +229,6 @@ function GamePage() {
         <span>Back to Games</span>
       </button>
 
-      {/* Decision Card */}
-      {decision && drivers && (
-        <div className="mb-6">
-          <DecisionCard
-            decision={decision}
-            drivers={drivers}
-            archetype={archetype}
-            marginRisk={marginRisk}
-            volatility={volatility}
-          />
-        </div>
-      )}
-
       {/* Game Matchup Header with Scoring Environment (DATA ONLY MODE) */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg shadow-lg p-4 sm:p-6 mb-6 text-white">
         <div className="text-center">
@@ -257,27 +251,6 @@ function GamePage() {
             </div>
           )}
 
-          {/* AI-Powered Game Writeup (preferred) or Matchup Summary (fallback) */}
-          {ai_writeup ? (
-            <AIMatchupWriteup
-              writeup={ai_writeup}
-              homeTeam={home_team}
-              awayTeam={away_team}
-            />
-          ) : matchup_summary && matchup_summary.matchup_dna_summary ? (
-            <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6">
-              <div className="flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="text-base sm:text-lg font-semibold">Matchup Summary</h3>
-              </div>
-              <p className="text-sm sm:text-base leading-relaxed text-white/90 text-left max-w-4xl mx-auto">
-                {matchup_summary.matchup_dna_summary.text}
-              </p>
-            </div>
-          ) : null}
-
           {/* Tab Navigation */}
           <div className="mt-6 sm:mt-8 pt-6 border-t border-white/20">
             <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
@@ -292,16 +265,6 @@ function GamePage() {
                 Last 5 Games
               </button>
               <button
-                onClick={() => setActiveTab('splits')}
-                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  activeTab === 'splits'
-                    ? 'bg-white text-primary-700 shadow-lg'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                Advanced Splits
-              </button>
-              <button
                 onClick={() => setActiveTab('team-context')}
                 className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
                   activeTab === 'team-context'
@@ -310,6 +273,16 @@ function GamePage() {
                 }`}
               >
                 Team Context
+              </button>
+              <button
+                onClick={() => setActiveTab('possession-insights')}
+                className={`px-4 sm:px-6 py-2 rounded-lg font-medium transition-all text-sm sm:text-base ${
+                  activeTab === 'possession-insights'
+                    ? 'bg-white text-primary-700 shadow-lg'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                Possession Insights
               </button>
             </div>
           </div>
@@ -328,33 +301,6 @@ function GamePage() {
         </div>
       )}
 
-      {/* Advanced Splits Tab */}
-      {activeTab === 'splits' && (
-        <div className="mb-6 sm:mb-8">
-          <AdvancedSplitsPanel
-            scoringSplitsData={scoringSplitsData}
-            threePtSplitsData={threePtSplitsData}
-            threePtVsPaceData={threePtVsPaceData}
-            turnoverVsDefenseData={turnoverVsDefenseData}
-            turnoverVsPaceData={turnoverVsPaceData}
-            assistsVsDefenseData={assistsVsDefenseData}
-            assistsVsPaceData={assistsVsPaceData}
-            splitsLoading={splitsLoading}
-            threePtSplitsLoading={threePtSplitsLoading}
-            threePtVsPaceLoading={threePtVsPaceLoading}
-            turnoverVsDefenseLoading={turnoverVsDefenseLoading}
-            turnoverVsPaceLoading={turnoverVsPaceLoading}
-            assistsVsDefenseLoading={assistsVsDefenseLoading}
-            assistsVsPaceLoading={assistsVsPaceLoading}
-            homeArchetypes={gameData.home_archetypes}
-            awayArchetypes={gameData.away_archetypes}
-            homeTeam={home_team}
-            awayTeam={away_team}
-            gameId={gameId}
-          />
-        </div>
-      )}
-
       {/* Team Context Tab */}
       {activeTab === 'team-context' && (
         <div className="mb-6 sm:mb-8">
@@ -366,7 +312,42 @@ function GamePage() {
             homeRecentGames={home_recent_games}
             awayRecentGames={away_recent_games}
             emptyPossessionsData={gameData.empty_possessions}
+            opponentResistanceData={gameData.opponent_resistance}
           />
+        </div>
+      )}
+
+      {/* Possession Insights Tab */}
+      {activeTab === 'possession-insights' && (
+        <div className="mb-6 sm:mb-8">
+          {possessionInsightsLoading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading possession insights...</p>
+            </div>
+          ) : possessionInsightsData ? (
+            <PossessionInsightsPanel
+              homeTeam={home_team}
+              awayTeam={away_team}
+              homeInsights={possessionInsightsData.home_team}
+              awayInsights={possessionInsightsData.away_team}
+              metadata={possessionInsightsData.metadata}
+            />
+          ) : possessionInsightsError ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-8 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">Possession Insights Unavailable</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{possessionInsightsError?.message || 'Unable to load possession insights'}</p>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <p>Unable to load possession insights</p>
+            </div>
+          )}
         </div>
       )}
 

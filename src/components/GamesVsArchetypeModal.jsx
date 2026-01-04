@@ -2,7 +2,7 @@
  * GamesVsArchetypeModal Component
  *
  * Shows games where a team played AGAINST opponents with a specific archetype
- * Example: Click TOR's defensive archetype → shows ORL games vs teams with that defense
+ * Example: Click HOU's opponent archetype chip → shows HOU games vs opponents with that archetype
  */
 
 import { useState } from 'react'

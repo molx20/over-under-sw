@@ -800,6 +800,57 @@ export const fetchTeamVsArchetypeGames = async (teamId, archetypeType, archetype
 }
 
 /**
+ * Fetch possession insights for a game
+ *
+ * @param {string} gameId - NBA game ID
+ * @param {string} season - Season string (default: '2025-26')
+ * @returns {Promise<Object>} - Possession insights data
+ */
+export const fetchGamePossessionInsights = async (gameId, season = '2025-26') => {
+  try {
+    const response = await api.get('/game_possession_insights', {
+      params: { game_id: gameId, season },
+      timeout: 15000  // Longer timeout for analysis
+    })
+
+    if (!response.data || !response.data.success) {
+      // Preserve detailed error message from server
+      const errorMsg = response.data?.message || response.data?.error || 'Invalid response'
+      const error = new Error(errorMsg)
+      error.code = response.data?.error
+      throw error
+    }
+
+    return response.data.data
+  } catch (error) {
+    console.error('[fetchGamePossessionInsights] Error:', error)
+    // Preserve server error messages
+    const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to fetch possession insights'
+    const err = new Error(errorMsg)
+    err.code = error.response?.data?.error || error.code
+    throw err
+  }
+}
+
+/**
+ * Hook to fetch game possession insights
+ * Cache key: ['game-possession-insights', gameId, season]
+ * Stale time: 5 minutes
+ */
+export const useGamePossessionInsights = (gameId, season = '2025-26') => {
+  return useQuery({
+    queryKey: ['game-possession-insights', gameId, season],
+    queryFn: () => fetchGamePossessionInsights(gameId, season),
+    enabled: !!gameId,
+    staleTime: 300_000,        // 5 minutes
+    cacheTime: 600_000,        // 10 minutes
+    retry: 1,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
+  })
+}
+
+/**
  * Hook to fetch games where a team played vs opponents with specific archetype
  * Cache key: ['team-vs-archetype-games', teamId, archetypeType, archetypeId, window, season]
  * Stale time: 1 hour

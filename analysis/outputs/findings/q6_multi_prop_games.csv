@@ -1,0 +1,533 @@
+game_id,team_id,prop_tags,pace,ppp
+0022500001,1610612760,"['High Assists', 'High FT Volume']",91.82,1.51
+0022500001,1610612745,"['High Rebounds', 'High FT Volume']",91.82,1.23
+0022500002,1610612744,"['High Assists', 'High FT Volume']",83.04,1.55
+0022500080,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",78.24,1.69
+0022500082,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",85.02,1.59
+0022500084,1610612765,"['High Assists', 'High FT Volume']",76.26,1.45
+0022500084,1610612741,"['High Assists', 'High FT Volume']",76.26,1.51
+0022500085,1610612740,"['High Rebounds', 'High FT Volume']",86.28,1.46
+0022500086,1610612749,"['High Assists', 'High FT Volume']",76.36,1.79
+0022500087,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",63.52,2.09
+0022500087,1610612746,"['High Assists', 'High FT Volume']",63.52,1.66
+0022500088,1610612756,"['High Rebounds', 'High FT Volume']",82.72,1.37
+0022500006,1610612744,"['High Assists', 'High FT Volume']",89.08,1.63
+0022500018,1610612752,"['High Rebounds', 'High FT Volume']",83.8,1.21
+0022500019,1610612747,"['High Rebounds', 'High FT Volume']",78.16,1.47
+0022500091,1610612751,"['High Assists', 'High Rebounds']",81.74,1.46
+0022500091,1610612739,"['High Assists', 'High Rebounds', 'High FT Volume']",81.74,1.67
+0022500092,1610612749,"['High Rebounds', 'High FT Volume']",81.54,1.65
+0022500093,1610612745,"['High Rebounds', 'High FT Volume']",82.62,1.27
+0022500094,1610612763,"['High Assists', 'High FT Volume']",73.0,1.51
+0022500094,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",73.0,2.07
+0022500095,1610612740,"['High Rebounds', 'High FT Volume']",89.1,1.35
+0022500097,1610612757,"['High Assists', 'High Rebounds', 'High FT Volume']",83.08,1.64
+0022500097,1610612744,"['High Rebounds', 'High FT Volume']",83.08,1.47
+0022500099,1610612756,"['High Rebounds', 'High FT Volume']",71.52,1.51
+0022500099,1610612746,"['High Assists', 'High FT Volume']",71.52,1.71
+0022500100,1610612753,"['High Rebounds', 'High FT Volume']",77.14,1.16
+0022500102,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",83.7,1.45
+0022500102,1610612755,"['High Assists', 'High FT Volume']",83.7,1.49
+0022500103,1610612763,"['High Assists', 'High FT Volume']",67.1,1.83
+0022500104,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",84.58,1.61
+0022500105,1610612759,"['High Rebounds', 'High FT Volume']",78.2,1.44
+0022500106,1610612765,"['High Rebounds', 'High FT Volume']",81.2,1.42
+0022500109,1610612766,"['High Assists', 'High FT Volume']",82.42,1.58
+0022500110,1610612750,"['High Rebounds', 'High FT Volume']",79.58,1.46
+0022500111,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",83.86,1.47
+0022500111,1610612742,"['High Assists', 'High FT Volume']",83.86,1.73
+0022500112,1610612757,"['High Rebounds', 'High FT Volume']",82.78,1.25
+0022500008,1610612743,"['High Rebounds', 'High FT Volume']",80.38,1.57
+0022500114,1610612755,"['High Rebounds', 'High FT Volume']",86.4,1.56
+0022500114,1610612753,"['High Rebounds', 'High FT Volume']",86.4,1.45
+0022500115,1610612741,"['High Assists', 'High Rebounds', 'High FT Volume']",78.52,1.68
+0022500115,1610612737,"['High Assists', 'High FT Volume']",78.52,1.52
+0022500116,1610612745,"['High Assists', 'High FT Volume']",63.68,2.09
+0022500118,1610612761,"['High Assists', 'High FT Volume']",75.48,1.39
+0022500118,1610612759,"['High Assists', 'High FT Volume']",75.48,1.58
+0022500120,1610612762,"['High Rebounds', 'High FT Volume']",91.24,1.47
+0022500120,1610612756,"['High Assists', 'High FT Volume']",91.24,1.51
+0022500121,1610612763,"['High Assists', 'High FT Volume']",76.26,1.57
+0022500121,1610612744,"['High Assists', 'High FT Volume']",76.26,1.7
+0022500122,1610612747,"['High Rebounds', 'High FT Volume']",85.52,1.18
+0022500123,1610612764,"['High Assists', 'High Rebounds', 'High FT Volume']",90.26,1.54
+0022500124,1610612748,"['High Assists', 'High FT Volume']",83.9,1.83
+0022500125,1610612752,"['High Rebounds', 'High FT Volume']",79.34,1.29
+0022500128,1610612738,"['High Assists', 'High Rebounds', 'High FT Volume']",79.06,1.63
+0022500129,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",80.78,1.63
+0022500130,1610612751,"['High Rebounds', 'High FT Volume']",73.28,1.32
+0022500130,1610612737,"['High Assists', 'High FT Volume']",73.28,1.9
+0022500131,1610612761,"['High Assists', 'High FT Volume']",84.66,1.49
+0022500131,1610612745,"['High Assists', 'High Rebounds', 'High FT Volume']",84.66,1.58
+0022500132,1610612758,"['High Assists', 'High FT Volume']",77.18,1.42
+0022500132,1610612741,"['High Assists', 'High FT Volume']",77.18,1.68
+0022500133,1610612754,"['High Rebounds', 'High FT Volume']",78.3,1.23
+0022500134,1610612743,"['High Assists', 'High Rebounds']",62.46,1.9
+0022500135,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",83.22,1.55
+0022500135,1610612757,"['High Assists', 'High Rebounds', 'High FT Volume']",83.22,1.7
+0022500136,1610612750,"['High Assists', 'High FT Volume']",79.68,1.46
+0022500136,1610612747,"['High Assists', 'High Rebounds', 'High FT Volume']",79.68,1.44
+0022500138,1610612753,"['High Assists', 'High Rebounds', 'High FT Volume']",74.86,1.68
+0022500139,1610612744,"['High Rebounds', 'High FT Volume']",82.08,1.33
+0022500140,1610612764,"['High Rebounds', 'High FT Volume']",67.4,1.51
+0022500140,1610612760,"['High Assists', 'High Rebounds', 'High FT Volume']",67.4,2.01
+0022500020,1610612737,"['High Assists', 'High Rebounds', 'High FT Volume']",75.16,1.67
+0022500021,1610612755,"['High Rebounds', 'High FT Volume']",73.02,1.39
+0022500023,1610612752,"['High Rebounds', 'High FT Volume']",78.76,1.54
+0022500023,1610612741,"['High Assists', 'High FT Volume']",78.76,1.77
+0022500024,1610612763,"['High Assists', 'High FT Volume']",77.44,1.66
+0022500027,1610612746,"['High Assists', 'High FT Volume']",74.5,1.63
+0022500027,1610612740,"['High Assists', 'High Rebounds', 'High FT Volume']",74.5,1.73
+0022500142,1610612758,"['High Assists', 'High FT Volume']",77.62,1.58
+0022500142,1610612749,"['High Assists', 'High FT Volume']",77.62,1.91
+0022500144,1610612754,"['High Rebounds', 'High FT Volume']",88.0,1.31
+0022500145,1610612753,"['High Assists', 'High FT Volume']",72.64,1.55
+0022500146,1610612745,"['High Assists', 'High Rebounds', 'High FT Volume']",70.74,1.55
+0022500147,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",77.3,1.51
+0022500148,1610612760,"['High Assists', 'High FT Volume']",69.76,2.06
+0022500148,1610612740,"['High Rebounds', 'High FT Volume']",69.76,1.45
+0022500149,1610612755,"['High Assists', 'High FT Volume']",83.96,1.69
+0022500149,1610612751,"['High Rebounds', 'High FT Volume']",83.96,1.15
+0022500150,1610612766,"['High Assists', 'High FT Volume']",80.72,1.56
+0022500151,1610612737,"['High Assists', 'High FT Volume']",93.16,1.19
+0022500152,1610612761,"['High Assists', 'High Rebounds']",76.3,1.4
+0022500153,1610612752,"['High Assists', 'High FT Volume']",72.26,1.81
+0022500153,1610612741,"['High Assists', 'High Rebounds']",72.26,1.57
+0022500154,1610612756,"['High Assists', 'High FT Volume']",70.4,1.72
+0022500155,1610612748,"['High Assists', 'High FT Volume']",79.98,1.69
+0022500155,1610612747,"['High Assists', 'High FT Volume']",79.98,1.46
+0022500156,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",78.56,1.68
+0022500157,1610612754,"['High Rebounds', 'High FT Volume']",83.7,1.28
+0022500158,1610612762,"['High Rebounds', 'High FT Volume']",77.84,1.28
+0022500159,1610612764,"['High Assists', 'High FT Volume']",78.58,1.39
+0022500159,1610612752,"['High Assists', 'High Rebounds', 'High FT Volume']",78.58,1.42
+0022500160,1610612742,"['High Assists', 'High FT Volume']",84.5,1.35
+0022500161,1610612765,"['High Rebounds', 'High FT Volume']",81.38,1.36
+0022500162,1610612743,"['High Assists', 'High FT Volume']",86.78,1.54
+0022500163,1610612757,"['High Rebounds', 'High FT Volume']",83.12,1.33
+0022500164,1610612748,"['High Assists', 'High FT Volume']",78.46,1.57
+0022500164,1610612746,"['High Rebounds', 'High FT Volume']",78.46,1.48
+0022500165,1610612761,"['High Assists', 'High FT Volume']",71.5,1.6
+0022500166,1610612753,"['High Rebounds', 'High FT Volume']",83.5,1.44
+0022500168,1610612766,"['High Rebounds', 'High FT Volume']",74.84,1.39
+0022500169,1610612744,"['High Assists', 'High FT Volume']",72.92,1.85
+0022500170,1610612760,"['High Assists', 'High FT Volume']",65.28,2.11
+0022500171,1610612755,"['High Rebounds', 'High FT Volume']",82.84,1.57
+0022500171,1610612739,"['High Assists', 'High Rebounds']",82.84,1.49
+0022500172,1610612765,"['High Rebounds', 'High FT Volume']",86.22,1.38
+0022500174,1610612738,"['High Assists', 'High Rebounds', 'High FT Volume']",70.56,1.96
+0022500175,1610612752,"['High Assists', 'High Rebounds']",71.72,2.11
+0022500175,1610612750,"['High Assists', 'High Rebounds']",71.72,1.45
+0022500176,1610612745,"['High Assists', 'High Rebounds']",76.66,1.43
+0022500178,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",79.16,1.37
+0022500179,1610612747,"['High Rebounds', 'High FT Volume']",90.98,1.29
+0022500180,1610612760,"['High Rebounds', 'High FT Volume']",84.36,1.44
+0022500180,1610612757,"['High Rebounds', 'High FT Volume']",84.36,1.41
+0022500181,1610612744,"['High Assists', 'High FT Volume']",86.82,1.38
+0022500028,1610612753,"['High Assists', 'High FT Volume']",85.84,1.49
+0022500029,1610612764,"['High Assists', 'High FT Volume']",84.88,1.32
+0022500029,1610612739,"['High Assists', 'High Rebounds', 'High FT Volume']",84.88,1.79
+0022500030,1610612761,"['High Rebounds', 'High FT Volume']",84.56,1.35
+0022500030,1610612737,"['High Rebounds', 'High FT Volume']",84.56,1.1
+0022500031,1610612765,"['High Assists', 'High FT Volume']",76.82,1.6
+0022500032,1610612759,"['High Assists', 'High FT Volume']",89.12,1.34
+0022500032,1610612745,"['High Rebounds', 'High FT Volume']",89.12,1.25
+0022500033,1610612766,"['High Rebounds', 'High FT Volume']",88.52,1.09
+0022500035,1610612741,"['High Assists', 'High FT Volume']",77.98,1.55
+0022500036,1610612762,"['High Assists', 'High FT Volume']",73.44,1.41
+0022500036,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",73.44,1.76
+0022500037,1610612744,"['High Assists', 'High FT Volume']",67.8,1.58
+0022500037,1610612743,"['High Assists', 'High FT Volume']",67.8,1.84
+0022500038,1610612760,"['High Rebounds', 'High FT Volume']",78.58,1.64
+0022500184,1610612761,"['High Assists', 'High FT Volume']",86.82,1.53
+0022500184,1610612755,"['High Assists', 'High Rebounds', 'High FT Volume']",86.82,1.36
+0022500186,1610612739,"['High Assists', 'High FT Volume']",81.14,1.48
+0022500187,1610612757,"['High Assists', 'High Rebounds']",89.98,1.32
+0022500187,1610612748,"['High Assists', 'High FT Volume']",89.98,1.68
+0022500189,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",73.04,1.74
+0022500190,1610612756,"['High Assists', 'High FT Volume']",65.58,1.7
+0022500191,1610612745,"['High Rebounds', 'High FT Volume']",77.9,1.54
+0022500192,1610612752,"['High Assists', 'High Rebounds', 'High FT Volume']",66.5,1.93
+0022500193,1610612753,"['High Rebounds', 'High FT Volume']",78.04,1.32
+0022500194,1610612763,"['High Assists', 'High FT Volume']",80.18,1.3
+0022500197,1610612758,"['High Rebounds', 'High FT Volume']",76.1,1.47
+0022500197,1610612750,"['High Assists', 'High FT Volume']",76.1,1.98
+0022500198,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",80.74,1.51
+0022500199,1610612765,"['High Rebounds', 'High FT Volume']",95.08,1.4
+0022500201,1610612748,"['High Assists', 'High FT Volume']",85.46,1.63
+0022500201,1610612739,"['High Rebounds', 'High FT Volume']",85.46,1.63
+0022500202,1610612759,"['High Assists', 'High FT Volume']",78.5,1.46
+0022500202,1610612741,"['High Assists', 'High FT Volume']",78.5,1.58
+0022500203,1610612742,"['High Rebounds', 'High FT Volume']",78.02,1.42
+0022500204,1610612756,"['High Assists', 'High FT Volume']",76.54,1.48
+0022500204,1610612740,"['High Rebounds', 'High FT Volume']",76.54,1.37
+0022500205,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",85.44,1.44
+0022500206,1610612746,"['High Rebounds', 'High FT Volume']",72.4,1.36
+0022500206,1610612737,"['High Assists', 'High FT Volume']",72.4,1.5
+0022500207,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",78.04,1.51
+0022500208,1610612763,"['High Assists', 'High FT Volume']",84.68,1.51
+0022500208,1610612752,"['High Assists', 'High Rebounds']",84.68,1.48
+0022500210,1610612760,"['High Assists', 'High Rebounds', 'High FT Volume']",72.7,1.62
+0022500211,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",73.08,1.94
+0022500211,1610612754,"['High Assists', 'High Rebounds', 'High FT Volume']",73.08,1.89
+0022500212,1610612758,"['High Assists', 'High FT Volume']",67.5,1.74
+0022500212,1610612743,"['High Rebounds', 'High FT Volume']",67.5,1.67
+0022500213,1610612766,"['High Rebounds', 'High FT Volume']",70.8,1.36
+0022500214,1610612765,"['High Assists', 'High Rebounds']",80.68,1.55
+0022500215,1610612753,"['High Assists', 'High FT Volume']",75.32,1.52
+0022500216,1610612763,"['High Rebounds', 'High FT Volume']",62.36,1.52
+0022500216,1610612738,"['High Assists', 'High Rebounds']",62.36,2.1
+0022500217,1610612739,"['High Assists', 'High FT Volume']",79.18,1.63
+0022500218,1610612745,"['High Assists', 'High Rebounds', 'High FT Volume']",73.24,1.85
+0022500219,1610612740,"['High Assists', 'High Rebounds', 'High FT Volume']",73.86,1.77
+0022500220,1610612759,"['High Assists', 'High Rebounds']",90.44,1.32
+0022500220,1610612744,"['High Assists', 'High FT Volume']",90.44,1.39
+0022500221,1610612756,"['High Assists', 'High FT Volume']",78.46,1.49
+0022500221,1610612742,"['High Assists', 'High FT Volume']",78.46,1.53
+0022500222,1610612760,"['High Assists', 'High FT Volume']",74.72,1.78
+0022500223,1610612737,"['High Assists', 'High FT Volume']",70.8,1.71
+0022500224,1610612746,"['High Assists', 'High Rebounds', 'High FT Volume']",67.88,1.89
+0022500224,1610612743,"['High Rebounds', 'High FT Volume']",67.88,1.75
+0022500226,1610612754,"['High Rebounds', 'High FT Volume']",68.32,1.51
+0022500227,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",82.96,1.37
+0022500227,1610612737,"['High Assists', 'High Rebounds', 'High FT Volume']",82.96,1.72
+0022500039,1610612752,"['High Assists', 'High Rebounds', 'High FT Volume']",74.86,2.01
+0022500039,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",74.86,1.65
+0022500041,1610612765,"['High Assists', 'High FT Volume']",77.76,1.46
+0022500042,1610612757,"['High Rebounds', 'High FT Volume']",80.34,1.43
+0022500043,1610612766,"['High Assists', 'High FT Volume']",91.72,1.43
+0022500043,1610612749,"['High Assists', 'High FT Volume']",91.72,1.64
+0022500044,1610612758,"['High Assists', 'High FT Volume']",86.74,1.33
+0022500044,1610612750,"['High Assists', 'High FT Volume']",86.74,1.37
+0022500045,1610612747,"['High Assists', 'High FT Volume']",88.68,1.28
+0022500047,1610612759,"['High Assists', 'High Rebounds', 'High FT Volume']",82.64,1.28
+0022500230,1610612761,"['High Assists', 'High FT Volume']",76.68,1.6
+0022500231,1610612747,"['High Rebounds', 'High FT Volume']",75.54,1.42
+0022500232,1610612743,"['High Assists', 'High FT Volume']",90.42,1.28
+0022500234,1610612759,"['High Assists', 'High FT Volume']",69.8,1.69
+0022500235,1610612751,"['High Assists', 'High FT Volume']",71.54,1.83
+0022500236,1610612745,"['High Rebounds', 'High FT Volume']",93.86,1.25
+0022500237,1610612744,"['High Assists', 'High Rebounds', 'High FT Volume']",74.62,1.69
+0022500238,1610612757,"['High Rebounds', 'High FT Volume']",93.84,1.27
+0022500238,1610612742,"['High Assists', 'High FT Volume']",93.84,1.67
+0022500239,1610612737,"['High Assists', 'High Rebounds', 'High FT Volume']",86.96,1.45
+0022500240,1610612762,"['High Assists', 'High FT Volume']",93.06,1.53
+0022500240,1610612741,"['High Assists', 'High Rebounds', 'High FT Volume']",93.06,1.67
+0022500242,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",80.5,1.6
+0022500242,1610612754,"['High Rebounds', 'High FT Volume']",80.5,1.37
+0022500244,1610612752,"['High Rebounds', 'High FT Volume']",83.14,1.29
+0022500246,1610612750,"['High Rebounds', 'High FT Volume']",70.82,1.67
+0022500247,1610612760,"['High Assists', 'High Rebounds', 'High FT Volume']",71.46,1.72
+0022500247,1610612740,"['High Rebounds', 'High FT Volume']",71.46,1.57
+0022500248,1610612743,"['High Rebounds', 'High FT Volume']",77.18,1.4
+0022500248,1610612741,"['High Assists', 'High FT Volume']",77.18,2.05
+0022500249,1610612753,"['High Assists', 'High Rebounds', 'High FT Volume']",83.04,1.46
+0022500250,1610612751,"['High Rebounds', 'High FT Volume']",73.66,1.55
+0022500251,1610612765,"['High Assists', 'High FT Volume']",85.58,1.49
+0022500252,1610612763,"['High Assists', 'High Rebounds']",67.84,1.4
+0022500253,1610612747,"['High Assists', 'High Rebounds', 'High FT Volume']",88.26,1.6
+0022500254,1610612757,"['High Rebounds', 'High FT Volume']",76.74,1.36
+0022500254,1610612756,"['High Rebounds', 'High FT Volume']",76.74,1.75
+0022500255,1610612745,"['High Rebounds', 'High FT Volume']",78.48,1.44
+0022500256,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",75.9,1.52
+0022500256,1610612754,"['High Assists', 'High Rebounds', 'High FT Volume']",75.9,1.71
+0022500257,1610612748,"['High Assists', 'High FT Volume']",71.62,1.35
+0022500257,1610612744,"['High Rebounds', 'High FT Volume']",71.62,1.55
+0022500258,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",77.24,1.47
+0022500258,1610612755,"['High Rebounds', 'High FT Volume']",77.24,1.56
+0022500259,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",70.68,1.76
+0022500260,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",86.26,1.44
+0022500261,1610612760,"['High Rebounds', 'High FT Volume']",71.62,1.45
+0022500261,1610612758,"['High Rebounds', 'High FT Volume']",71.62,1.52
+0022500262,1610612752,"['High Rebounds', 'High FT Volume']",72.3,1.52
+0022500263,1610612757,"['High Rebounds', 'High FT Volume']",77.12,1.42
+0022500263,1610612741,"['High Assists', 'High FT Volume']",77.12,1.76
+0022500264,1610612753,"['High Assists', 'High FT Volume']",80.96,1.51
+0022500265,1610612763,"['High Assists', 'High FT Volume']",66.02,1.94
+0022500266,1610612755,"['High Assists', 'High FT Volume']",88.08,1.41
+0022500267,1610612759,"['High Assists', 'High FT Volume']",77.96,1.75
+0022500048,1610612739,"['High Assists', 'High Rebounds', 'High FT Volume']",80.66,1.43
+0022500049,1610612751,"['High Assists', 'High FT Volume']",77.7,1.37
+0022500050,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",72.86,1.75
+0022500051,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",76.34,1.87
+0022500052,1610612742,"['High Assists', 'High FT Volume']",84.98,1.35
+0022500053,1610612750,"['High Rebounds', 'High FT Volume']",91.64,1.21
+0022500054,1610612745,"['High Rebounds', 'High FT Volume']",72.34,1.4
+0022500054,1610612743,"['High Assists', 'High FT Volume']",72.34,1.68
+0022500055,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",70.28,1.52
+0022500055,1610612760,"['High Assists', 'High FT Volume']",70.28,2.15
+0022500056,1610612757,"['High Assists', 'High Rebounds', 'High FT Volume']",78.14,1.59
+0022500056,1610612744,"['High Assists', 'High Rebounds', 'High FT Volume']",78.14,1.61
+0022500268,1610612746,"['High Assists', 'High Rebounds', 'High FT Volume']",77.0,1.73
+0022500269,1610612753,"['High Assists', 'High FT Volume']",78.76,1.6
+0022500269,1610612752,"['High Assists', 'High FT Volume']",78.76,1.63
+0022500271,1610612764,"['High Assists', 'High FT Volume']",79.0,1.54
+0022500271,1610612741,"['High Rebounds', 'High FT Volume']",79.0,1.51
+0022500272,1610612765,"['High Assists', 'High FT Volume']",75.92,1.78
+0022500273,1610612763,"['High Rebounds', 'High FT Volume']",60.8,1.77
+0022500274,1610612758,"['High Assists', 'High FT Volume']",76.12,1.82
+0022500274,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",76.12,1.5
+0022500275,1610612755,"['High Assists', 'High FT Volume']",77.28,1.49
+0022500275,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",77.28,1.67
+0022500276,1610612737,"['High Assists', 'High Rebounds']",85.42,1.31
+0022500277,1610612753,"['High Assists', 'High Rebounds', 'High FT Volume']",61.62,2.28
+0022500277,1610612738,"['High Assists', 'High Rebounds', 'High FT Volume']",61.62,2.07
+0022500278,1610612746,"['High Rebounds', 'High FT Volume']",78.62,1.32
+0022500278,1610612739,"['High Assists', 'High FT Volume']",78.62,1.54
+0022500279,1610612761,"['High Assists', 'High FT Volume']",77.7,1.57
+0022500280,1610612760,"['High Assists', 'High Rebounds', 'High FT Volume']",61.68,1.9
+0022500283,1610612765,"['High Rebounds', 'High FT Volume']",74.62,1.58
+0022500286,1610612748,"['High Rebounds', 'High FT Volume']",77.3,1.37
+0022500287,1610612763,"['High Assists', 'High FT Volume']",65.88,2.03
+0022500287,1610612743,"['High Assists', 'High Rebounds']",65.88,1.66
+0022500289,1610612741,"['High Assists', 'High FT Volume']",88.74,1.44
+0022500289,1610612740,"['High Assists', 'High FT Volume']",88.74,1.64
+0022500290,1610612756,"['High Rebounds', 'High FT Volume']",76.92,1.19
+0022500291,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",77.92,1.54
+0022500292,1610612750,"['High Rebounds', 'High FT Volume']",83.5,1.28
+0022500057,1610612764,"['High Assists', 'High FT Volume']",78.74,1.56
+0022500057,1610612737,"['High Assists', 'High Rebounds', 'High FT Volume']",78.74,1.55
+0022500058,1610612753,"['High Assists', 'High FT Volume']",69.0,2.24
+0022500059,1610612747,"['High Assists', 'High Rebounds', 'High FT Volume']",87.0,1.56
+0022500060,1610612765,"['High Rebounds', 'High FT Volume']",77.7,1.48
+0022500062,1610612748,"['High Assists', 'High FT Volume']",79.48,1.44
+0022500063,1610612761,"['High Rebounds', 'High FT Volume']",75.5,1.25
+0022500064,1610612750,"['High Rebounds', 'High FT Volume']",74.5,1.47
+0022500065,1610612763,"['High Assists', 'High Rebounds']",76.28,1.68
+0022500066,1610612745,"['High Rebounds', 'High FT Volume']",72.4,1.36
+0022500066,1610612744,"['High Rebounds', 'High FT Volume']",72.4,1.46
+0022500067,1610612759,"['High Rebounds', 'High FT Volume']",81.6,1.44
+0022500068,1610612756,"['High Rebounds', 'High FT Volume']",79.6,1.34
+0022500069,1610612737,"['High Assists', 'High FT Volume']",90.12,1.47
+0022500070,1610612755,"['High Assists', 'High FT Volume']",76.12,1.62
+0022500071,1610612766,"['High Assists', 'High FT Volume']",85.68,1.36
+0022500071,1610612741,"['High Assists', 'High FT Volume']",85.68,1.44
+0022500072,1610612765,"['High Rebounds', 'High FT Volume']",92.86,1.16
+0022500075,1610612756,"['High Rebounds', 'High FT Volume']",84.94,1.36
+0022500076,1610612759,"['High Assists', 'High Rebounds', 'High FT Volume']",85.64,1.67
+0022500076,1610612743,"['High Rebounds', 'High FT Volume']",85.64,1.54
+0022500077,1610612762,"['High Assists', 'High FT Volume']",85.84,1.46
+0022500078,1610612747,"['High Rebounds', 'High FT Volume']",80.12,1.46
+0022500078,1610612742,"['High Assists', 'High FT Volume']",80.12,1.66
+0022500293,1610612750,"['High Assists', 'High FT Volume']",78.2,1.51
+0022500294,1610612761,"['High Assists', 'High Rebounds']",83.12,1.35
+0022500296,1610612765,"['High Assists', 'High FT Volume']",93.14,1.51
+0022500297,1610612749,"['High Assists', 'High Rebounds', 'High FT Volume']",61.98,1.8
+0022500298,1610612744,"['High Assists', 'High FT Volume']",74.88,1.56
+0022500299,1610612743,"['High Assists', 'High Rebounds', 'High FT Volume']",67.34,1.96
+0022500301,1610612762,"['High Assists', 'High FT Volume']",72.06,1.56
+0022500301,1610612745,"['High Assists', 'High FT Volume']",72.06,1.62
+0022500302,1610612739,"['High Assists', 'High Rebounds']",81.74,1.34
+0022500302,1610612738,"['High Rebounds', 'High FT Volume']",81.74,1.5
+0022500304,1610612755,"['High Scoring', 'High FT Volume']",110.38,1.26
+0022500304,1610612737,"['High Scoring', 'High Assists', 'High Rebounds', 'High FT Volume']",110.38,1.25
+0022500305,1610612757,"['High Rebounds', 'High FT Volume']",79.68,1.47
+0022500306,1610612750,"['High Assists', 'High Rebounds']",72.04,1.61
+0022500307,1610612763,"['High Assists', 'High Rebounds', 'High FT Volume']",76.18,1.41
+0022500309,1610612765,"['High Rebounds', 'High FT Volume']",84.7,1.21
+0022500310,1610612754,"['High Rebounds', 'High FT Volume']",80.02,1.48
+0022500310,1610612739,"['High Rebounds', 'High FT Volume']",80.02,1.69
+0022500311,1610612749,"['High Assists', 'High FT Volume']",79.92,1.53
+0022500313,1610612746,"['High Rebounds', 'High FT Volume']",78.84,1.59
+0022500314,1610612741,"['High Assists', 'High Rebounds', 'High FT Volume']",83.6,1.45
+0022500316,1610612762,"['High Assists', 'High FT Volume']",93.38,1.53
+0022500318,1610612764,"['High Rebounds', 'High FT Volume']",68.28,1.57
+0022500319,1610612761,"['High Assists', 'High FT Volume']",75.66,1.51
+0022500319,1610612757,"['High Rebounds', 'High FT Volume']",75.66,1.66
+0022500321,1610612750,"['High Assists', 'High FT Volume']",91.08,1.61
+0022500322,1610612763,"['High Assists', 'High FT Volume']",77.1,1.55
+0022500322,1610612759,"['High Assists', 'High FT Volume']",77.1,1.62
+0022500327,1610612746,"['High Assists', 'High Rebounds']",78.98,1.37
+0022500328,1610612752,"['High Assists', 'High Rebounds', 'High FT Volume']",81.06,1.4
+0022500329,1610612751,"['High Assists', 'High FT Volume']",82.84,1.4
+0022500330,1610612745,"['High Rebounds', 'High FT Volume']",70.48,1.41
+0022500331,1610612765,"['High Rebounds', 'High FT Volume']",72.4,1.59
+0022500331,1610612749,"['High Assists', 'High FT Volume']",72.4,1.48
+0022500332,1610612742,"['High Assists', 'High Rebounds']",76.1,1.63
+0022500334,1610612738,"['High Assists', 'High Rebounds', 'High FT Volume']",71.12,1.94
+0022500335,1610612762,"['High Assists', 'High FT Volume']",71.8,1.58
+0022500336,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",83.34,1.42
+0022500337,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",83.1,1.61
+0022500337,1610612740,"['High Assists', 'High FT Volume']",83.1,1.31
+0022500340,1610612743,"['High Assists', 'High FT Volume']",81.12,1.56
+0022500340,1610612737,"['High Assists', 'High Rebounds']",81.12,1.75
+0022500341,1610612759,"['High Assists', 'High FT Volume']",80.1,1.55
+0022500341,1610612739,"['High Assists', 'High Rebounds', 'High FT Volume']",80.1,1.53
+0022500342,1610612765,"['High Rebounds', 'High FT Volume']",77.76,1.54
+0022500342,1610612757,"['High Rebounds', 'High FT Volume']",77.76,1.52
+0022500343,1610612752,"['High Assists', 'High FT Volume']",70.92,2.1
+0022500346,1610612745,"['High Rebounds', 'High FT Volume']",75.36,1.51
+0022500347,1610612763,"['High Assists', 'High FT Volume']",76.2,1.47
+0022500349,1610612760,"['High Assists', 'High FT Volume']",59.56,2.22
+0022500349,1610612742,"['High Assists', 'High FT Volume']",59.56,1.86
+0022500350,1610612751,"['High Assists', 'High Rebounds']",75.42,1.7
+0022500350,1610612740,"['High Assists', 'High FT Volume']",75.42,1.25
+0022500351,1610612764,"['High Assists', 'High FT Volume']",77.76,1.56
+0022500351,1610612737,"['High Assists', 'High Rebounds']",77.76,1.61
+0022500353,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",71.36,1.78
+0022500355,1610612746,"['High Rebounds', 'High FT Volume']",76.48,1.32
+0022500356,1610612742,"['High Rebounds', 'High FT Volume']",74.76,1.57
+0022500357,1610612752,"['High Rebounds', 'High FT Volume']",75.18,1.31
+0022500359,1610612743,"['High Assists', 'High FT Volume']",81.96,1.46
+0022500360,1610612763,"['High Assists', 'High FT Volume']",81.04,1.48
+0022500361,1610612744,"['High Rebounds', 'High FT Volume']",71.36,1.83
+0022500363,1610612760,"['High Assists', 'High FT Volume']",71.1,1.85
+0022500364,1610612758,"['High Assists', 'High Rebounds', 'High FT Volume']",82.72,1.26
+0022500365,1610612750,"['High Rebounds', 'High FT Volume']",73.46,1.48
+0022500366,1610612759,"['High Assists', 'High FT Volume']",75.72,1.93
+0022500366,1610612740,"['High Assists', 'High FT Volume']",75.72,1.62
+0022501202,1610612761,"['High Assists', 'High FT Volume']",81.12,1.3
+0022501205,1610612745,"['High Rebounds', 'High FT Volume']",83.84,1.43
+0022501206,1610612738,"['High Rebounds', 'High FT Volume']",71.08,1.4
+0022501207,1610612740,"['High Assists', 'High Rebounds']",75.08,2.09
+0022501208,1610612743,"['High Assists', 'High FT Volume']",71.94,1.9
+0022501209,1610612741,"['High Assists', 'High FT Volume']",81.88,1.67
+0022501210,1610612765,"['High Assists', 'High FT Volume']",78.7,2.01
+0022501210,1610612737,"['High Assists', 'High Rebounds', 'High FT Volume']",78.7,1.33
+0022501212,1610612764,"['High Assists', 'High FT Volume']",93.96,1.43
+0022501212,1610612739,"['High Assists', 'High FT Volume']",93.96,1.3
+0022501213,1610612763,"['High Assists', 'High FT Volume']",83.62,1.5
+0022501213,1610612762,"['High Assists', 'High FT Volume']",83.62,1.57
+0022501214,1610612742,"['High Assists', 'High FT Volume']",80.02,1.55
+0022501215,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",80.5,1.76
+0022501229,1610612753,"['High Assists', 'High FT Volume']",96.82,1.25
+0022501229,1610612752,"['High Assists', 'High FT Volume']",96.82,1.35
+0022501230,1610612760,"['High Rebounds', 'High FT Volume']",80.98,1.35
+0022501230,1610612759,"['High Rebounds', 'High FT Volume']",80.98,1.37
+0022501216,1610612764,"['High Rebounds', 'High FT Volume']",67.84,1.45
+0022501217,1610612737,"['High Assists', 'High Rebounds']",94.0,1.32
+0022501218,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",91.0,1.28
+0022501219,1610612751,"['High Assists', 'High FT Volume']",69.2,2.07
+0022501220,1610612750,"['High Rebounds', 'High FT Volume']",79.44,1.41
+0022501221,1610612757,"['High Assists', 'High FT Volume']",88.94,1.47
+0022501221,1610612744,"['High Assists', 'High FT Volume']",88.94,1.54
+0022501223,1610612741,"['High Rebounds', 'High FT Volume']",70.74,1.48
+0022501228,1610612756,"['High Assists', 'High FT Volume']",87.96,1.39
+0022501228,1610612747,"['High Rebounds', 'High FT Volume']",87.96,1.24
+0022501224,1610612762,"['High Assists', 'High FT Volume']",95.78,1.53
+0022501225,1610612745,"['High Assists', 'High Rebounds', 'High FT Volume']",87.48,1.4
+0022501226,1610612763,"['High Assists', 'High FT Volume']",73.08,1.74
+0022501226,1610612746,"['High Rebounds', 'High FT Volume']",73.08,1.34
+0022501227,1610612761,"['High Assists', 'High Rebounds']",78.04,1.43
+0022500367,1610612741,"['High Assists', 'High FT Volume']",82.92,1.59
+0022500368,1610612750,"['High Rebounds', 'High FT Volume']",79.94,1.34
+0022500370,1610612759,"['High Assists', 'High FT Volume']",69.48,1.93
+0022500371,1610612737,"['High Assists', 'High FT Volume']",84.08,1.52
+0022500372,1610612752,"['High Assists', 'High FT Volume']",83.64,1.42
+0022500374,1610612761,"['High Assists', 'High Rebounds', 'High FT Volume']",71.14,1.44
+0022500375,1610612745,"['High Assists', 'High Rebounds', 'High FT Volume']",90.6,1.34
+0022500376,1610612765,"['High Rebounds', 'High FT Volume']",82.82,1.46
+0022500377,1610612753,"['High Assists', 'High FT Volume']",84.02,1.41
+0022500378,1610612744,"['High Rebounds', 'High FT Volume']",82.8,1.21
+0022500379,1610612762,"['High Assists', 'High Rebounds', 'High FT Volume']",83.92,1.78
+0022500379,1610612747,"['High Assists', 'High FT Volume']",83.92,1.55
+0022500380,1610612758,"['High Assists', 'High FT Volume']",99.74,1.4
+0022500380,1610612757,"['High Assists', 'High Rebounds', 'High FT Volume']",99.74,1.28
+0022500381,1610612748,"['High Rebounds', 'High FT Volume']",81.56,1.4
+0022500382,1610612752,"['High Rebounds', 'High FT Volume']",81.62,1.26
+0022500383,1610612759,"['High Assists', 'High FT Volume']",70.54,2.1
+0022500384,1610612741,"['High Assists', 'High Rebounds']",77.98,1.82
+0022500384,1610612739,"['High Assists', 'High FT Volume']",77.98,1.54
+0022500385,1610612750,"['High Rebounds', 'High FT Volume']",84.44,1.32
+0022500387,1610612755,"['High Rebounds', 'High FT Volume']",86.5,1.34
+0022500387,1610612742,"['High Rebounds', 'High FT Volume']",86.5,1.38
+0022500389,1610612754,"['High Assists', 'High FT Volume']",72.08,1.58
+0022500390,1610612765,"['High Rebounds', 'High FT Volume']",86.94,1.32
+0022500391,1610612764,"['High Assists', 'High Rebounds', 'High FT Volume']",79.06,1.56
+0022500391,1610612763,"['High Assists', 'High FT Volume']",79.06,1.63
+0022500392,1610612744,"['High Assists', 'High FT Volume']",82.56,1.48
+0022500393,1610612762,"['High Assists', 'High FT Volume']",85.36,1.56
+0022500393,1610612753,"['High Assists', 'High FT Volume']",85.36,1.43
+0022500394,1610612758,"['High Rebounds', 'High FT Volume']",84.82,1.17
+0022500395,1610612747,"['High Rebounds', 'High FT Volume']",76.46,1.14
+0022500395,1610612746,"['High Rebounds', 'High FT Volume']",76.46,1.36
+0022500396,1610612741,"['High Assists', 'High FT Volume']",86.62,1.87
+0022500396,1610612737,"['High Assists', 'High FT Volume']",86.62,1.63
+0022500397,1610612751,"['High Assists', 'High FT Volume']",71.78,1.26
+0022500398,1610612752,"['High Assists', 'High FT Volume']",80.82,1.51
+0022500398,1610612748,"['High Rebounds', 'High FT Volume']",80.82,1.68
+0022500399,1610612759,"['High Rebounds', 'High FT Volume']",78.82,1.49
+0022500400,1610612750,"['High Assists', 'High FT Volume']",70.96,1.56
+0022500401,1610612758,"['High Assists', 'High Rebounds', 'High FT Volume']",85.2,1.51
+0022500401,1610612745,"['High Assists', 'High FT Volume']",85.2,1.42
+0022500402,1610612766,"['High Assists', 'High FT Volume']",76.18,1.55
+0022500402,1610612739,"['High Assists', 'High FT Volume']",76.18,2.06
+0022500404,1610612742,"['High Assists', 'High Rebounds', 'High FT Volume']",80.56,1.39
+0022500404,1610612740,"['High Assists', 'High FT Volume']",80.56,1.49
+0022500405,1610612762,"['High Assists', 'High FT Volume']",73.68,1.39
+0022500405,1610612743,"['High Assists', 'High FT Volume']",73.68,2.02
+0022500407,1610612744,"['High Assists', 'High FT Volume']",79.0,1.63
+0022500408,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",78.24,1.52
+0022500408,1610612757,"['High Rebounds', 'High FT Volume']",78.24,1.22
+0022500409,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",67.5,1.75
+0022500411,1610612741,"['High Assists', 'High FT Volume']",85.56,1.53
+0022500414,1610612761,"['High Assists', 'High FT Volume']",74.86,1.44
+0022500415,1610612742,"['High Assists', 'High Rebounds']",77.0,1.62
+0022500417,1610612759,"['High Assists', 'High FT Volume']",67.82,2.18
+0022500418,1610612756,"['High Assists', 'High FT Volume']",71.78,1.89
+0022500418,1610612747,"['High Rebounds', 'High FT Volume']",71.78,1.46
+0022500419,1610612763,"['High Assists', 'High FT Volume']",82.8,1.54
+0022500419,1610612762,"['High Assists', 'High FT Volume']",82.8,1.67
+0022500421,1610612765,"['High Assists', 'High Rebounds', 'High FT Volume']",81.3,1.67
+0022500421,1610612758,"['High Rebounds', 'High FT Volume']",81.3,1.56
+0022500422,1610612745,"['High Rebounds', 'High FT Volume']",70.4,1.66
+0022500009,1610612752,"['High Assists', 'High FT Volume']",80.4,1.52
+0022500009,1610612739,"['High Assists', 'High FT Volume']",80.4,1.59
+0022500010,1610612760,"['High Rebounds', 'High FT Volume']",66.12,1.57
+0022500011,1610612744,"['High Assists', 'High FT Volume']",72.34,1.79
+0022500012,1610612745,"['High Rebounds', 'High FT Volume']",73.1,1.54
+0022500013,1610612750,"['High Assists', 'High Rebounds', 'High FT Volume']",100.64,1.45
+0022500013,1610612743,"['High Assists', 'High FT Volume']",100.64,1.34
+0022500423,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",79.08,1.73
+0022500424,1610612766,"['High Rebounds', 'High FT Volume']",75.22,1.57
+0022500424,1610612753,"['High Rebounds', 'High FT Volume']",75.22,1.42
+0022500426,1610612754,"['High Assists', 'High FT Volume']",75.88,1.75
+0022500427,1610612741,"['High Assists', 'High FT Volume']",74.28,1.7
+0022500428,1610612763,"['High Assists', 'High FT Volume']",81.82,1.56
+0022500428,1610612749,"['High Rebounds', 'High FT Volume']",81.82,1.25
+0022500429,1610612756,"['High Rebounds', 'High FT Volume']",76.24,1.42
+0022500430,1610612765,"['High Assists', 'High FT Volume']",77.28,1.72
+0022500430,1610612762,"['High Assists', 'High FT Volume']",77.28,1.65
+0022500431,1610612757,"['High Rebounds', 'High FT Volume']",81.66,1.33
+0022500433,1610612753,"['High Assists', 'High FT Volume']",86.74,1.52
+0022500433,1610612743,"['High Rebounds', 'High FT Volume']",86.74,1.4
+0022500434,1610612740,"['High Rebounds', 'High FT Volume']",80.94,1.43
+0022500435,1610612737,"['High Assists', 'High FT Volume']",81.98,1.74
+0022500436,1610612754,"['High Assists', 'High Rebounds']",81.64,1.23
+0022500436,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",81.64,2.05
+0022500437,1610612741,"['High Assists', 'High FT Volume']",68.8,1.58
+0022500438,1610612745,"['High Rebounds', 'High FT Volume']",64.04,1.77
+0022500439,1610612751,"['High Assists', 'High FT Volume']",71.78,1.86
+0022500440,1610612762,"['High Assists', 'High FT Volume']",78.34,1.68
+0022500440,1610612759,"['High Assists', 'High FT Volume']",78.34,1.4
+0022500441,1610612761,"['High Assists', 'High Rebounds']",90.62,1.64
+0022500442,1610612760,"['High Rebounds', 'High FT Volume']",74.12,1.87
+0022500442,1610612755,"['High Rebounds', 'High FT Volume']",74.12,1.31
+0022500444,1610612757,"['High Rebounds', 'High FT Volume']",81.8,1.42
+0022500445,1610612765,"['High Rebounds', 'High FT Volume']",74.54,1.59
+0022500447,1610612766,"['High Assists', 'High Rebounds', 'High FT Volume']",71.24,1.6
+0022500447,1610612749,"['High Assists', 'High FT Volume']",71.24,1.72
+0022500449,1610612751,"['High Rebounds', 'High FT Volume']",66.54,1.48
+0022500450,1610612748,"['High Assists', 'High Rebounds', 'High FT Volume']",72.9,2.22
+0022500450,1610612743,"['High Assists', 'High FT Volume']",72.9,1.54
+0022500452,1610612750,"['High Assists', 'High FT Volume']",63.58,2.19
+0022500453,1610612754,"['High Assists', 'High FT Volume']",71.18,1.76
+0022500453,1610612745,"['High Rebounds', 'High FT Volume']",71.18,1.69
+0022500456,1610612739,"['High Assists', 'High FT Volume']",86.82,1.33
+0022500457,1610612757,"['High Rebounds', 'High FT Volume']",75.62,1.55
+0022500457,1610612742,"['High Assists', 'High FT Volume']",75.62,1.73
+0022500458,1610612763,"['High Assists', 'High FT Volume']",98.16,1.52
+0022500459,1610612762,"['High Assists', 'High FT Volume']",78.56,1.45
+0022500460,1610612765,"['High Assists', 'High FT Volume']",80.2,1.84
+0022500460,1610612747,"['High Assists', 'High FT Volume']",80.2,1.17
+0022500461,1610612746,"['High Assists', 'High FT Volume']",65.12,1.9
+0022500462,1610612744,"['High Assists', 'High FT Volume']",77.48,1.96
+0022500463,1610612750,"['High Rebounds', 'High FT Volume']",68.48,1.57
+0022500463,1610612737,"['High Assists', 'High Rebounds']",68.48,1.75
+0022500464,1610612753,"['High Assists', 'High FT Volume']",85.2,1.21
+0022500465,1610612739,"['High Assists', 'High Rebounds', 'High FT Volume']",78.86,1.73
+0022500466,1610612741,"['High Assists', 'High FT Volume']",78.92,1.74
+0022500467,1610612752,"['High Assists', 'High FT Volume']",80.7,1.84
+0022500469,1610612764,"['High Assists', 'High FT Volume']",77.24,1.66
+0022500469,1610612749,"['High Rebounds', 'High FT Volume']",77.24,1.32
+0022500470,1610612760,"['High Assists', 'High FT Volume']",78.96,1.6

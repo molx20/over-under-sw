@@ -1338,6 +1338,32 @@ def game_detail():
             print(f'[game_detail] Warning: Failed to calculate empty possessions: {e}')
             traceback.print_exc()
 
+        # Calculate opponent resistance metrics
+        opponent_resistance_data = None
+        try:
+            from api.utils.opponent_resistance import get_expected_matchup_metrics
+            # Determine as_of_date from game date or use current date
+            game_date_str = game.get('game_date', '2026-01-02')
+            if 'T' in game_date_str:
+                as_of_date = game_date_str.split('T')[0]
+            else:
+                as_of_date = game_date_str[:10] if len(game_date_str) >= 10 else '2026-01-02'
+
+            opponent_resistance_data = get_expected_matchup_metrics(
+                team_id=int(home_team_id),
+                opp_id=int(away_team_id),
+                season='2025-26',
+                as_of_date=as_of_date
+            )
+            if opponent_resistance_data:
+                print(f'[game_detail] Opponent resistance data calculated successfully')
+            else:
+                print(f'[game_detail] Opponent resistance data unavailable')
+        except Exception as e:
+            import traceback
+            print(f'[game_detail] Warning: Failed to calculate opponent resistance: {e}')
+            traceback.print_exc()
+
         response = {
             'success': True,
             'home_team': {
@@ -1354,6 +1380,7 @@ def game_detail():
             'matchup_summary': matchup_summary,
             'scoring_environment': scoring_environment,
             'empty_possessions': empty_possessions_data,
+            'opponent_resistance': opponent_resistance_data,
             'home_stats': {
                 # Use field names that match frontend expectations
                 'ppg': round(home_overall.get('PTS', 0), 1),
@@ -1640,6 +1667,75 @@ def game_detail():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/game_possession_insights')
+def get_game_possession_insights():
+    """
+    Get possession insights for a specific game
+
+    Provides 4 sections of possession-only analysis:
+    1. What drives this matchup (Top 3 possession drivers)
+    2. Spread/Margin lens (Opportunity differential percentile)
+    3. Total lens (Combined empty possessions)
+    4. Prop lanes (Rebounds/FT/Assists lanes)
+
+    Query params:
+        - game_id (required): NBA game ID
+        - season (optional): Season string (default: '2025-26')
+
+    Returns:
+        {
+            success: true,
+            data: {
+                home_team: {...},
+                away_team: {...},
+                metadata: {...}
+            }
+        }
+    """
+    from api.utils.game_possession_insights import get_or_generate_insights
+
+    game_id = request.args.get('game_id')
+    season = request.args.get('season', '2025-26')
+
+    if not game_id:
+        return jsonify({
+            'success': False,
+            'error': 'game_id is required'
+        }), 400
+
+    try:
+        insights = get_or_generate_insights(game_id, season)
+
+        if not insights:
+            return jsonify({
+                'success': False,
+                'error': 'Unable to generate possession insights for this game'
+            }), 500
+
+        # Check if insights contains an error
+        if isinstance(insights, dict) and 'error' in insights:
+            return jsonify({
+                'success': False,
+                'error': insights['error'],
+                'message': insights.get('message', 'Unable to generate insights')
+            }), 200  # Return 200 with error details for expected failures
+
+        return jsonify({
+            'success': True,
+            'data': insights
+        })
+
+    except Exception as e:
+        import traceback
+        print(f'[game_possession_insights] Error: {e}')
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 @app.route('/api/team-stats-with-ranks')
 def team_stats_with_ranks():

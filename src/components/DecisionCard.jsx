@@ -41,13 +41,6 @@ function DecisionCard({
 
   const callStyle = callStyles[decision.call] || callStyles.PASS
 
-  // Confidence badge color
-  const confidenceColors = {
-    HIGH: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    MEDIUM: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    LOW: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-  }
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Call Badge (Large Header) */}
@@ -63,17 +56,9 @@ function DecisionCard({
           </svg>
         </button>
 
-        <div className="flex flex-col items-center gap-2">
-          <h2 className={`text-3xl sm:text-4xl font-bold ${callStyle.text}`}>
-            {decision.call}
-          </h2>
-          <div className={`
-            px-4 py-2 rounded-full text-sm font-semibold
-            ${confidenceColors[decision.confidenceLabel]}
-          `}>
-            {decision.confidenceLabel} CONFIDENCE ({decision.confidence}%)
-          </div>
-        </div>
+        <h2 className={`text-3xl sm:text-4xl font-bold ${callStyle.text}`}>
+          {decision.call}
+        </h2>
       </div>
 
       {/* Content */}
@@ -107,19 +92,9 @@ function DecisionCard({
             <div className="flex items-start gap-3">
               <span className="text-2xl">🎯</span>
               <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-primary-900 dark:text-primary-100">
-                    Archetype Matchup
-                  </h3>
-                  <span className={`
-                    px-2 py-0.5 rounded text-xs font-medium
-                    ${archetype.confidence === 'high' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : ''}
-                    ${archetype.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : ''}
-                    ${archetype.confidence === 'low' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : ''}
-                  `}>
-                    {archetype.confidence} ({archetype.sample_size || 0} games)
-                  </span>
-                </div>
+                <h3 className="text-sm font-semibold text-primary-900 dark:text-primary-100">
+                  Archetype Matchup
+                </h3>
                 <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                   {archetype.cluster_name}
                 </p>
