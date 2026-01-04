@@ -41,13 +41,17 @@ def _get_db_connection() -> sqlite3.Connection:
     return conn
 
 
-def _calculate_possessions(row: Dict) -> float:
+def _calculate_possessions(row: Dict, fta_coefficient: float = 0.44) -> float:
     """
     Calculate possessions estimate from box score
-    possessions_est = FGA + 0.44*FTA - OREB + TO
+    possessions_est = FGA + fta_coefficient*FTA - OREB + TO
+
+    Args:
+        row: Game data dictionary
+        fta_coefficient: Learned FTA weight (default 0.44 for backwards compatibility)
     """
     try:
-        return row['fga'] + 0.44 * row['fta'] - row['offensive_rebounds'] + row['turnovers']
+        return row['fga'] + fta_coefficient * row['fta'] - row['offensive_rebounds'] + row['turnovers']
     except (KeyError, TypeError):
         # Fallback to database possessions if available
         return row.get('possessions', 0)
@@ -70,7 +74,8 @@ def get_team_identity(
     team_id: int,
     season: str = '2025-26',
     as_of_date: str = '2026-01-02',
-    window: str = 'season'
+    window: str = 'season',
+    fta_coefficient: Optional[float] = None
 ) -> Dict:
     """
     Get team's possession identity metrics
@@ -80,6 +85,7 @@ def get_team_identity(
         season: Season string
         as_of_date: Calculate metrics up to this date
         window: 'season' or 'last5'
+        fta_coefficient: Optional learned FTA coefficient (loaded if None)
 
     Returns:
         {
@@ -93,6 +99,16 @@ def get_team_identity(
             'empty_rate': float,  # empty / possessions
         }
     """
+    # Load learned coefficients if not provided
+    if fta_coefficient is None:
+        try:
+            from api.utils.coefficient_learner import get_active_coefficients
+            coeffs = get_active_coefficients(season)
+            fta_coefficient = coeffs['fta_coefficient']
+        except (ImportError, ValueError, KeyError):
+            logger.warning("[opponent_resistance] Could not load learned coefficients, using default 0.44")
+            fta_coefficient = 0.44
+
     conn = _get_db_connection()
     cursor = conn.cursor()
 
@@ -139,7 +155,7 @@ def get_team_identity(
     total_empty = 0
 
     for game in games:
-        poss = game.get('possessions', _calculate_possessions(game))
+        poss = game.get('possessions', _calculate_possessions(game, fta_coefficient))
         total_possessions += poss
         total_to += game['turnovers']
         total_oreb += game['offensive_rebounds']
@@ -368,11 +384,25 @@ def get_expected_matchup_metrics(
             }
         }
     """
-    # Get all metrics for both windows
-    team_identity_season = get_team_identity(team_id, season, as_of_date, 'season')
-    team_identity_last5 = get_team_identity(team_id, season, as_of_date, 'last5')
-    opp_identity_season = get_team_identity(opp_id, season, as_of_date, 'season')
-    opp_identity_last5 = get_team_identity(opp_id, season, as_of_date, 'last5')
+    # Load learned coefficients
+    try:
+        from api.utils.coefficient_learner import get_active_coefficients
+        coeffs = get_active_coefficients(season)
+        fta_coefficient = coeffs['fta_coefficient']
+        blend_weight_team = coeffs['blend_weight_team']
+        blend_weight_opp = coeffs['blend_weight_opp']
+        logger.info(f"[opponent_resistance] Using learned coefficients: FTA={fta_coefficient:.4f}, Blend={blend_weight_team:.2f}/{blend_weight_opp:.2f}")
+    except (ImportError, ValueError, KeyError) as e:
+        logger.warning(f"[opponent_resistance] Could not load learned coefficients: {e}. Using defaults.")
+        fta_coefficient = 0.44
+        blend_weight_team = 0.5
+        blend_weight_opp = 0.5
+
+    # Get all metrics for both windows (pass fta_coefficient)
+    team_identity_season = get_team_identity(team_id, season, as_of_date, 'season', fta_coefficient)
+    team_identity_last5 = get_team_identity(team_id, season, as_of_date, 'last5', fta_coefficient)
+    opp_identity_season = get_team_identity(opp_id, season, as_of_date, 'season', fta_coefficient)
+    opp_identity_last5 = get_team_identity(opp_id, season, as_of_date, 'last5', fta_coefficient)
 
     # Get opponent resistance (from defensive perspective)
     team_resistance_season = get_opponent_resistance(team_id, season, as_of_date, 'season')
@@ -386,10 +416,13 @@ def get_expected_matchup_metrics(
         return None
 
     # === SEASON WINDOW ===
-    # Team A expected metrics (blend team A identity with team B resistance)
-    team_expected_to_season = (team_identity_season['to_pct'] + opp_resistance_season['opp_forces_to_pct']) / 2
-    team_expected_oreb_season = (team_identity_season['oreb_pct'] + opp_resistance_season['opp_oreb_allowed_pct']) / 2
-    team_expected_ftr_season = (team_identity_season['ftr'] + opp_resistance_season['opp_ftr_allowed']) / 2
+    # Team A expected metrics (blend team A identity with team B resistance using learned weights)
+    team_expected_to_season = (blend_weight_team * team_identity_season['to_pct'] +
+                                blend_weight_opp * opp_resistance_season['opp_forces_to_pct'])
+    team_expected_oreb_season = (blend_weight_team * team_identity_season['oreb_pct'] +
+                                  blend_weight_opp * opp_resistance_season['opp_oreb_allowed_pct'])
+    team_expected_ftr_season = (blend_weight_team * team_identity_season['ftr'] +
+                                 blend_weight_opp * opp_resistance_season['opp_ftr_allowed'])
     team_expected_ftr_delta_season = team_expected_ftr_season - team_identity_season['ftr']
 
     team_empty_season = compute_expected_empty(
@@ -400,10 +433,13 @@ def get_expected_matchup_metrics(
         mode='index'
     )
 
-    # Team B expected metrics (blend team B identity with team A resistance)
-    opp_expected_to_season = (opp_identity_season['to_pct'] + team_resistance_season['opp_forces_to_pct']) / 2
-    opp_expected_oreb_season = (opp_identity_season['oreb_pct'] + team_resistance_season['opp_oreb_allowed_pct']) / 2
-    opp_expected_ftr_season = (opp_identity_season['ftr'] + team_resistance_season['opp_ftr_allowed']) / 2
+    # Team B expected metrics (blend team B identity with team A resistance using learned weights)
+    opp_expected_to_season = (blend_weight_team * opp_identity_season['to_pct'] +
+                               blend_weight_opp * team_resistance_season['opp_forces_to_pct'])
+    opp_expected_oreb_season = (blend_weight_team * opp_identity_season['oreb_pct'] +
+                                 blend_weight_opp * team_resistance_season['opp_oreb_allowed_pct'])
+    opp_expected_ftr_season = (blend_weight_team * opp_identity_season['ftr'] +
+                                blend_weight_opp * team_resistance_season['opp_ftr_allowed'])
     opp_expected_ftr_delta_season = opp_expected_ftr_season - opp_identity_season['ftr']
 
     opp_empty_season = compute_expected_empty(
@@ -415,9 +451,12 @@ def get_expected_matchup_metrics(
     )
 
     # === LAST5 WINDOW ===
-    team_expected_to_last5 = (team_identity_last5['to_pct'] + opp_resistance_last5['opp_forces_to_pct']) / 2
-    team_expected_oreb_last5 = (team_identity_last5['oreb_pct'] + opp_resistance_last5['opp_oreb_allowed_pct']) / 2
-    team_expected_ftr_last5 = (team_identity_last5['ftr'] + opp_resistance_last5['opp_ftr_allowed']) / 2
+    team_expected_to_last5 = (blend_weight_team * team_identity_last5['to_pct'] +
+                               blend_weight_opp * opp_resistance_last5['opp_forces_to_pct'])
+    team_expected_oreb_last5 = (blend_weight_team * team_identity_last5['oreb_pct'] +
+                                 blend_weight_opp * opp_resistance_last5['opp_oreb_allowed_pct'])
+    team_expected_ftr_last5 = (blend_weight_team * team_identity_last5['ftr'] +
+                                blend_weight_opp * opp_resistance_last5['opp_ftr_allowed'])
     team_expected_ftr_delta_last5 = team_expected_ftr_last5 - team_identity_last5['ftr']
 
     team_empty_last5 = compute_expected_empty(
@@ -428,9 +467,12 @@ def get_expected_matchup_metrics(
         mode='index'
     )
 
-    opp_expected_to_last5 = (opp_identity_last5['to_pct'] + team_resistance_last5['opp_forces_to_pct']) / 2
-    opp_expected_oreb_last5 = (opp_identity_last5['oreb_pct'] + team_resistance_last5['opp_oreb_allowed_pct']) / 2
-    opp_expected_ftr_last5 = (opp_identity_last5['ftr'] + team_resistance_last5['opp_ftr_allowed']) / 2
+    opp_expected_to_last5 = (blend_weight_team * opp_identity_last5['to_pct'] +
+                              blend_weight_opp * team_resistance_last5['opp_forces_to_pct'])
+    opp_expected_oreb_last5 = (blend_weight_team * opp_identity_last5['oreb_pct'] +
+                                blend_weight_opp * team_resistance_last5['opp_oreb_allowed_pct'])
+    opp_expected_ftr_last5 = (blend_weight_team * opp_identity_last5['ftr'] +
+                               blend_weight_opp * team_resistance_last5['opp_ftr_allowed'])
     opp_expected_ftr_delta_last5 = opp_expected_ftr_last5 - opp_identity_last5['ftr']
 
     opp_empty_last5 = compute_expected_empty(
@@ -498,4 +540,85 @@ def get_expected_matchup_metrics(
             'opp_expected_empty_index_last5': opp_empty_last5['expected_empty_index'],
             'empty_edge_index_last5': round(empty_edge_last5, 1),
         }
+    }
+
+
+def calculate_pregame_projections(
+    team_identity: Dict,
+    opp_identity: Dict,
+    expected_metrics: Dict
+) -> Dict:
+    """
+    Calculate pregame possession count projections
+
+    Translates rates and expected changes into actual possession counts
+    for pregame analysis.
+
+    Args:
+        team_identity: Home team's season identity metrics
+        opp_identity: Away team's season identity metrics
+        expected_metrics: Expected matchup metrics from get_expected_matchup_metrics()
+
+    Returns:
+        {
+            'projected_game_possessions': float,
+            'home_projected_team_possessions': float,
+            'away_projected_team_possessions': float,
+            'home_expected_empty_possessions': float,
+            'away_expected_empty_possessions': float,
+            'home_expected_scoring_possessions': float,
+            'away_expected_scoring_possessions': float,
+            'expected_empty_possessions_game': float,
+            'expected_empty_rate': float,
+            'league_avg_empty_rate': float
+        }
+    """
+    # Get team avg possessions from identity
+    home_poss = team_identity['avg_possessions']
+    away_poss = opp_identity['avg_possessions']
+    game_poss = home_poss + away_poss
+
+    # Calculate expected empty possessions using TO and OREB deltas
+    home_to_delta = expected_metrics['team_expected_to_pct_season'] - team_identity['to_pct']
+    home_oreb_delta = expected_metrics['team_expected_oreb_pct_season'] - team_identity['oreb_pct']
+
+    # Translate deltas to possession counts
+    # TO impact: additional turnovers create more empty possessions
+    home_empty_from_to = home_poss * (home_to_delta / 100)
+
+    # OREB impact: fewer OREBs = more empty possessions (negative delta means fewer empties)
+    # Using 0.55 misses per possession as temporary placeholder
+    MISSES_PER_POSSESSION = 0.55
+    home_empty_from_oreb = -(home_poss * MISSES_PER_POSSESSION * (home_oreb_delta / 100))
+
+    # Base empty possessions + adjustments
+    home_baseline_empty = (team_identity['empty_rate'] / 100) * home_poss
+    home_expected_empty = home_baseline_empty + home_empty_from_to + home_empty_from_oreb
+
+    # Same for away team
+    away_to_delta = expected_metrics['opp_expected_to_pct_season'] - opp_identity['to_pct']
+    away_oreb_delta = expected_metrics['opp_expected_oreb_pct_season'] - opp_identity['oreb_pct']
+    away_empty_from_to = away_poss * (away_to_delta / 100)
+    away_empty_from_oreb = -(away_poss * MISSES_PER_POSSESSION * (away_oreb_delta / 100))
+    away_baseline_empty = (opp_identity['empty_rate'] / 100) * away_poss
+    away_expected_empty = away_baseline_empty + away_empty_from_to + away_empty_from_oreb
+
+    # Game totals
+    game_expected_empty = home_expected_empty + away_expected_empty
+    game_empty_rate = (game_expected_empty / game_poss) * 100
+
+    # League average (calculate from season data - placeholder for now)
+    league_avg_empty_rate = 42.0  # TODO: Calculate from actual season data
+
+    return {
+        'projected_game_possessions': round(game_poss, 1),
+        'home_projected_team_possessions': round(home_poss, 1),
+        'away_projected_team_possessions': round(away_poss, 1),
+        'home_expected_empty_possessions': round(home_expected_empty, 1),
+        'away_expected_empty_possessions': round(away_expected_empty, 1),
+        'home_expected_scoring_possessions': round(home_poss - home_expected_empty, 1),
+        'away_expected_scoring_possessions': round(away_poss - away_expected_empty, 1),
+        'expected_empty_possessions_game': round(game_expected_empty, 1),
+        'expected_empty_rate': round(game_empty_rate, 1),
+        'league_avg_empty_rate': league_avg_empty_rate
     }

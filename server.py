@@ -1357,6 +1357,47 @@ def game_detail():
             )
             if opponent_resistance_data:
                 print(f'[game_detail] Opponent resistance data calculated successfully')
+
+                # Calculate pregame projections
+                try:
+                    from api.utils.opponent_resistance import calculate_pregame_projections
+                    projections = calculate_pregame_projections(
+                        opponent_resistance_data['team']['season'],
+                        opponent_resistance_data['opp']['season'],
+                        opponent_resistance_data['expected']
+                    )
+
+                    # Add projections to opponent_resistance_data
+                    opponent_resistance_data['projections'] = projections
+
+                    # Also add to empty_possessions_data for frontend compatibility
+                    if empty_possessions_data:
+                        empty_possessions_data['projected_game_possessions'] = projections['projected_game_possessions']
+                        empty_possessions_data['expected_empty_possessions_game'] = projections['expected_empty_possessions_game']
+                        empty_possessions_data['expected_empty_rate'] = projections['expected_empty_rate']
+                        empty_possessions_data['league_avg_empty_rate'] = projections['league_avg_empty_rate']
+
+                        # Add per-team projections
+                        if 'home_team' not in empty_possessions_data:
+                            empty_possessions_data['home_team'] = {}
+                        if 'away_team' not in empty_possessions_data:
+                            empty_possessions_data['away_team'] = {}
+
+                        empty_possessions_data['home_team']['projected_team_possessions'] = projections['home_projected_team_possessions']
+                        empty_possessions_data['home_team']['expected_empty_possessions'] = projections['home_expected_empty_possessions']
+                        empty_possessions_data['home_team']['expected_scoring_possessions'] = projections['home_expected_scoring_possessions']
+
+                        empty_possessions_data['away_team']['projected_team_possessions'] = projections['away_projected_team_possessions']
+                        empty_possessions_data['away_team']['expected_empty_possessions'] = projections['away_expected_empty_possessions']
+                        empty_possessions_data['away_team']['expected_scoring_possessions'] = projections['away_expected_scoring_possessions']
+
+                    print(f'[game_detail] Pregame projections calculated successfully')
+
+                except Exception as proj_err:
+                    print(f'[game_detail] Warning: Failed to calculate pregame projections: {proj_err}')
+                    import traceback
+                    traceback.print_exc()
+
             else:
                 print(f'[game_detail] Opponent resistance data unavailable')
         except Exception as e:

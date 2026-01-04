@@ -528,6 +528,88 @@ def migrate_to_v12_possession_insights():
     print('[db_migrations] Possession insights cache table ready for use')
 
 
+def migrate_to_v13_learned_coefficients():
+    """
+    Migrate nba_data.db to support learned coefficients for possession calculations
+
+    Adds:
+    - learned_coefficients table for storing data-driven formula coefficients
+    - coefficient_set_id (PRIMARY KEY): Unique identifier (e.g., '2025-26_v1')
+    - season: NBA season (e.g., '2025-26')
+    - version: Version tag for iterative improvements
+    - a3, b3, a2, b2: Shooting adjustment coefficients (Option B approach)
+    - fta_coefficient: FTA weight in possession formula (replaces hardcoded 0.44)
+    - blend_weight_team, blend_weight_opp: Blending weights (replace hardcoded 0.88/0.12)
+    - Quality metrics: R² scores, training window, games count
+    - is_active: Flag to mark currently active coefficient set
+
+    Safe to run multiple times - will skip if table exists
+    """
+    print('[db_migrations] Running NBA data migration v13 (learned_coefficients)...')
+
+    with _get_connection_nba_data() as conn:
+        cursor = conn.cursor()
+
+        # Create learned_coefficients table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS learned_coefficients (
+                coefficient_set_id TEXT PRIMARY KEY,
+                season TEXT NOT NULL,
+                version TEXT NOT NULL,
+
+                -- Shooting adjustment (Option B)
+                a3 REAL NOT NULL,
+                b3 REAL NOT NULL,
+                a2 REAL NOT NULL,
+                b2 REAL NOT NULL,
+
+                -- Possession formula
+                fta_coefficient REAL NOT NULL,
+
+                -- Blend weights
+                blend_weight_team REAL NOT NULL,
+                blend_weight_opp REAL NOT NULL,
+
+                -- Quality metrics
+                training_window_start TEXT NOT NULL,
+                training_window_end TEXT NOT NULL,
+                games_count INTEGER NOT NULL,
+                r_squared_3p REAL,
+                r_squared_2p REAL,
+                r_squared_poss REAL,
+
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 0
+            )
+        ''')
+        print('[db_migrations] learned_coefficients table created')
+
+        # Create index on season + is_active for fast active coefficient lookup
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_learned_coeffs_season_active
+                ON learned_coefficients(season, is_active)
+            """)
+            print('[db_migrations] Created index: idx_learned_coeffs_season_active')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_learned_coeffs_season_active already exists')
+
+        # Create index on created_at for versioning queries
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_learned_coeffs_created
+                ON learned_coefficients(created_at DESC)
+            """)
+            print('[db_migrations] Created index: idx_learned_coeffs_created')
+        except sqlite3.OperationalError:
+            print('[db_migrations] Index idx_learned_coeffs_created already exists')
+
+        conn.commit()
+
+    print('[db_migrations] Migration v13 completed successfully')
+    print('[db_migrations] Learned coefficients table ready for use')
+
+
 if __name__ == '__main__':
     # Run migration when executed directly
     print('=== Database Migration Tool ===')
@@ -557,5 +639,6 @@ if __name__ == '__main__':
     migrate_to_v10_enhance_sync_log()
     migrate_to_v11_ai_game_writeups()
     migrate_to_v12_possession_insights()
+    migrate_to_v13_learned_coefficients()
     print()
     print('All migrations complete!')
