@@ -25,9 +25,11 @@ logger = logging.getLogger(__name__)
 try:
     from api.utils.db_config import get_db_path
     from api.utils.possession_dataset_builder import build_possession_dataset
+    from api.utils.ppp_aggregator import get_team_ppp_metrics
 except ImportError:
     from db_config import get_db_path
     from possession_dataset_builder import build_possession_dataset
+    from ppp_aggregator import get_team_ppp_metrics
 
 NBA_DATA_DB_PATH = get_db_path('nba_data.db')
 
@@ -213,6 +215,46 @@ def _generate_section_4_prop_lanes(team_row: pd.Series, opp_row: pd.Series, team
     }
 
 
+def _generate_ppp_metrics(team_id: int, season: str) -> Optional[Dict]:
+    """
+    Generate PPP metrics section for a team.
+
+    Fetches from team_season_stats:
+    - ppp_season
+    - ppp_last10
+    - ppp_last10_games (to show if < 10)
+
+    Args:
+        team_id: Team ID
+        season: Season string (e.g., '2025-26')
+
+    Returns:
+        {
+            'ppp_season': 1.12,
+            'ppp_last10': 1.15,
+            'ppp_last10_games': 10,
+            'active_projection': 'blended'  # "60% Last10 + 40% Season"
+        }
+        Or None if data not available
+    """
+    try:
+        ppp_metrics = get_team_ppp_metrics(team_id, season, split_type='overall')
+
+        if not ppp_metrics:
+            return None
+
+        return {
+            'ppp_season': ppp_metrics['ppp_season'],
+            'ppp_last10': ppp_metrics['ppp_last10'],
+            'ppp_last10_games': ppp_metrics['ppp_last10_games'],
+            'active_projection': 'blended'  # Can be made configurable later
+        }
+
+    except Exception as e:
+        logger.warning(f"[_generate_ppp_metrics] Failed to fetch PPP metrics for team {team_id}: {e}")
+        return None
+
+
 def generate_game_possession_insights(game_id: str, season: str = '2025-26') -> Optional[Dict]:
     """
     Generate possession insights for a specific game
@@ -344,7 +386,8 @@ def generate_game_possession_insights(game_id: str, season: str = '2025-26') -> 
             'section_1_drivers': _generate_section_1_drivers(home_row, away_row, home_team_name, away_team_name),
             'section_2_spread': _generate_section_2_spread_lens(home_row, df, home_team_name),
             'section_3_total': _generate_section_3_total_lens(home_row, away_row, df),
-            'section_4_props': _generate_section_4_prop_lanes(home_row, away_row, home_team_name)
+            'section_4_props': _generate_section_4_prop_lanes(home_row, away_row, home_team_name),
+            'ppp_metrics': _generate_ppp_metrics(home_team_id, season)
         }
 
         away_insights = {
@@ -353,7 +396,8 @@ def generate_game_possession_insights(game_id: str, season: str = '2025-26') -> 
             'section_1_drivers': _generate_section_1_drivers(away_row, home_row, away_team_name, home_team_name),
             'section_2_spread': _generate_section_2_spread_lens(away_row, df, away_team_name),
             'section_3_total': _generate_section_3_total_lens(away_row, home_row, df),
-            'section_4_props': _generate_section_4_prop_lanes(away_row, home_row, away_team_name)
+            'section_4_props': _generate_section_4_prop_lanes(away_row, home_row, away_team_name),
+            'ppp_metrics': _generate_ppp_metrics(away_team_id, season)
         }
 
         # Step 6: Return structured JSON

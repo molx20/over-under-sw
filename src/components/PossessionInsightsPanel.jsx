@@ -133,6 +133,9 @@ function TeamInsightsCard({ team, insights }) {
         {/* Section 1: What Drives This Matchup */}
         <Section1Drivers drivers={insights.section_1_drivers} />
 
+        {/* PPP Metrics Section */}
+        <SectionPPPMetrics pppMetrics={insights.ppp_metrics} />
+
         {/* Section 2: Total Lens */}
         <Section3TotalLens total={insights.section_3_total} />
       </div>
@@ -159,6 +162,67 @@ function Section1Drivers({ drivers }) {
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * Section: PPP Metrics
+ */
+function SectionPPPMetrics({ pppMetrics }) {
+  if (!pppMetrics) return null
+
+  const { ppp_season, ppp_last10, ppp_last10_games, active_projection } = pppMetrics
+
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+        Points Per Possession (PPP)
+        <button
+          className="group relative"
+          title="PPP reflects how efficiently a team converts possessions into points."
+        >
+          <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 w-64">
+            PPP reflects how efficiently a team converts possessions into points. Pace without PPP leads to inflated totals.
+          </span>
+        </button>
+      </h4>
+
+      <div className="space-y-2">
+        {/* Season PPP */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Season PPP</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-white">
+            {ppp_season ? ppp_season.toFixed(3) : 'N/A'}
+          </span>
+        </div>
+
+        {/* Last 10 PPP */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Last 10 PPP</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-white">
+            {ppp_last10 ? ppp_last10.toFixed(3) : 'N/A'}
+            {ppp_last10_games && ppp_last10_games < 10 && (
+              <span className="text-xs text-yellow-600 dark:text-yellow-400 ml-1">
+                ({ppp_last10_games} games)
+              </span>
+            )}
+          </span>
+        </div>
+
+        {/* Active Projection Badge */}
+        <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-600">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600 dark:text-gray-400">Active in Projection:</span>
+            <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200 rounded-full font-medium">
+              60% Last10 + 40% Season
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

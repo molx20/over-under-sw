@@ -610,6 +610,58 @@ def migrate_to_v13_learned_coefficients():
     print('[db_migrations] Learned coefficients table ready for use')
 
 
+def migrate_to_v14_ppp_metrics():
+    """
+    Migrate nba_data.db to support PPP (Points Per Possession) metrics
+
+    Adds to team_season_stats:
+    - ppp_season: Full season PPP (SUM(points) / SUM(possessions))
+    - ppp_last10: Rolling 10-game PPP
+    - ppp_last5: Rolling 5-game PPP (optional, for analysis)
+    - ppp_last10_games: Actual number of games used for last 10 calculation
+    - ppp_last5_games: Actual number of games used for last 5 calculation
+    - ppp_updated_at: Timestamp of last PPP update
+
+    Safe to run multiple times - will skip existing columns
+    """
+    print('[db_migrations] Running NBA data migration v14 (ppp_metrics)...')
+
+    with _get_connection_nba_data() as conn:
+        cursor = conn.cursor()
+
+        # Add PPP columns
+        new_columns = [
+            ('ppp_season', 'REAL'),
+            ('ppp_last10', 'REAL'),
+            ('ppp_last5', 'REAL'),
+            ('ppp_last10_games', 'INTEGER', 0),
+            ('ppp_last5_games', 'INTEGER', 0),
+            ('ppp_updated_at', 'TEXT')
+        ]
+
+        for col_info in new_columns:
+            col_name = col_info[0]
+            col_type = col_info[1]
+            default_val = col_info[2] if len(col_info) > 2 else None
+
+            try:
+                if default_val is not None:
+                    cursor.execute(f'ALTER TABLE team_season_stats ADD COLUMN {col_name} {col_type} DEFAULT {default_val}')
+                else:
+                    cursor.execute(f'ALTER TABLE team_season_stats ADD COLUMN {col_name} {col_type} DEFAULT NULL')
+                print(f'[db_migrations] Added column: {col_name}')
+            except sqlite3.OperationalError as e:
+                if "duplicate column" in str(e).lower():
+                    print(f'[db_migrations] Column {col_name} already exists, skipping')
+                else:
+                    raise
+
+        conn.commit()
+
+    print('[db_migrations] Migration v14 completed successfully')
+    print('[db_migrations] PPP metrics columns ready in team_season_stats')
+
+
 if __name__ == '__main__':
     # Run migration when executed directly
     print('=== Database Migration Tool ===')
@@ -640,5 +692,6 @@ if __name__ == '__main__':
     migrate_to_v11_ai_game_writeups()
     migrate_to_v12_possession_insights()
     migrate_to_v13_learned_coefficients()
+    migrate_to_v14_ppp_metrics()
     print()
     print('All migrations complete!')
