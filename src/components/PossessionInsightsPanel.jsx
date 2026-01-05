@@ -136,6 +136,9 @@ function TeamInsightsCard({ team, insights }) {
         {/* PPP Metrics Section */}
         <SectionPPPMetrics pppMetrics={insights.ppp_metrics} />
 
+        {/* Divider */}
+        <div className="border-t-2 border-gray-300 dark:border-gray-600"></div>
+
         {/* Section 2: Total Lens */}
         <Section3TotalLens total={insights.section_3_total} />
       </div>
